@@ -15,3 +15,10 @@
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """cubicweb-container views/forms/actions/components for web ui"""
+
+from cubicweb.web import uicfg
+
+uicfg.autoform_section.tag_subject_of(('*', 'container_etype', '*'), 'main', 'hidden')
+uicfg.autoform_section.tag_attribute(('*', 'container_parent'), 'main', 'hidden')
+uicfg.primaryview_section.tag_subject_of(('*', 'container_etype', '*'), 'hidden')
+uicfg.primaryview_section.tag_attribute(('*', 'container_parent'), 'hidden')

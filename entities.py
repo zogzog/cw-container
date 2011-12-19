@@ -15,3 +15,64 @@
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """cubicweb-container entity's classes"""
+
+from logilab.common.decorators import cached, cachedproperty
+
+from cubicweb.entities import AnyEntity
+from cubicweb.view import EntityAdapter
+
+from cubes.container.utils import _composite_rschemas, yet_unset
+
+class Container(AnyEntity):
+    __abstract__ = True
+
+    # container API
+    container_rtype = None
+    container_skiprtypes = ()
+    container_computedrtypes = ()
+
+@cached
+def container_etypes(vreg):
+    return set(c.__regid__
+               for c, in vreg['etypes'].itervalues()
+               if getattr(c, 'container_rtype', False))
+
+class ContainerProtocol(EntityAdapter):
+    __regid__ = 'Container'
+    __container_etypes__ = None
+
+    @cachedproperty
+    def container_etypes(self):
+        return container_etypes(self._cw.vreg)
+
+    @property
+    def related_container(self):
+        if self.entity.e_schema in self.container_etypes:
+            return self.entity
+        try:
+            ccwetype = self.entity.container_etype
+        except AttributeError:
+            return None
+        if ccwetype:
+            etypes = self._cw.vreg['etypes']
+            crtype = etypes.etype_class(ccwetype[0].name).container_rtype
+            if hasattr(self.entity, crtype):
+                container = getattr(self.entity, crtype)
+                if container:
+                    return container[0]
+        parent = self.parent
+        if parent:
+            return parent.cw_adapt_to('Container').related_container
+
+    @property
+    def parent(self):
+        parent = self.entity.container_parent
+        return parent[0] if parent else None
+
+class MultiParentProtocol(EntityAdapter):
+    __regid__ = 'container.multiple_parents'
+    __select__ = yet_unset()
+
+    def possible_parent(self, rtype, eid):
+        pass
+

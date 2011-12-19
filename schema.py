@@ -15,3 +15,16 @@
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """cubicweb-container schema"""
+
+from yams.buildobjs import RelationType
+
+class container_etype(RelationType):
+    object = 'CWEtype'
+    cardinality='?*'
+    inlined = True
+
+class container_parent(RelationType):
+    object = 'Any'
+    cardinality='?*'
+    inlined = True
+
