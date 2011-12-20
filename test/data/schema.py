@@ -1,6 +1,5 @@
 from yams.buildobjs import EntityType, RelationDefinition, SubjectRelation, String, Int
 
-# triggers an important monkeypatch on the schema object
 from cubes.container import utils
 
 class Diamond(EntityType):
@@ -47,7 +46,7 @@ class to_mess(RelationDefinition):
     cardinality = '??'
 
 def post_build_callback(schema):
-    schema.define_container('Diamond', 'diamond')
-    schema.define_container('Mess', 'in_mess')
+    utils.define_container(schema, 'Diamond', 'diamond')
+    utils.define_container(schema, 'Mess', 'in_mess')
 
 
