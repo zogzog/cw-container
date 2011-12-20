@@ -15,6 +15,8 @@
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """cubicweb-container specific hooks and operations"""
+from collections import defaultdict
+
 from cubicweb import ValidationError
 from cubicweb.server.hook import Hook, DataOperationMixIn, Operation, match_rtype
 
@@ -73,21 +75,34 @@ class SetContainerParent(Hook):
 
 class AddContainerRelationOp(DataOperationMixIn, Operation):
     """ when all relations are set, we set rcase_of """
+    __cwetype_eid__ = {}
 
     def insert_index(self):
         """ we schedule ourselve ahead of all other operations """
         return 0
 
+    def _container_cwetype_eid(self, container):
+        etype = container.e_schema.type
+        if etype in self.__cwetype_eid__:
+            return self.__cwetype_eid__[etype]
+        eid = self.session.execute('CWEType T WHERE T name %(name)s',
+                                   {'name': etype}).rows[0][0]
+        self.__cwetype_eid__[etype] = eid
+        return eid
+
     def precommit_event(self):
         session = self.session
+        container_rtype_rel = defaultdict(list)
+        container_etype_rel = []
         for eid, peid in self.get_data():
             parent = session.entity_from_eid(peid)
             cprotocol = parent.cw_adapt_to('Container')
             container = cprotocol.related_container
             if container is None:
                 continue
-            # XXX move out of loop using add_relations
-            session.execute('SET E %s C WHERE C eid %%(c)s, E eid %%(e)s' % container.container_rtype,
-                            {'c': container.eid, 'e': eid})
-            session.execute('SET E container_etype T WHERE E eid %(e)s, T name %(cwetype)s',
-                            {'e': eid, 'cwetype': container.e_schema.type})
+            container_rtype_rel[container.container_rtype].append((eid, container.eid))
+            container_etype_rel.append((eid, self._container_cwetype_eid(container)))
+        if container_rtype_rel:
+            session.add_relations(container_rtype_rel.items())
+        if container_etype_rel:
+            session.add_relations([('container_etype', container_etype_rel)])
