@@ -39,15 +39,10 @@ def container_etypes(vreg):
 
 class ContainerProtocol(EntityAdapter):
     __regid__ = 'Container'
-    __container_etypes__ = None
-
-    @cachedproperty
-    def container_etypes(self):
-        return container_etypes(self._cw.vreg)
 
     @property
     def related_container(self):
-        if self.entity.e_schema in self.container_etypes:
+        if self.entity.e_schema in container_etypes(self._cw.vreg):
             return self.entity
         try:
             ccwetype = self.entity.container_etype
