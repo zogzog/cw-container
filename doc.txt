@@ -1,0 +1,87 @@
+
+Security Container
+------------------
+
+History
+-------
+
+The Pylos project. The Case entity.
+
+Container
+---------
+
+Definition & purpose
+--------------------
+
+A container is a graph of entity types and relation types.  It is
+defined by a root entity type and composite relations stemming
+directly and indirectly from this root, which form a rooted tree.
+
+The container contains:
+
+* all entity types reachable from the rooted tree,
+* all relation types between two entities belonging to the container.
+
+:Typical usages include:
+
+ * deleting a whole container in one operation
+ * cloning
+ * importing from and exporting to file formats (such as csv or excel)
+ * being a security scope ...
+
+The tree will usually be identified by/as the <Container>.
+
+Structure details
+-----------------
+
+All entity types within a container participate in a <container>
+relation type::
+
+ <Entity> <container> <Container>
+
+The <container> rtype is automatically maintained by a creation hook.
+
+Within a container, there exists a container_parent rtype that defines
+a concrete parent/child relationship leading up to the container root.
+
+This is also automatically set by a hook triggered on any container
+constituent rtype.
+
+While several composite relations can be allowed between an entity
+and container entities, at most one is allowed to be valued at
+a given time for normal entities.
+
+However there exist use cases for entities that are simultaneously
+engaged in composite relations with several other entities. The most
+general use case is the representation of n-ary relations or
+attribute-carrying relations, for which there is no direct/first-class
+support in CubicWeb.
+
+In the later case, the container_parent is set by default following
+the first established composite relation, but the parentage behaviour
+can be customized through the 'container.multiple_parents' adapter.
+
+Non composite relations from contained entities to non contained
+entities are boundary relations.
+
+Operations
+----------
+
+A clone operation can be defined over a parametrised subset of
+<container>. The scope of a clone is computed from an extensive etype
+list or using rtype boundaries.
+
+There exists an excel import/export format over a similarly delimited
+container subset.
+
+Security container
+------------------
+
+CWPermissions entities can be associated with a container.
+
+A security module can provide a simple security model where granting
+permissions (or roles) to container related user groups gives them these
+permissions accross all contained entities.
+
+More complicated security models can be grafted on containers but this
+is out of scope.
