@@ -1,14 +1,11 @@
-
-Security Container
-------------------
+===========
+ Container
+===========
 
 History
 -------
 
 The Pylos project. The Case entity.
-
-Container
----------
 
 Definition & purpose
 --------------------
@@ -20,7 +17,8 @@ directly and indirectly from this root, which form a rooted tree.
 The container contains:
 
 * all entity types reachable from the rooted tree,
-* all relation types between two entities belonging to the container.
+* all relation definitions between two entities belonging to the
+  container.
 
 :Typical usages include:
 
@@ -73,6 +71,9 @@ list or using rtype boundaries.
 
 There exists an excel import/export format over a similarly delimited
 container subset.
+
+A concrete implementation will be provided over time if there is
+popular demand for it.
 
 Security container
 ------------------
