@@ -118,7 +118,7 @@ def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=()
 
 def depends_on_etypes(schema, etype, cetype, crtype, computed_rtypes=()):
     """ finds all container etypes this one depends on to be built
-    XXX largely bogus """
+    XXX lacks a well defined dependency definition."""
     etypes = defaultdict(list)
     skipetypes = set((cetype,))
     # these should include rtypes
@@ -150,7 +150,8 @@ def linearize(etype_map, all_etypes):
                 # to complete the graph
                 etype_map[depetype] = dict()
     while independent:
-        indep_etype = independent.pop()
+        indep_etype = min(independent) # get next in ascii order
+        independent.remove(indep_etype)
         sorted_etypes.append(indep_etype)
         for etype, incoming in etype_map.items():
             if indep_etype in incoming:
