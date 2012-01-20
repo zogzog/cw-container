@@ -39,6 +39,6 @@ class SchemaContainerTC(CubicWebTC):
     def test_order(self):
         schema = self.vreg.schema
         self.assertEqual(utils.ordered_container_etypes(schema, 'Diamond', 'diamond'),
-                         ['Bottom', 'IAmAnAttributeCarryingRelation', 'Left', 'Right'])
+                         ['Left', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'])
         self.assertEqual(utils.ordered_container_etypes(schema, 'Mess', 'in_mess'),
-                         ['Bottom', 'CWGroup'])
+                         ['CWGroup', 'Bottom'])

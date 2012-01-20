@@ -1,12 +1,11 @@
 from collections import deque, defaultdict
-from itertools import chain
 from warnings import warn
 
-from logilab.common.decorators import monkeypatch, cached
+from logilab.common.decorators import cached
 
 from yams.buildobjs import RelationType, RelationDefinition
 
-from cubicweb.schema import CubicWebSchema
+from cubicweb import neg_role
 from cubicweb.appobject import Selector
 
 class yet_unset(Selector):
@@ -39,6 +38,11 @@ def parent_eschemas(eschema):
         if role != crole:
             for eschema in rschema.targets(role=role):
                 yield eschema
+
+def children_rschemas(eschema):
+    for rschema, role, crole in _composite_rschemas(eschema):
+        if role == crole:
+            yield rschema
 
 def define_container(schema, cetype, crtype, rtype_permissions=None):
     _rtypes, etypes = container_static_structure(schema, cetype, crtype)
@@ -116,24 +120,33 @@ def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=()
     return frozenset(rtypes), frozenset(etypes)
 
 
-def depends_on_etypes(schema, etype, cetype, crtype, computed_rtypes=()):
+def needed_etypes(schema, etype, cetype, crtype, computed_rtypes=()):
     """ finds all container etypes this one depends on to be built
-    XXX lacks a well defined dependency definition."""
+    start from all subject + object relations """
     etypes = defaultdict(list)
     skipetypes = set((cetype,))
     # these should include rtypes
     # that create cycles but actually are false dependencies
-    skiprtypes = set(computed_rtypes)
+    skiprtypes = set(computed_rtypes).union((crtype, 'container_etype', 'container_parent'))
     skiprtypes.add(crtype)
-    for rschema in schema[etype].subject_relations():
-        if rschema.meta or rschema.final:
+    eschema = schema[etype]
+    adjacent_rtypes = [(rschema.type, role)
+                       for role in ('subject', 'object')
+                       for rschema in getattr(eschema, '%s_relations' % role)()
+                       if not (rschema.meta or rschema.final or rschema.type in skiprtypes)]
+    children_rtypes = [r.type for r in children_rschemas(eschema)]
+    parent_etypes = set(parent_eschemas(eschema))
+    for rtype, role in adjacent_rtypes:
+        if rtype in children_rtypes:
             continue
-        if rschema.type in skiprtypes:
+        rdef = eschema.rdef(rtype, role)
+        target = getattr(rdef, neg_role(role))
+        if target.type in skipetypes:
             continue
-        for eschema in rschema.targets():
-            if eschema.type in skipetypes:
+        if target.type not in parent_etypes:
+            if rdef.cardinality[0 if role == 'subject' else 1] in '?*':
                 continue
-            etypes[eschema.type].append(rschema)
+        etypes[target.type].append((rdef, role))
     return etypes
 
 def linearize(etype_map, all_etypes):
@@ -175,29 +188,13 @@ def ordered_container_etypes(schema, cetype, crtype, skiprtypes=()):
         total_order += order
     return total_order + etype_map.keys()
 
-def rdef_exists(rschema, subj, obj):
-    return (subj, obj) in rschema.rdefs
-
-def break_cycles(etype_map, onlyloops=False):
-    """ for each etype mapping Foo -> Foo by <rtype1, rtype2, ...>)
-    we try to break the cycles/loops by checking if the rtypes are mandatory
-    """
-    for etype, depetype_rschemas in etype_map.items():
-        for depetype, rschemas in depetype_rschemas.items():
-            if onlyloops and etype != depetype:
-                continue
-            if all(rschema.rdef(etype, depetype).cardinality[0] in '?*'
-                   for rschema in rschemas
-                   if rdef_exists(rschema, etype, depetype)):
-                depetype_rschemas.pop(depetype)
-
 def container_etype_orders(schema, cetype, crtype, skiprtypes=()):
     """ computes linearizations and cycles of etypes within a container """
     _rtypes, etypes = container_static_structure(schema, cetype, crtype,
                                                  skiprtypes=skiprtypes)
     orders = []
-    etype_map = dict((etype, depends_on_etypes(schema, etype, cetype, crtype,
-                                               skiprtypes))
+    etype_map = dict((etype, needed_etypes(schema, etype, cetype, crtype,
+                                           skiprtypes))
                      for etype in etypes)
     maplen = len(etype_map)
     def _append_order():
@@ -205,10 +202,6 @@ def container_etype_orders(schema, cetype, crtype, skiprtypes=()):
         if neworder:
             orders.append(neworder)
     while etype_map:
-        _append_order()
-        break_cycles(etype_map, onlyloops=True)
-        _append_order()
-        break_cycles(etype_map)
         _append_order()
         if maplen == len(etype_map):
             break
