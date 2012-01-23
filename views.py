@@ -16,14 +16,35 @@
 
 """cubicweb-container views/forms/actions/components for web ui"""
 
+from cubicweb import schema
+from cubicweb.selectors import EClassSelector
 from cubicweb.web import uicfg
 
-uicfg.autoform_section.tag_subject_of(('*', 'container_etype', '*'), 'main', 'hidden')
-uicfg.autoform_section.tag_subject_of(('*', 'container_parent', '*'), 'main', 'hidden')
-uicfg.primaryview_section.tag_subject_of(('*', 'container_etype', '*'), 'hidden')
-uicfg.primaryview_section.tag_subject_of(('*', 'container_parent', '*'), 'hidden')
+from cubes.container import entities
 
-uicfg.autoform_section.tag_object_of(('*', 'container_etype', '*'), 'main', 'hidden')
-uicfg.autoform_section.tag_object_of(('*', 'container_parent', '*'), 'main', 'hidden')
-uicfg.primaryview_section.tag_object_of(('*', 'container_etype', '*'), 'hidden')
-uicfg.primaryview_section.tag_object_of(('*', 'container_parent', '*'), 'hidden')
+for rtype in ('container_etype', 'container_parent'):
+    uicfg.primaryview_section.tag_subject_of(('*', rtype, '*'), 'hidden')
+    uicfg.primaryview_section.tag_object_of(('*', rtype, '*'), 'hidden')
+
+    uicfg.autoform_section.tag_subject_of(('*', rtype, '*'), 'main', 'hidden')
+    uicfg.autoform_section.tag_object_of(('*', rtype, '*'), 'main', 'hidden')
+
+
+class is_container(EClassSelector):
+    etypes = set()
+
+    def score_class(self, eclass, req):
+        return eclass.__name__ in self.etypes
+
+def setup_container_ui(vreg):
+    # for all containers, put the <container> rtype in META
+    cetypes = entities.container_etypes(vreg)
+    is_container.etypes = cetypes
+    schema.META_RTYPES.update(vreg['etypes'].etype_class(etype).container_rtype
+                              for etype in cetypes)
+
+def registration_callback(vreg):
+    # Until cw.after-registry-load events become reliable
+    # this must be called in client cubes.
+    # setup_container_ui(vreg)
+    pass
