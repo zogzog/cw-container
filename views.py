@@ -34,7 +34,7 @@ class is_container(EClassSelector):
     etypes = set()
 
     def score_class(self, eclass, req):
-        return eclass.__name__ in self.etypes
+        return (eclass.__name__ in self.etypes) * 4
 
 def setup_container_ui(vreg):
     # for all containers, put the <container> rtype in META
