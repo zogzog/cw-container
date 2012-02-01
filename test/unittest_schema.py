@@ -1,3 +1,4 @@
+from logilab.common.testlib import unittest_main
 from cubicweb.devtools.testlib import CubicWebTC
 
 from cubes.container import utils
@@ -42,3 +43,6 @@ class SchemaContainerTC(CubicWebTC):
                          ['Left', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'])
         self.assertEqual(utils.ordered_container_etypes(schema, 'Mess', 'in_mess'),
                          ['CWGroup', 'Bottom'])
+
+if __name__ == '__main__':
+    unittest_main()

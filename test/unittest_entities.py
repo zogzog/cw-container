@@ -1,3 +1,4 @@
+from logilab.common.testlib import unittest_main
 from cubicweb import ValidationError
 from cubicweb.devtools.testlib import CubicWebTC
 
@@ -39,3 +40,6 @@ class ContainerEntitiesTC(CubicWebTC):
         self.commit()
         self.assertEqual(i.to_left[0].eid, l.eid)
         self.assertEqual(i.to_right[0].eid, r.eid)
+
+if __name__ == '__main__':
+    unittest_main()
