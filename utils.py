@@ -44,8 +44,11 @@ def children_rschemas(eschema):
         if role == crole:
             yield rschema
 
-def define_container(schema, cetype, crtype, rtype_permissions=None):
-    _rtypes, etypes = container_static_structure(schema, cetype, crtype)
+def define_container(schema, cetype, crtype, rtype_permissions=None,
+                     skiprtypes=(), skipetypes=()):
+    _rtypes, etypes = container_static_structure(schema, cetype, crtype,
+                                                 skiprtypes=skiprtypes,
+                                                 skipetypes=skipetypes)
     schema.add_relation_type(RelationType(crtype, inlined=True))
     if rtype_permissions is None:
         rtype_permissions = {'read': ('managers', 'users'),
