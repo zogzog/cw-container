@@ -65,7 +65,7 @@ def define_container(schema, cetype, crtype, rtype_permissions=None,
                                                        cardinality='?*'))
         for peschema in parent_eschemas(schema[etype]):
             petype = peschema.type
-            try:
+            try: # etype in multiple container
                 schema['container_parent'].rdef(etype, petype)
             except KeyError:
                 schema.add_relation_def(RelationDefinition(etype, 'container_parent', petype,

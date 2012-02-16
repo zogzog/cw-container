@@ -73,24 +73,25 @@ class SetContainerParent(Hook):
                 target.set_relations(**{container.container_rtype:None,
                                         'container_parent':None})
 
+
 class AddContainerRelationOp(DataOperationMixIn, Operation):
-    """ when all relations are set, we set rcase_of """
-    __cwetype_eid__ = {}
+    """ when all relations are set, we set <container> """
 
     def insert_index(self):
         """ we schedule ourselve ahead of all other operations """
         return 0
 
-    def _container_cwetype_eid(self, container):
+    def _container_cwetype_eid(self, container, cwetype_eid_map):
         etype = container.e_schema.type
-        if etype in self.__cwetype_eid__:
-            return self.__cwetype_eid__[etype]
+        if etype in cwetype_eid_map:
+            return cwetype_eid_map[etype]
         eid = self.session.execute('CWEType T WHERE T name %(name)s',
                                    {'name': etype}).rows[0][0]
-        self.__cwetype_eid__[etype] = eid
+        cwetype_eid_map[etype] = eid
         return eid
 
     def precommit_event(self):
+        cwetype_eid_map = {}
         session = self.session
         container_rtype_rel = defaultdict(list)
         container_etype_rel = []
@@ -101,8 +102,9 @@ class AddContainerRelationOp(DataOperationMixIn, Operation):
             if container is None:
                 continue
             container_rtype_rel[container.container_rtype].append((eid, container.eid))
-            container_etype_rel.append((eid, self._container_cwetype_eid(container)))
+            container_etype_rel.append((eid, self._container_cwetype_eid(container, cwetype_eid_map)))
         if container_rtype_rel:
             session.add_relations(container_rtype_rel.items())
         if container_etype_rel:
             session.add_relations([('container_etype', container_etype_rel)])
+
