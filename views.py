@@ -17,7 +17,7 @@
 """cubicweb-container views/forms/actions/components for web ui"""
 
 from cubicweb import schema
-from cubicweb.selectors import EClassSelector
+from cubicweb.selectors import EClassPredicate
 from cubicweb.web import uicfg
 
 from cubes.container import entities
@@ -30,7 +30,7 @@ for rtype in ('container_etype', 'container_parent'):
     uicfg.autoform_section.tag_object_of(('*', rtype, '*'), 'main', 'hidden')
 
 
-class is_container(EClassSelector):
+class is_container(EClassPredicate):
     etypes = set()
 
     def score_class(self, eclass, req):

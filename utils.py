@@ -6,9 +6,9 @@ from logilab.common.decorators import cached
 from yams.buildobjs import RelationType, RelationDefinition
 
 from cubicweb import neg_role
-from cubicweb.appobject import Selector
+from cubicweb.appobject import Predicate
 
-class yet_unset(Selector):
+class yet_unset(Predicate):
     def __call__(self, cls, *args, **kwargs):
         warn('%s has no selector set' % cls)
         return 0
