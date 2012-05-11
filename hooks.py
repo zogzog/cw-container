@@ -20,7 +20,7 @@ from collections import defaultdict
 from cubicweb import ValidationError
 from cubicweb.server.hook import Hook, DataOperationMixIn, Operation, match_rtype
 
-from cubes.container.utils import yet_unset
+from cubes.container.utils import yet_unset, parent_rschemas
 
 ALL_CONTAINER_RTYPES = set()
 ALL_CONTAINER_ETYPES = set()
@@ -35,10 +35,15 @@ class SetContainerRelation(Hook):
     def __call__(self):
         AddContainerRelationOp.get_instance(self._cw).add_data((self.eidfrom, self.eidto))
 
+def find_valued_parent_rtype(entity):
+    for rschema in parent_rschemas(entity.e_schema):
+        if entity.related(rschema.type):
+            return rschema.type
+
 class SetContainerParent(Hook):
     __regid__ = 'container.set_container_parent'
     __select__ = yet_unset()
-    events = ('before_add_relation', 'after_delete_relation')
+    events = ('before_add_relation',)
     category = 'container'
 
     def __call__(self):
@@ -52,26 +57,27 @@ class SetContainerParent(Hook):
         else:
             eeid, peid = self.eidto, self.eidfrom
         target = req.entity_from_eid(eeid)
-        if 'add' in self.event:
-            if target.container_parent:
-                mp_protocol = target.cw_adapt_to('container.multiple_parents')
-                if mp_protocol:
-                    mp_protocol.possible_parent(self.rtype, peid)
-                    return
-                if target.container_parent[0].eid == peid:
-                    self.warning('relinking %s %s %s', self.eidfrom, self.rtype, self.eidto)
-                    return
+        if target.container_parent:
+            mp_protocol = target.cw_adapt_to('container.multiple_parents')
+            if mp_protocol:
+                mp_protocol.possible_parent(self.rtype, peid)
+                return
+            cparent = target.container_parent[0]
+            if cparent.eid == peid:
+                self.warning('relinking %s %s %s', self.eidfrom, self.rtype, self.eidto)
+                return
+            # this is a replacement: we allow replacing within the same container
+            #                        for the same rtype
+            old_rtype = find_valued_parent_rtype(target)
+            assert old_rtype
+            container = target.cw_adapt_to('Container').related_container
+            parent = req.entity_from_eid(peid)
+            parent_container = parent.cw_adapt_to('Container').related_container
+            if container.eid != parent_container.eid or old_rtype != self.rtype:
                 msg = (req._('%s is already in a container through %s') %
                        (target.e_schema, self.rtype))
                 raise ValidationError(target, {self.rtype: msg})
-            target.set_relations(container_parent=peid)
-        elif not req.deleted_in_transaction(target.eid):
-            assert 'delete' in self.event
-            container = target.cw_adapt_to('Container').related_container
-            if container:
-                # if is entirely possible that we are not _yet_ deleted at this point
-                target.set_relations(**{container.container_rtype:None,
-                                        'container_parent':None})
+        target.set_relations(container_parent=peid)
 
 
 class AddContainerRelationOp(DataOperationMixIn, Operation):

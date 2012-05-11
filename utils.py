@@ -39,6 +39,11 @@ def parent_eschemas(eschema):
             for eschema in rschema.targets(role=role):
                 yield eschema
 
+def parent_rschemas(eschema):
+    for rschema, role, crole in _composite_rschemas(eschema):
+        if role != crole:
+            yield rschema
+
 def children_rschemas(eschema):
     for rschema, role, crole in _composite_rschemas(eschema):
         if role == crole:

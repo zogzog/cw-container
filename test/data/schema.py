@@ -9,7 +9,7 @@ class Diamond(EntityType):
 class Left(EntityType):
     # defines structure
     top_from_left = SubjectRelation('Diamond', composite='object',
-                                    cardinality='1?', inlined=True)
+                                    cardinality='1*', inlined=True)
     # outgoing rtype
     watcher = SubjectRelation('CWUser')
 
