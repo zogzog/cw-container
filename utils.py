@@ -42,7 +42,7 @@ def parent_eschemas(eschema):
 def parent_rschemas(eschema):
     for rschema, role, crole in _composite_rschemas(eschema):
         if role != crole:
-            yield rschema
+            yield rschema, role
 
 def children_rschemas(eschema):
     for rschema, role, crole in _composite_rschemas(eschema):
