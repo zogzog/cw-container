@@ -36,8 +36,8 @@ class SetContainerRelation(Hook):
         AddContainerRelationOp.get_instance(self._cw).add_data((self.eidfrom, self.eidto))
 
 def find_valued_parent_rtype(entity):
-    for rschema in parent_rschemas(entity.e_schema):
-        if entity.related(rschema.type):
+    for rschema, role in parent_rschemas(entity.e_schema):
+        if entity.related(rschema.type, role=role):
             return rschema.type
 
 class SetContainerParent(Hook):

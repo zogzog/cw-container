@@ -4,7 +4,7 @@
 modname = 'container'
 distname = 'cubicweb-container'
 
-numversion = (0, 1, 1)
+numversion = (0, 2, 0)
 version = '.'.join(str(num) for num in numversion)
 
 license = 'LGPL'
@@ -13,7 +13,7 @@ author_email = 'contact@logilab.fr'
 description = 'provides "generic container" services'
 web = 'http://www.cubicweb.org/project/%s' % distname
 
-__depends__ =  {'cubicweb': '>= 3.14.0'}
+__depends__ =  {'cubicweb': '>= 3.15.2'}
 __recommends__ = {}
 
 
