@@ -5,6 +5,9 @@ from logilab.common.decorators import cached
 
 from yams.buildobjs import RelationType, RelationDefinition
 
+from rql import parse
+from rql.nodes import Comparison, VariableRef, make_relation
+
 from cubicweb import neg_role
 from cubicweb.appobject import Predicate
 
@@ -215,3 +218,44 @@ def container_etype_orders(schema, cetype, crtype, skiprtypes=()):
             break
         maplen = len(etype_map)
     return orders, etype_map
+
+
+# clone helpers
+
+def _add_rqlst_restriction(rqlst, rtype, optional=False):
+    """pick up the main (first) selected variable and add an rtype constraint
+
+    if `optional` is True, use a left-outer join on the new variable.
+
+       Any X WHERE X is Case => Any X,FOO WHERE X is Case, X foo FOO
+    """
+    main_var = rqlst.get_variable(rqlst.get_selected_variables().next().name)
+    new_var = rqlst.make_variable()
+    rqlst.add_selected(new_var)
+    rel = make_relation(main_var, rtype, (new_var,), VariableRef)
+    rqlst.add_restriction(rel)
+    if optional:
+        rel.change_optional('right')
+
+def _iter_mainvar_relations(rqlst):
+    """pick up the main (first) selected variable and yield
+    tuples (rtype, dest_var) for each restriction found in the ST
+    with the main variable as subject.
+
+    For instance, considering the following RQL query::
+
+        Any X WHERE X foo Y, X bar 3, X baz Z
+
+    the function would yield::
+
+      ('foo', Y), ('baz', Z)
+
+    """
+    main_var = rqlst.get_variable(rqlst.get_selected_variables().next().name)
+    for vref in main_var.references():
+        rel = vref.relation()
+        # XXX we should ignore relations found in a subquery or EXISTS
+        if rel is not None and rel.children[0] == vref:
+            if (isinstance(rel.children[1], Comparison)
+                and isinstance(rel.children[1].children[0], VariableRef)):
+                yield rel.r_type, rel.children[1].children[0]

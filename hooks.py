@@ -18,6 +18,7 @@
 from collections import defaultdict
 
 from cubicweb import ValidationError
+from cubicweb.server.session import hooks_control
 from cubicweb.server.hook import Hook, DataOperationMixIn, Operation, match_rtype
 
 from cubes.container.utils import yet_unset, parent_rschemas
@@ -42,7 +43,7 @@ def find_valued_parent_rtype(entity):
 
 class SetContainerParent(Hook):
     __regid__ = 'container.set_container_parent'
-    __select__ = yet_unset()
+    __select__ = yet_unset() # see test/data/hooks.py for an example
     events = ('before_add_relation',)
     category = 'container'
 
@@ -74,6 +75,9 @@ class SetContainerParent(Hook):
             parent = req.entity_from_eid(peid)
             parent_container = parent.cw_adapt_to('Container').related_container
             if container.eid != parent_container.eid or old_rtype != self.rtype:
+                self.warning('%s is already in container %s, cannot go into %s '
+                             ' (rtype from: %s, rtype to: %s)',
+                             target, parent_container, container, old_rtype, self.rtype)
                 msg = (req._('%s is already in a container through %s') %
                        (target.e_schema, self.rtype))
                 raise ValidationError(target, {self.rtype: msg})
@@ -114,3 +118,23 @@ class AddContainerRelationOp(DataOperationMixIn, Operation):
         if container_etype_rel:
             session.add_relations([('container_etype', container_etype_rel)])
 
+
+class CloneContainer(Hook):
+    __regid__ = 'container.clone'
+    events = ('after_add_relation',)
+    __select__ = yet_unset() # use match_rtype(container_clone_rtype)
+    category = 'container'
+
+    def __call__(self):
+        CloneContainerOp.get_instance(self._cw).add_data(self.eidfrom)
+
+class CloneContainerOp(DataOperationMixIn, Operation):
+    def postcommit_event(self):
+        session = self.session
+        for cloneid in self.get_data():
+            with session.repo.internal_session() as session:
+                cloned = session.entity_from_eid(cloneid)
+                with hooks_control(session, session.HOOKS_DENY_ALL,
+                                   *cloned.compulsory_hooks_categories):
+                    cloned.cw_adapt_to('Container.clone').clone()
+                    session.commit()
