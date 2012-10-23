@@ -186,11 +186,14 @@ class ContainerClone(EntityAdapter):
         self._etype_relink_clones(etype, queryargs, relations, deferred_relations)
 
         # 4/ handle deferred relations
+        self._flush_deferred(deferred_relations)
+        return relations
+
+    def _flush_deferred(self, deferred_relations):
         if len(deferred_relations):
             self.info('relinking deferred (%d relations)', len(deferred_relations))
             self.handle_special_relations((rtype, orig_to_clone[orig], linked)
                                           for rtype, orig, linked in deferred_relations)
-        return relations
 
     def _etype_create_clones(self, etype, orig_to_clone, candidates_rset,
                              relations, deferred_relations,
@@ -218,6 +221,7 @@ class ContainerClone(EntityAdapter):
     def _etype_relink_clones(self, etype, queryargs, relations, deferred_relations):
         etype_rql = self._complete_rql(etype)
         for rtype in self.clonable_rtypes(etype):
+            self.info('  rtype %s', rtype)
             # NOTE: use rqlst.save() / rqlst.recover() ?
             etype_rqlst = parse(etype_rql).children[0]
             # here, we've got something like: Any X WHERE X <container> C, ...
@@ -230,18 +234,50 @@ class ContainerClone(EntityAdapter):
                 else:
                     relations[rtype].append((ceid, linked_eid))
 
+    def _container_relink(self, orig_to_clone):
+        """ handle subject relations of the container - this is
+        handled specially because attributes have already been set
+        """
+        deferred_relations = []
+        relations = defaultdict(list)
+        queryargs = self._queryargs()
+        ceschema = self.entity.e_schema
+        etype = ceschema.type
+        etype_rql = 'Any X WHERE X is %s, X eid %s' % (
+                etype, self.orig_container_eid)
+        clone_rtype = self.entity.clone_rtype_role[0]
+        skiprtypes = set((clone_rtype,)).union(self.entity.clone_rtypes_to_skip)
+        for rschema in ceschema.subject_relations():
+            if rschema.final:
+                continue
+            rtype = rschema.type
+            if rtype in skiprtypes:
+                continue
+            if rschema.meta and rtype not in self._meta_but_fetched:
+                continue
+            etype_rqlst = parse(etype_rql).children[0]
+            _add_rqlst_restriction(etype_rqlst, rtype)
+            linked_rset = self._cw.execute(etype_rqlst, queryargs)
+            for ceid, linked_eid in linked_rset:
+                if rtype in self._specially_handled_rtypes:
+                    deferred_relations.append((rtype, ceid, linked_eid))
+                else:
+                    relations[rtype].append((ceid, linked_eid))
+        self._flush_deferred(deferred_relations)
+        return relations
+
     def container_rtypes_etypes(self):
         etype = self.entity.e_schema.type
-        ContainerClass = self._cw.vreg['etypes'].etype_class(etype)
+        containerclass = self._cw.vreg['etypes'].etype_class(etype)
         rtypes, etypes = container_rtypes_etypes(self._cw.vreg.schema, etype,
-                                                 ContainerClass.container_rtype,
-                                                 skiprtypes=ContainerClass.container_skiprtypes)
+                                                 containerclass.container_rtype,
+                                                 skiprtypes=containerclass.container_skiprtypes)
         return rtypes, etypes
 
     def _init_clone_map(self):
         rtype, role = self.entity.clone_rtype_role
-        orig_container_eid = self.entity.related(rtype, role).rows[0][0]
-        return {orig_container_eid: self.entity.eid}
+        self.orig_container_eid = self.entity.related(rtype, role).rows[0][0]
+        return {self.orig_container_eid: self.entity.eid}
 
     def clone(self):
         """ entry point """
@@ -254,6 +290,11 @@ class ContainerClone(EntityAdapter):
             cloned_etypes.append(etype)
             for rtype, from_to in self._etype_clone(etype, orig_to_clone).iteritems():
                 relations[rtype].extend(from_to)
+
+        # the container itself is walked: its subject relations have not yet
+        # been collected
+        for rtype, from_to in self._container_relink(orig_to_clone).iteritems():
+            relations[rtype].extend(from_to)
 
         uncloned_etypes = set(cloned_etypes) - clonable_etypes
         if uncloned_etypes:

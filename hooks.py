@@ -129,12 +129,20 @@ class CloneContainer(Hook):
         CloneContainerOp.get_instance(self._cw).add_data(self.eidfrom)
 
 class CloneContainerOp(DataOperationMixIn, Operation):
+
+    def prepare_cloned_container(self, session, clone):
+        """ give a chance to cleanup cloned container before the process starts
+        e.g.: it may already have a workflow state but we want to ensure it has none
+        before it is entirely cloned
+        """
+        pass
+
     def postcommit_event(self):
-        session = self.session
         for cloneid in self.get_data():
-            with session.repo.internal_session() as session:
+            with self.session.repo.internal_session() as session:
                 cloned = session.entity_from_eid(cloneid)
                 with hooks_control(session, session.HOOKS_DENY_ALL,
                                    *cloned.compulsory_hooks_categories):
+                    self.prepare_cloned_container(session, cloned)
                     cloned.cw_adapt_to('Container.clone').clone()
                     session.commit()
