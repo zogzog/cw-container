@@ -76,7 +76,7 @@ class SetContainerParent(Hook):
                              target, parent_container, container, old_rtype, self.rtype)
                 msg = (req._('%s is already in a container through %s') %
                        (target.e_schema, self.rtype))
-                raise ValidationError(target, {self.rtype: msg})
+                raise ValidationError(target.eid, {self.rtype: msg})
         target.set_relations(container_parent=peid)
 
 
