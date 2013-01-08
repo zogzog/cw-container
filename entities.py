@@ -1,4 +1,4 @@
-# copyright 2011 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
+# copyright 2011-2012 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
 # contact http://www.logilab.fr -- mailto:contact@logilab.fr
 #
 # This program is free software: you can redistribute it and/or modify it under
@@ -310,7 +310,7 @@ class ContainerClone(EntityAdapter):
                 subj = orig_to_clone[subj]
                 if obj in orig_to_clone:
                     # internal relinking, else it is a link
-                    # betwee internal and external nodes
+                    # between internal and external nodes
                     obj = orig_to_clone[obj]
                 subj_obj.append((subj, obj))
             self._cw.add_relations([(rtype, subj_obj)])
@@ -333,6 +333,7 @@ class ContainerClone(EntityAdapter):
             warn('container: you should move handle_special_relations '
                  'to an adapter', DeprecationWarning)
             self.entity.handle_special_relations(deferred_relations)
+
 
 class MultiParentProtocol(EntityAdapter):
     __regid__ = 'container.multiple_parents'
