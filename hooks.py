@@ -1,4 +1,4 @@
-# copyright 2011 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
+# copyright 2011-2012 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
 # contact http://www.logilab.fr -- mailto:contact@logilab.fr
 #
 # This program is free software: you can redistribute it and/or modify it under
@@ -18,7 +18,6 @@
 from collections import defaultdict
 
 from cubicweb import ValidationError
-from cubicweb.server.session import hooks_control
 from cubicweb.server.hook import Hook, DataOperationMixIn, Operation, match_rtype
 
 from cubes.container.utils import yet_unset, parent_rschemas
@@ -141,8 +140,7 @@ class CloneContainerOp(DataOperationMixIn, Operation):
         for cloneid in self.get_data():
             with self.session.repo.internal_session() as session:
                 cloned = session.entity_from_eid(cloneid)
-                with hooks_control(session, session.HOOKS_DENY_ALL,
-                                   *cloned.compulsory_hooks_categories):
+                with session.deny_all_hooks_but(*cloned.compulsory_hooks_categories):
                     self.prepare_cloned_container(session, cloned)
                     cloned.cw_adapt_to('Container.clone').clone()
                     session.commit()
