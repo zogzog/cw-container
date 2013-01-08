@@ -137,6 +137,8 @@ class ContainerClone(EntityAdapter):
 
     def _queryargs(self):
         if hasattr(self.entity, '_queryargs'):
+            warn('container: you should move _query_args to an adapter',
+                 DeprecationWarning)
             qa = self.entity._queryargs()
             if 'case' in qa:
                 # rename case -> container
