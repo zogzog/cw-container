@@ -22,9 +22,6 @@ from cubicweb.server.hook import Hook, DataOperationMixIn, Operation, match_rtyp
 
 from cubes.container.utils import yet_unset, parent_rschemas
 
-ALL_CONTAINER_RTYPES = set()
-ALL_CONTAINER_ETYPES = set()
-
 
 class SetContainerRelation(Hook):
     __regid__ = 'container.set_container_relation'

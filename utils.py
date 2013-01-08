@@ -78,10 +78,6 @@ def define_container(schema, cetype, crtype, rtype_permissions=None,
             except KeyError:
                 schema.add_relation_def(RelationDefinition(etype, 'container_parent', petype,
                                                            cardinality='?*'))
-    rtypes, etypes = container_static_structure(schema, cetype, crtype)
-    from cubes.container import hooks
-    hooks.ALL_CONTAINER_RTYPES.update(rtypes)
-    hooks.ALL_CONTAINER_ETYPES.update(etypes)
 
 
 def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
