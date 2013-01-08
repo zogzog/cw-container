@@ -145,9 +145,7 @@ class ContainerClone(EntityAdapter):
                 qa['container'] = qa['case']
                 del qa['case']
             return qa
-        rtype, role = self.entity.clone_rtype_role
-        orig_container_eid = self.entity.related(rtype, role).rows[0][0]
-        return {'container': orig_container_eid}
+        return {'container': self.orig_container_eid}
 
     def clonable_rtypes(self, etype):
         eschema = self._cw.vreg.schema[etype]
