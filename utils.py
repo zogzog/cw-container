@@ -1,5 +1,6 @@
 from collections import deque, defaultdict
 from warnings import warn
+import logging
 
 from logilab.common.decorators import cached
 
@@ -10,6 +11,8 @@ from rql.nodes import Comparison, VariableRef, make_relation
 
 from cubicweb import neg_role
 from cubicweb.appobject import Predicate
+
+logger = logging.getLogger()
 
 class yet_unset(Predicate):
     def __call__(self, cls, *args, **kwargs):
@@ -57,25 +60,35 @@ def define_container(schema, cetype, crtype, rtype_permissions=None,
     _rtypes, etypes = container_static_structure(schema, cetype, crtype,
                                                  skiprtypes=skiprtypes,
                                                  skipetypes=skipetypes)
-    schema.add_relation_type(RelationType(crtype, inlined=True))
+    if not crtype in schema:
+        # ease pluggability of container in existing applications
+        schema.add_relation_type(RelationType(crtype, inlined=True))
+    else:
+        logger.warning('%r is already defined in the schema - you probably want '
+                       'to let it to the container cube' % crtype)
     if rtype_permissions is None:
         rtype_permissions = {'read': ('managers', 'users'),
                              'add': ('managers', 'users'),
                              'delete': ('managers', 'users')}
         schema.warning('setting standard lenient permissions on %s relation', crtype)
+    crschema = schema[crtype]
+    cetype_rschema = schema['container_etype']
+    cparent_rschema = schema['container_parent']
     for etype in etypes:
-        schema.add_relation_def(RelationDefinition(etype, crtype, cetype, cardinality='?*',
-                                                   __permissions__=rtype_permissions))
-        try: # prevent multiple definitions (some etypes can be hosted by several containers)
-            schema['container_etype'].rdef(etype, 'CWEType')
-        except KeyError:
+        if (etype, cetype) not in crschema.rdefs:
+            # checking this will help adding containers to existing applications
+            # and reusing the container rtype
+            schema.add_relation_def(RelationDefinition(etype, crtype, cetype, cardinality='?*',
+                                                       __permissions__=rtype_permissions))
+        else:
+            logger.warning('%r - %r - %r rdef is already defined in the schema - you probably '
+                           'want to let it to the container cube' % (etype, crtype, cetype))
+        if (etype, 'CWEType') not in cetype_rschema.rdefs:
             schema.add_relation_def(RelationDefinition(etype, 'container_etype', 'CWEType',
                                                        cardinality='?*'))
         for peschema in parent_eschemas(schema[etype]):
             petype = peschema.type
-            try: # etype in multiple container
-                schema['container_parent'].rdef(etype, petype)
-            except KeyError:
+            if (etype, petype) not in cparent_rschema.rdefs:
                 schema.add_relation_def(RelationDefinition(etype, 'container_parent', petype,
                                                            cardinality='?*'))
 
