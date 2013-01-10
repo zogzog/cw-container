@@ -25,7 +25,7 @@ from cubes.container.utils import yet_unset, parent_rschemas
 
 class SetContainerRelation(Hook):
     __regid__ = 'container.set_container_relation'
-    __select__ = yet_unset() # see test/data/hooks.py for an example
+    __abstract__ = True
     events = ('after_add_relation',)
     category = 'container'
 
@@ -41,7 +41,7 @@ def find_valued_parent_rtype(entity):
 
 class SetContainerParent(Hook):
     __regid__ = 'container.set_container_parent'
-    __select__ = yet_unset() # see test/data/hooks.py for an example
+    __abstract__ = True
     events = ('before_add_relation',)
     category = 'container'
 
