@@ -58,18 +58,20 @@ class ContainerProtocol(EntityAdapter):
     @property
     def related_container(self):
         if self.entity.e_schema in container_etypes(self._cw.vreg):
+            # self.entity is the container itself
             return self.entity
         try:
             ccwetype = self.entity.container_etype
         except AttributeError:
+            # that was definitely not a container entity
             return None
         if ccwetype:
             etypes = self._cw.vreg['etypes']
             crtype = etypes.etype_class(ccwetype[0].name).container_rtype
-            if hasattr(self.entity, crtype):
-                container = getattr(self.entity, crtype)
-                if container:
-                    return container[0]
+            container = getattr(self.entity, crtype, None)
+            if container:
+                return container[0]
+        # container relation is still unset, let's ask the parent
         parent = self.parent
         if parent:
             return parent.cw_adapt_to('Container').related_container
