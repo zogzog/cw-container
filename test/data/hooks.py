@@ -4,7 +4,11 @@ from cubes.container import hooks, utils
 
 def registration_callback(vreg):
     schema = vreg.schema
-    rtypes_d, etypes_d = utils.container_static_structure(schema, 'Diamond', 'diamond')
-    rtypes_m, etypes_m = utils.container_static_structure(schema, 'Mess', 'in_mess')
+    rtypes_d = utils.set_container_parent_rtypes_hook(schema, 'Diamond', 'diamond')
+    rtypes_m = utils.set_container_parent_rtypes_hook(schema, 'Mess', 'in_mess')
     hooks.SetContainerParent.__select__ = (Hook.__select__ &
                                            match_rtype(*rtypes_d.union(rtypes_m)))
+    rtypes_d = utils.set_container_relation_rtypes_hook(schema, 'Diamond', 'diamond')
+    rtypes_m = utils.set_container_relation_rtypes_hook(schema, 'Mess', 'in_mess')
+    hooks.SetContainerRelation.__select__ = (Hook.__select__ &
+                                             match_rtype(*rtypes_d.union(rtypes_m)))

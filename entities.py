@@ -25,9 +25,11 @@ from rql import parse
 from cubicweb.entities import AnyEntity
 from cubicweb.view import EntityAdapter
 
-from cubes.container.utils import (_composite_rschemas, yet_unset,
+from cubes.container.utils import (yet_unset,
                                    ordered_container_etypes,
                                    container_rtypes_etypes,
+                                   parent_rschemas,
+                                   needs_container_parent,
                                    _add_rqlst_restriction,
                                    _iter_mainvar_relations)
 
@@ -46,6 +48,9 @@ def container_etypes(vreg):
                if getattr(c, 'container_rtype', False))
 
 
+@cached
+def first_parent_rtype_role(eschema):
+    return list(parent_rschemas(eschema))[0]
 
 class ContainerProtocol(EntityAdapter):
     __regid__ = 'Container'
@@ -71,8 +76,11 @@ class ContainerProtocol(EntityAdapter):
 
     @property
     def parent(self):
-        parent = self.entity.container_parent
-        return parent[0] if parent else None
+        if needs_container_parent(self.entity.e_schema):
+            parent = self.entity.container_parent
+            return parent[0] if parent else None
+        rtype, role = first_parent_rtype_role(self.entity.e_schema)
+        return self.entity.related(rtype=rtype, role=role, entities=True)[0]
 
 
 class ContainerClone(EntityAdapter):

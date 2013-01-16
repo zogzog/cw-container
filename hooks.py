@@ -25,17 +25,19 @@ from cubes.container.utils import yet_unset, parent_rschemas
 
 class SetContainerRelation(Hook):
     __regid__ = 'container.set_container_relation'
-    __select__ = Hook.__select__ & match_rtype('container_parent')
+    __select__ = yet_unset() # see test/data/hooks.py for an example
     events = ('after_add_relation',)
     category = 'container'
 
     def __call__(self):
         AddContainerRelationOp.get_instance(self._cw).add_data((self.eidfrom, self.eidto))
 
+
 def find_valued_parent_rtype(entity):
     for rschema, role in parent_rschemas(entity.e_schema):
         if entity.related(rschema.type, role=role):
             return rschema.type
+
 
 class SetContainerParent(Hook):
     __regid__ = 'container.set_container_parent'
@@ -77,6 +79,7 @@ class SetContainerParent(Hook):
                 msg = (req._('%s is already in a container through %s') %
                        (target.e_schema, self.rtype))
                 raise ValidationError(target.eid, {self.rtype: msg})
+        AddContainerRelationOp.get_instance(self._cw).add_data((eeid, peid))
         target.set_relations(container_parent=peid)
 
 

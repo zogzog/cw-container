@@ -9,7 +9,7 @@ from yams.buildobjs import RelationType, RelationDefinition
 from rql import parse
 from rql.nodes import Comparison, VariableRef, make_relation
 
-from cubicweb import neg_role
+from cubicweb import neg_role, schema as cw_schema
 from cubicweb.appobject import Predicate
 
 logger = logging.getLogger()
@@ -55,6 +55,10 @@ def children_rschemas(eschema):
         if role == crole:
             yield rschema
 
+@cached
+def needs_container_parent(eschema):
+    return len(list(parent_rschemas(eschema))) > 1
+
 def define_container(schema, cetype, crtype, rtype_permissions=None,
                      skiprtypes=(), skipetypes=()):
     _rtypes, etypes = container_static_structure(schema, cetype, crtype,
@@ -63,6 +67,7 @@ def define_container(schema, cetype, crtype, rtype_permissions=None,
     if not crtype in schema:
         # ease pluggability of container in existing applications
         schema.add_relation_type(RelationType(crtype, inlined=True))
+        cw_schema.META_RTYPES.add(crtype)
     else:
         logger.warning('%r is already defined in the schema - you probably want '
                        'to let it to the container cube' % crtype)
@@ -86,11 +91,13 @@ def define_container(schema, cetype, crtype, rtype_permissions=None,
         if (etype, 'CWEType') not in cetype_rschema.rdefs:
             schema.add_relation_def(RelationDefinition(etype, 'container_etype', 'CWEType',
                                                        cardinality='?*'))
-        for peschema in parent_eschemas(schema[etype]):
-            petype = peschema.type
-            if (etype, petype) not in cparent_rschema.rdefs:
-                schema.add_relation_def(RelationDefinition(etype, 'container_parent', petype,
-                                                           cardinality='?*'))
+        eschema = schema[etype]
+        if needs_container_parent(eschema):
+            for peschema in parent_eschemas(eschema):
+                petype = peschema.type
+                if (etype, petype) not in cparent_rschema.rdefs:
+                    schema.add_relation_def(RelationDefinition(etype, 'container_parent', petype,
+                                                               cardinality='?*'))
 
 
 def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
@@ -116,6 +123,36 @@ def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes
                     candidates.append(teschema)
                     etypes.add(etype)
     return frozenset(rtypes), frozenset(etypes)
+
+
+def set_container_parent_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
+    """ etypes having several upward paths to the container have a dedicated container_parent
+    rtype to speed up the parent computation
+    this function computes the rtype set needed for the SetContainerParent hook selector
+    """
+    rtypes, etypes = container_static_structure(schema, cetype, crtype,
+                                                skiprtypes=skiprtypes, skipetypes=skipetypes)
+    select_rtypes = set()
+    for etype in etypes:
+        eschema = schema[etype]
+        prschemas = list(parent_rschemas(eschema))
+        if len(prschemas) > 1:
+            for rschema, role in prschemas:
+                if rschema.type in rtypes:
+                    select_rtypes.add(rschema.type)
+    return select_rtypes
+
+
+def set_container_relation_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
+    """computes the rtype set needed for etypes having just one upward
+    path to the container, to be given to the SetContainerRealtion hook
+    """
+    rtypes, etypes = container_static_structure(schema, cetype, crtype, skiprtypes, skipetypes)
+    # the container_parent rtype will be set for these etypes having several upard paths
+    # to the container through the SetContainerParent hook
+    cp_rtypes = set_container_parent_rtypes_hook(schema, cetype, crtype, skiprtypes, skipetypes)
+    return rtypes - cp_rtypes
+
 
 def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
     """ returns set of rtypes, set of etypes of what is in a Container """
