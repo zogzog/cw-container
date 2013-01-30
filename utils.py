@@ -1,5 +1,6 @@
 from collections import deque, defaultdict
 from warnings import warn
+import logging
 
 from logilab.common.decorators import cached
 
@@ -8,8 +9,10 @@ from yams.buildobjs import RelationType, RelationDefinition
 from rql import parse
 from rql.nodes import Comparison, VariableRef, make_relation
 
-from cubicweb import neg_role
+from cubicweb import neg_role, schema as cw_schema
 from cubicweb.appobject import Predicate
+
+logger = logging.getLogger()
 
 class yet_unset(Predicate):
     def __call__(self, cls, *args, **kwargs):
@@ -52,36 +55,49 @@ def children_rschemas(eschema):
         if role == crole:
             yield rschema
 
+@cached
+def needs_container_parent(eschema):
+    return len(list(parent_rschemas(eschema))) > 1
+
 def define_container(schema, cetype, crtype, rtype_permissions=None,
                      skiprtypes=(), skipetypes=()):
     _rtypes, etypes = container_static_structure(schema, cetype, crtype,
                                                  skiprtypes=skiprtypes,
                                                  skipetypes=skipetypes)
-    schema.add_relation_type(RelationType(crtype, inlined=True))
+    if not crtype in schema:
+        # ease pluggability of container in existing applications
+        schema.add_relation_type(RelationType(crtype, inlined=True))
+        cw_schema.META_RTYPES.add(crtype)
+    else:
+        logger.warning('%r is already defined in the schema - you probably want '
+                       'to let it to the container cube' % crtype)
     if rtype_permissions is None:
         rtype_permissions = {'read': ('managers', 'users'),
                              'add': ('managers', 'users'),
                              'delete': ('managers', 'users')}
         schema.warning('setting standard lenient permissions on %s relation', crtype)
+    crschema = schema[crtype]
+    cetype_rschema = schema['container_etype']
+    cparent_rschema = schema['container_parent']
     for etype in etypes:
-        schema.add_relation_def(RelationDefinition(etype, crtype, cetype, cardinality='?*',
-                                                   __permissions__=rtype_permissions))
-        try: # prevent multiple definitions (some etypes can be hosted by several containers)
-            schema['container_etype'].rdef(etype, 'CWEType')
-        except KeyError:
+        if (etype, cetype) not in crschema.rdefs:
+            # checking this will help adding containers to existing applications
+            # and reusing the container rtype
+            schema.add_relation_def(RelationDefinition(etype, crtype, cetype, cardinality='?*',
+                                                       __permissions__=rtype_permissions))
+        else:
+            logger.warning('%r - %r - %r rdef is already defined in the schema - you probably '
+                           'want to let it to the container cube' % (etype, crtype, cetype))
+        if (etype, 'CWEType') not in cetype_rschema.rdefs:
             schema.add_relation_def(RelationDefinition(etype, 'container_etype', 'CWEType',
                                                        cardinality='?*'))
-        for peschema in parent_eschemas(schema[etype]):
-            petype = peschema.type
-            try: # etype in multiple container
-                schema['container_parent'].rdef(etype, petype)
-            except KeyError:
-                schema.add_relation_def(RelationDefinition(etype, 'container_parent', petype,
-                                                           cardinality='?*'))
-    rtypes, etypes = container_static_structure(schema, cetype, crtype)
-    from cubes.container import hooks
-    hooks.ALL_CONTAINER_RTYPES.update(rtypes)
-    hooks.ALL_CONTAINER_ETYPES.update(etypes)
+        eschema = schema[etype]
+        if needs_container_parent(eschema):
+            for peschema in parent_eschemas(eschema):
+                petype = peschema.type
+                if (etype, petype) not in cparent_rschema.rdefs:
+                    schema.add_relation_def(RelationDefinition(etype, 'container_parent', petype,
+                                                               cardinality='?*'))
 
 
 def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
@@ -107,6 +123,36 @@ def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes
                     candidates.append(teschema)
                     etypes.add(etype)
     return frozenset(rtypes), frozenset(etypes)
+
+
+def set_container_parent_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
+    """ etypes having several upward paths to the container have a dedicated container_parent
+    rtype to speed up the parent computation
+    this function computes the rtype set needed for the SetContainerParent hook selector
+    """
+    rtypes, etypes = container_static_structure(schema, cetype, crtype,
+                                                skiprtypes=skiprtypes, skipetypes=skipetypes)
+    select_rtypes = set()
+    for etype in etypes:
+        eschema = schema[etype]
+        prschemas = list(parent_rschemas(eschema))
+        if len(prschemas) > 1:
+            for rschema, role in prschemas:
+                if rschema.type in rtypes:
+                    select_rtypes.add(rschema.type)
+    return select_rtypes
+
+
+def set_container_relation_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
+    """computes the rtype set needed for etypes having just one upward
+    path to the container, to be given to the SetContainerRealtion hook
+    """
+    rtypes, etypes = container_static_structure(schema, cetype, crtype, skiprtypes, skipetypes)
+    # the container_parent rtype will be set for these etypes having several upard paths
+    # to the container through the SetContainerParent hook
+    cp_rtypes = set_container_parent_rtypes_hook(schema, cetype, crtype, skiprtypes, skipetypes)
+    return rtypes - cp_rtypes
+
 
 def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
     """ returns set of rtypes, set of etypes of what is in a Container """

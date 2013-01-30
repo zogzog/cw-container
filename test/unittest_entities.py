@@ -19,8 +19,8 @@ class ContainerEntitiesTC(CubicWebTC):
         l = req.entity_from_eid(self.l.eid)
         self.assertEqual(l.cw_adapt_to('Container').related_container.eid, self.d.eid)
         self.assertEqual(l.container_etype[0].name, 'Diamond')
-        self.assertEqual(self.b1.container_parent[0].eid, l.eid)
-        self.assertEqual(self.b2.container_parent[0].eid, self.r.eid)
+        self.assertEqual(self.b1.cw_adapt_to('Container').parent.eid, l.eid)
+        self.assertEqual(self.b2.cw_adapt_to('Container').parent.eid, self.r.eid)
 
         req = self.request()
         m = req.create_entity('Mess')
@@ -45,20 +45,20 @@ class ContainerEntitiesTC(CubicWebTC):
     def test_relocate_to_other_parent(self):
         req = self.request()
         b1 = req.entity_from_eid(self.b1.eid)
-        self.assertEqual(b1.container_parent[0].eid, self.l.eid)
+        self.assertEqual(b1.cw_adapt_to('Container').parent.eid, self.l.eid)
         l2 = req.create_entity('Left', top_from_left=self.d)
         self.commit()
         # relocate within same container/same rtype
         req = self.request()
         b1 = req.entity_from_eid(self.b1.eid)
-        self.assertEqual(b1.container_parent[0].eid, self.l.eid)
+        self.assertEqual(b1.cw_adapt_to('Container').parent.eid, self.l.eid)
         b1.set_relations(top_by_left=l2.eid)
-        self.assertEqual(b1.container_parent[0].eid, self.l.eid) # still
+        self.assertEqual(b1.cw_adapt_to('Container').parent.eid, self.l.eid) # still
         self.commit()
         # relocate within same container/different rtype
         req = self.request()
         b1 = req.entity_from_eid(self.b1.eid)
-        self.assertEqual(b1.container_parent[0].eid, l2.eid)
+        self.assertEqual(b1.cw_adapt_to('Container').parent.eid, l2.eid)
         self.assertRaises(ValidationError, b1.set_relations, top_by_right=self.r.eid)
         # relocate to different container/same rtype
         req = self.request()

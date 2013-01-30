@@ -10,7 +10,7 @@ class Diamond(Container):
 class Mess(Container):
     __regid__ = 'Mess'
     container_rtype = 'in_mess'
-    container_skiprtypes = ('local_group',)
+    container_skiprtypes = ('local_group', 'wf_info_for')
 
 def registration_callback(vreg):
     vreg.register(Diamond)

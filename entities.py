@@ -1,4 +1,4 @@
-# copyright 2011 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
+# copyright 2011-2012 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
 # contact http://www.logilab.fr -- mailto:contact@logilab.fr
 #
 # This program is free software: you can redistribute it and/or modify it under
@@ -25,9 +25,11 @@ from rql import parse
 from cubicweb.entities import AnyEntity
 from cubicweb.view import EntityAdapter
 
-from cubes.container.utils import (_composite_rschemas, yet_unset,
+from cubes.container.utils import (yet_unset,
                                    ordered_container_etypes,
                                    container_rtypes_etypes,
+                                   parent_rschemas,
+                                   needs_container_parent,
                                    _add_rqlst_restriction,
                                    _iter_mainvar_relations)
 
@@ -46,6 +48,9 @@ def container_etypes(vreg):
                if getattr(c, 'container_rtype', False))
 
 
+@cached
+def first_parent_rtype_role(eschema):
+    return list(parent_rschemas(eschema))[0]
 
 class ContainerProtocol(EntityAdapter):
     __regid__ = 'Container'
@@ -53,26 +58,31 @@ class ContainerProtocol(EntityAdapter):
     @property
     def related_container(self):
         if self.entity.e_schema in container_etypes(self._cw.vreg):
+            # self.entity is the container itself
             return self.entity
         try:
             ccwetype = self.entity.container_etype
         except AttributeError:
+            # that was definitely not a container entity
             return None
         if ccwetype:
             etypes = self._cw.vreg['etypes']
             crtype = etypes.etype_class(ccwetype[0].name).container_rtype
-            if hasattr(self.entity, crtype):
-                container = getattr(self.entity, crtype)
-                if container:
-                    return container[0]
+            container = getattr(self.entity, crtype, None)
+            if container:
+                return container[0]
+        # container relation is still unset, let's ask the parent
         parent = self.parent
         if parent:
             return parent.cw_adapt_to('Container').related_container
 
     @property
     def parent(self):
-        parent = self.entity.container_parent
-        return parent[0] if parent else None
+        if needs_container_parent(self.entity.e_schema):
+            parent = self.entity.container_parent
+            return parent[0] if parent else None
+        rtype, role = first_parent_rtype_role(self.entity.e_schema)
+        return self.entity.related(rtype=rtype, role=role, entities=True)[0]
 
 
 class ContainerClone(EntityAdapter):
@@ -137,15 +147,15 @@ class ContainerClone(EntityAdapter):
 
     def _queryargs(self):
         if hasattr(self.entity, '_queryargs'):
+            warn('container: you should move _query_args to an adapter',
+                 DeprecationWarning)
             qa = self.entity._queryargs()
             if 'case' in qa:
                 # rename case -> container
                 qa['container'] = qa['case']
                 del qa['case']
             return qa
-        rtype, role = self.entity.clone_rtype_role
-        orig_container_eid = self.entity.related(rtype, role).rows[0][0]
-        return {'container': orig_container_eid}
+        return {'container': self.orig_container_eid}
 
     def clonable_rtypes(self, etype):
         eschema = self._cw.vreg.schema[etype]
@@ -310,7 +320,7 @@ class ContainerClone(EntityAdapter):
                 subj = orig_to_clone[subj]
                 if obj in orig_to_clone:
                     # internal relinking, else it is a link
-                    # betwee internal and external nodes
+                    # between internal and external nodes
                     obj = orig_to_clone[obj]
                 subj_obj.append((subj, obj))
             self._cw.add_relations([(rtype, subj_obj)])
@@ -333,6 +343,7 @@ class ContainerClone(EntityAdapter):
             warn('container: you should move handle_special_relations '
                  'to an adapter', DeprecationWarning)
             self.entity.handle_special_relations(deferred_relations)
+
 
 class MultiParentProtocol(EntityAdapter):
     __regid__ = 'container.multiple_parents'

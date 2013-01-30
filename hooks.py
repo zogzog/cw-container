@@ -1,4 +1,4 @@
-# copyright 2011 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
+# copyright 2011-2012 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
 # contact http://www.logilab.fr -- mailto:contact@logilab.fr
 #
 # This program is free software: you can redistribute it and/or modify it under
@@ -18,32 +18,30 @@
 from collections import defaultdict
 
 from cubicweb import ValidationError
-from cubicweb.server.session import hooks_control
 from cubicweb.server.hook import Hook, DataOperationMixIn, Operation, match_rtype
 
 from cubes.container.utils import yet_unset, parent_rschemas
 
-ALL_CONTAINER_RTYPES = set()
-ALL_CONTAINER_ETYPES = set()
-
 
 class SetContainerRelation(Hook):
     __regid__ = 'container.set_container_relation'
-    __select__ = Hook.__select__ & match_rtype('container_parent')
+    __abstract__ = True
     events = ('after_add_relation',)
     category = 'container'
 
     def __call__(self):
         AddContainerRelationOp.get_instance(self._cw).add_data((self.eidfrom, self.eidto))
 
+
 def find_valued_parent_rtype(entity):
     for rschema, role in parent_rschemas(entity.e_schema):
         if entity.related(rschema.type, role=role):
             return rschema.type
 
+
 class SetContainerParent(Hook):
     __regid__ = 'container.set_container_parent'
-    __select__ = yet_unset() # see test/data/hooks.py for an example
+    __abstract__ = True
     events = ('before_add_relation',)
     category = 'container'
 
@@ -80,7 +78,8 @@ class SetContainerParent(Hook):
                              target, parent_container, container, old_rtype, self.rtype)
                 msg = (req._('%s is already in a container through %s') %
                        (target.e_schema, self.rtype))
-                raise ValidationError(target, {self.rtype: msg})
+                raise ValidationError(target.eid, {self.rtype: msg})
+        AddContainerRelationOp.get_instance(self._cw).add_data((eeid, peid))
         target.set_relations(container_parent=peid)
 
 
@@ -141,8 +140,7 @@ class CloneContainerOp(DataOperationMixIn, Operation):
         for cloneid in self.get_data():
             with self.session.repo.internal_session() as session:
                 cloned = session.entity_from_eid(cloneid)
-                with hooks_control(session, session.HOOKS_DENY_ALL,
-                                   *cloned.compulsory_hooks_categories):
+                with session.deny_all_hooks_but(*cloned.compulsory_hooks_categories):
                     self.prepare_cloned_container(session, cloned)
                     cloned.cw_adapt_to('Container.clone').clone()
                     session.commit()

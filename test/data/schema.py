@@ -1,4 +1,5 @@
 from yams.buildobjs import EntityType, RelationDefinition, SubjectRelation, String, Int
+from cubicweb.schema import WorkflowableEntityType
 
 from cubes.container import utils
 
@@ -34,7 +35,7 @@ class Bottom(EntityType):
                                    cardinality='??', inlined=True)
 
 
-class Mess(EntityType):
+class Mess(WorkflowableEntityType):
     # security related: must not be cloned/exported, etc.
     local_group = SubjectRelation('CWGroup', composite='subject')
 
