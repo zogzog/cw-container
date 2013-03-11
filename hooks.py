@@ -117,6 +117,8 @@ class AddContainerRelationOp(DataOperationMixIn, Operation):
             cprotocol = parent.cw_adapt_to('Container')
             container = cprotocol.related_container
             if container is None:
+                self.critical('container entity could not be reached from %s, '
+                              'you may have ordering issues', parent)
                 continue
             container_rtype_rel[container.container_rtype].append((eid, container.eid))
             container_etype_rel.append((eid, self._container_cwetype_eid(container, cwetype_eid_map)))
@@ -134,6 +136,7 @@ class CloneContainer(Hook):
 
     def __call__(self):
         CloneContainerOp.get_instance(self._cw).add_data(self.eidfrom)
+
 
 class CloneContainerOp(DataOperationMixIn, Operation):
 
