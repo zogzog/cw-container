@@ -6,6 +6,11 @@ from cubes.container import utils
 class Diamond(EntityType):
     name = String()
     require_group = SubjectRelation('CWGroup')
+    has_near_top = SubjectRelation('NearTop', composite='subject',
+                                   cardinality='*?')
+
+class NearTop(EntityType):
+    pass
 
 class Left(EntityType):
     # defines structure

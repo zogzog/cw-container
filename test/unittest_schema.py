@@ -18,8 +18,8 @@ class SchemaContainerTC(CubicWebTC):
         self.assertEqual(utils.container_static_structure(schema, 'Diamond', 'diamond',
                                                           diamond.container_skiprtypes),
                          (frozenset(['top_from_left', 'top_by_right', 'top_from_right', 'top_by_left',
-                                     'to_left', 'to_right']),
-                          frozenset(['Left', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'])))
+                                     'to_left', 'to_right', 'has_near_top']),
+                          frozenset(['NearTop', 'Left', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'])))
 
         self.assertEqual(utils.container_static_structure(schema, 'Left', 'diamond'),
                          (frozenset(['to_left', 'top_by_left']),
@@ -37,8 +37,9 @@ class SchemaContainerTC(CubicWebTC):
                                                        diamond.container_skiprtypes),
                          (frozenset(['to_inner_left', 'top_from_left', 'top_by_right',
                                      'top_from_right', 'top_by_left', 'loop_in_place',
-                                     'to_left', 'to_right']),
-                          frozenset(['Left', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'])))
+                                     'to_left', 'to_right', 'has_near_top']),
+                          frozenset(['NearTop', 'Left', 'Right', 'Bottom',
+                                     'IAmAnAttributeCarryingRelation'])))
         self.assertEqual(utils.container_rtypes_etypes(schema, 'Mess', 'in_mess',
                                                        mess.container_skiprtypes),
                          (frozenset(['to_mess']), frozenset(['Bottom'])))
@@ -49,7 +50,7 @@ class SchemaContainerTC(CubicWebTC):
         mess = self.vreg['etypes'].etype_class('Mess')
         self.assertEqual(utils.ordered_container_etypes(schema, 'Diamond', 'diamond',
                                                         diamond.container_skiprtypes),
-                         ['Left', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'])
+                         ['Left', 'NearTop', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'])
         self.assertEqual(utils.ordered_container_etypes(schema, 'Mess', 'in_mess',
                                                     mess.container_skiprtypes),
                          ['Bottom'])
@@ -61,7 +62,7 @@ class SchemaContainerTC(CubicWebTC):
         self.assertEqual(frozenset(['to_right', 'to_left', 'top_by_right', 'top_by_left']),
                          utils.set_container_parent_rtypes_hook(schema, 'Diamond', 'diamond',
                                                                 diamond.container_skiprtypes))
-        self.assertEqual(frozenset(['top_from_left', 'top_from_right']),
+        self.assertEqual(frozenset(['top_from_left', 'top_from_right', 'has_near_top']),
                          utils.set_container_relation_rtypes_hook(schema, 'Diamond', 'diamond',
                                                                   diamond.container_skiprtypes))
         self.assertEqual(set(['to_mess']),

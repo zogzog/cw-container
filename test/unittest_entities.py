@@ -23,6 +23,11 @@ class ContainerEntitiesTC(CubicWebTC):
         self.b1 = req.create_entity('Bottom', top_by_left=self.l)
         self.b2 = req.create_entity('Bottom', top_by_right=self.r)
 
+    def test_container_relation_hook(self):
+        req = self.request()
+        u = req.create_entity('NearTop', reverse_has_near_top=self.d)
+        self.commit()
+
     def test_container_rtype_hook(self):
         self.assertEqual(len(self.execute('Any X,Y WHERE X diamond Y')), 4)
         req = self.request()

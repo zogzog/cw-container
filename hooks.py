@@ -23,6 +23,20 @@ from cubicweb.server.hook import Hook, DataOperationMixIn, Operation, match_rtyp
 from cubes.container.utils import yet_unset, parent_rschemas
 
 
+def entity_and_parent(req, eidfrom, rtype, eidto):
+    """ given a triple (eidfrom, rtype, eidto)
+    where one of the two eids is the parent of the other,
+    compute a return (eid, eidparent)
+    """
+    subjetype = req.describe(eidfrom)[0]
+    objetype = req.describe(eidto)[0]
+    crole = req.vreg.schema[rtype].rdef(subjetype, objetype).composite
+    if crole == 'object':
+        return eidfrom, eidto
+    else:
+        return eidto, eidfrom
+
+
 class SetContainerRelation(Hook):
     __regid__ = 'container.set_container_relation'
     __abstract__ = True
@@ -30,7 +44,8 @@ class SetContainerRelation(Hook):
     category = 'container'
 
     def __call__(self):
-        AddContainerRelationOp.get_instance(self._cw).add_data((self.eidfrom, self.eidto))
+        eid, peid = entity_and_parent(self._cw, self.eidfrom, self.rtype, self.eidto)
+        AddContainerRelationOp.get_instance(self._cw).add_data((eid, peid))
 
 
 def find_valued_parent_rtype(entity):
@@ -47,14 +62,7 @@ class SetContainerParent(Hook):
 
     def __call__(self):
         req = self._cw
-        schema = req.vreg.schema
-        subjetype = req.describe(self.eidfrom)[0]
-        objetype = req.describe(self.eidto)[0]
-        crole = schema[self.rtype].rdef(subjetype, objetype).composite
-        if crole == 'object':
-            eeid, peid = self.eidfrom, self.eidto
-        else:
-            eeid, peid = self.eidto, self.eidfrom
+        eeid, peid = entity_and_parent(req, self.eidfrom, self.rtype, self.eidto)
         target = req.entity_from_eid(eeid)
         if target.container_parent:
             mp_protocol = target.cw_adapt_to('container.multiple_parents')
