@@ -82,7 +82,9 @@ class ContainerProtocol(EntityAdapter):
             parent = self.entity.container_parent
             return parent[0] if parent else None
         rtype, role = first_parent_rtype_role(self.entity.e_schema)
-        return self.entity.related(rtype=rtype, role=role, entities=True)[0]
+        parent = self.entity.related(rtype=rtype, role=role, entities=True)
+        if parent:
+            return parent[0]
 
 
 class ContainerClone(EntityAdapter):
