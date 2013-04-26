@@ -41,7 +41,10 @@ class ContainerEntitiesTC(CubicWebTC):
         m = req.create_entity('Mess')
         b3 = req.create_entity('Bottom', to_mess=m)
         # relocating through another rtype / to another container is forbiden
-        self.assertRaises(ValidationError, b3.set_relations, top_by_left=l)
+        with self.assertRaises(ValidationError) as wraperr:
+            b3.set_relations(top_by_left=l)
+        self.assertEqual({'top_by_left': u'Bottom is already in a container through top_by_left'},
+                         wraperr.exception.args[1])
         self.rollback()
 
         req = self.request()
@@ -74,13 +77,19 @@ class ContainerEntitiesTC(CubicWebTC):
         req = self.request()
         b1 = req.entity_from_eid(self.b1.eid)
         self.assertEqual(b1.cw_adapt_to('Container').parent.eid, l2.eid)
-        self.assertRaises(ValidationError, b1.set_relations, top_by_right=self.r.eid)
+        with self.assertRaises(ValidationError) as wraperr:
+            b1.set_relations(top_by_right=self.r.eid)
+        self.assertEqual({'top_by_right': u'Bottom is already in a container through top_by_right'},
+                         wraperr.exception.args[1])
         # relocate to different container/same rtype
         req = self.request()
         b1 = req.entity_from_eid(self.b1.eid)
         d2 = req.create_entity('Diamond')
         l3 = req.create_entity('Left', top_from_left=d2)
-        self.assertRaises(ValidationError, b1.set_relations, top_by_left=l3)
+        with self.assertRaises(ValidationError) as wraperr:
+            b1.set_relations(top_by_left=l3)
+        self.assertEqual({'top_by_left': u'Bottom is already in a container through top_by_left'},
+                         wraperr.exception.args[1])
 
 if __name__ == '__main__':
     unittest_main()
