@@ -51,6 +51,22 @@ class to_mess(RelationDefinition):
     composite = 'object'
     cardinality = '??'
 
+
+# Assert skipetypes
+class EtypeNotInContainers(EntityType):
+    pass
+
+class composite_but_not_in_diamond(RelationDefinition):
+    subject = 'EtypeNotInContainers'
+    object = 'Left'
+    composite = 'object'
+
+
+class linked_to_mess(RelationDefinition):
+    subject = 'EtypeNotInContainers'
+    object = 'Mess'
+
+
 def post_build_callback(schema):
     utils.define_container(schema, 'Diamond', 'diamond')
     utils.define_container(schema, 'Mess', 'in_mess')

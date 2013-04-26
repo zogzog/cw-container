@@ -116,6 +116,8 @@ def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes
                 continue
             if not composite_role(eschema, rschema) == role:
                 continue
+            if skipetypes.intersection(teschemas):
+                continue
             rtypes.add(rschema.type)
             for teschema in teschemas:
                 etype = teschema.type
@@ -232,23 +234,25 @@ def linearize(etype_map, all_etypes):
     return [etype for etype in sorted_etypes
             if etype in all_etypes]
 
-def ordered_container_etypes(schema, cetype, crtype, skiprtypes=()):
+def ordered_container_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
     """ return list of etypes of a container by dependency order
     this is provided for simplicity and backward compatibility
     reasons
     etypes that are parts of a cycle are undiscriminately
     added at the end
     """
-    orders, etype_map = container_etype_orders(schema, cetype, crtype, skiprtypes)
+    orders, etype_map = container_etype_orders(schema, cetype, crtype,
+                                               skiprtypes, skipetypes)
     total_order = []
     for order in orders:
         total_order += order
     return total_order + etype_map.keys()
 
-def container_etype_orders(schema, cetype, crtype, skiprtypes=()):
+def container_etype_orders(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
     """ computes linearizations and cycles of etypes within a container """
     _rtypes, etypes = container_static_structure(schema, cetype, crtype,
-                                                 skiprtypes=skiprtypes)
+                                                 skiprtypes=skiprtypes,
+                                                 skipetypes=skipetypes)
     orders = []
     etype_map = dict((etype, needed_etypes(schema, etype, cetype, crtype,
                                            skiprtypes))

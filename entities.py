@@ -39,6 +39,7 @@ class Container(AnyEntity):
     # container API
     container_rtype = None
     container_skiprtypes = ()
+    container_skipetypes = ()
     container_computedrtypes = ()
 
 @cached
@@ -74,7 +75,9 @@ class ContainerProtocol(EntityAdapter):
         # container relation is still unset, let's ask the parent
         parent = self.parent
         if parent:
-            return parent.cw_adapt_to('Container').related_container
+            container = parent.cw_adapt_to('Container').related_container
+            if self.entity.e_schema not in container.container_skipetypes:
+                return container
 
     @property
     def parent(self):

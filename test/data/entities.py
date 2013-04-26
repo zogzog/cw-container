@@ -6,6 +6,7 @@ from cubes.container.entities import Container, ContainerProtocol, MultiParentPr
 class Diamond(Container):
     __regid__ = 'Diamond'
     container_rtype = 'diamond'
+    container_skipetypes = ('EtypeNotInContainers',)
 
 class Mess(Container):
     __regid__ = 'Mess'

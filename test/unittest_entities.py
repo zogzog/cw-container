@@ -26,7 +26,17 @@ class ContainerEntitiesTC(CubicWebTC):
     def test_container_relation_hook(self):
         req = self.request()
         u = req.create_entity('NearTop', reverse_has_near_top=self.d)
+        notinside = req.create_entity('EtypeNotInContainers',
+                                      composite_but_not_in_diamond=self.l)
         self.commit()
+        req = self.request()
+        notinside = req.entity_from_eid(notinside.eid)
+        # notinside has a computable parent but no related container
+        self.assertEqual(self.l.eid, notinside.cw_adapt_to('Container').parent.eid)
+        self.assertEqual(None, notinside.cw_adapt_to('Container').related_container)
+        u = req.entity_from_eid(u.eid)
+        self.assertEqual(self.d.eid, u.cw_adapt_to('Container').parent.eid)
+        self.assertEqual(self.d.eid, u.cw_adapt_to('Container').related_container.eid)
 
     def test_container_rtype_hook(self):
         self.assertEqual(4, len(self.execute('Any X,Y WHERE X diamond Y')))
