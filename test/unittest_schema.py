@@ -15,45 +15,45 @@ class SchemaContainerTC(CubicWebTC):
         schema = self.vreg.schema
         diamond = self.vreg['etypes'].etype_class('Diamond')
         mess = self.vreg['etypes'].etype_class('Mess')
-        self.assertEqual(utils.container_static_structure(schema, 'Diamond', 'diamond',
-                                                          diamond.container_skiprtypes),
-                         (frozenset(['top_from_left', 'top_by_right', 'top_from_right', 'top_by_left',
+        self.assertEqual((frozenset(['top_from_left', 'top_by_right', 'top_from_right', 'top_by_left',
                                      'to_left', 'to_right', 'has_near_top']),
-                          frozenset(['NearTop', 'Left', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'])))
+                          frozenset(['NearTop', 'Left', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'])),
+                         utils.container_static_structure(schema, 'Diamond', 'diamond',
+                                                          diamond.container_skiprtypes))
 
-        self.assertEqual(utils.container_static_structure(schema, 'Left', 'diamond'),
-                         (frozenset(['to_left', 'top_by_left']),
-                          frozenset(['Bottom', 'IAmAnAttributeCarryingRelation'])))
+        self.assertEqual((frozenset(['to_left', 'top_by_left']),
+                          frozenset(['Bottom', 'IAmAnAttributeCarryingRelation'])),
+                         utils.container_static_structure(schema, 'Left', 'diamond'))
 
-        self.assertEqual(utils.container_static_structure(schema, 'Mess', 'in_mess',
-                                                          mess.container_skiprtypes),
-                         (frozenset(['to_mess']), frozenset(['Bottom'])))
+        self.assertEqual((frozenset(['to_mess']), frozenset(['Bottom'])),
+                         utils.container_static_structure(schema, 'Mess', 'in_mess',
+                                                          mess.container_skiprtypes))
 
     def test_etypes_rtypes(self):
         schema = self.vreg.schema
         diamond = self.vreg['etypes'].etype_class('Diamond')
         mess = self.vreg['etypes'].etype_class('Mess')
-        self.assertEqual(utils.container_rtypes_etypes(schema, 'Diamond', 'diamond',
-                                                       diamond.container_skiprtypes),
-                         (frozenset(['to_inner_left', 'top_from_left', 'top_by_right',
+        self.assertEqual((frozenset(['to_inner_left', 'top_from_left', 'top_by_right',
                                      'top_from_right', 'top_by_left', 'loop_in_place',
                                      'to_left', 'to_right', 'has_near_top']),
                           frozenset(['NearTop', 'Left', 'Right', 'Bottom',
-                                     'IAmAnAttributeCarryingRelation'])))
-        self.assertEqual(utils.container_rtypes_etypes(schema, 'Mess', 'in_mess',
-                                                       mess.container_skiprtypes),
-                         (frozenset(['to_mess']), frozenset(['Bottom'])))
+                                     'IAmAnAttributeCarryingRelation'])),
+                         utils.container_rtypes_etypes(schema, 'Diamond', 'diamond',
+                                                       diamond.container_skiprtypes))
+        self.assertEqual((frozenset(['to_mess']), frozenset(['Bottom'])),
+                         utils.container_rtypes_etypes(schema, 'Mess', 'in_mess',
+                                                       mess.container_skiprtypes))
 
     def test_order(self):
         schema = self.vreg.schema
         diamond = self.vreg['etypes'].etype_class('Diamond')
         mess = self.vreg['etypes'].etype_class('Mess')
-        self.assertEqual(utils.ordered_container_etypes(schema, 'Diamond', 'diamond',
-                                                        diamond.container_skiprtypes),
-                         ['Left', 'NearTop', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'])
-        self.assertEqual(utils.ordered_container_etypes(schema, 'Mess', 'in_mess',
-                                                    mess.container_skiprtypes),
-                         ['Bottom'])
+        self.assertEqual(['Left', 'NearTop', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'],
+                         utils.ordered_container_etypes(schema, 'Diamond', 'diamond',
+                                                        diamond.container_skiprtypes))
+        self.assertEqual(['Bottom'],
+                         utils.ordered_container_etypes(schema, 'Mess', 'in_mess',
+                                                        mess.container_skiprtypes))
 
     def test_rtypes_for_hooks(self):
         schema = self.vreg.schema

@@ -18,7 +18,7 @@ class ContainerEntitiesTC(CubicWebTC):
         req = self.request()
         self.d = req.create_entity('Diamond')
         self.l = req.create_entity('Left', top_from_left=self.d)
-        self.assertEqual(self.l.cw_adapt_to('Container').related_container.eid, self.d.eid)
+        self.assertEqual(self.d.eid, self.l.cw_adapt_to('Container').related_container.eid)
         self.r = req.create_entity('Right', top_from_right=self.d, to_inner_left=self.l)
         self.b1 = req.create_entity('Bottom', top_by_left=self.l)
         self.b2 = req.create_entity('Bottom', top_by_right=self.r)
@@ -29,13 +29,13 @@ class ContainerEntitiesTC(CubicWebTC):
         self.commit()
 
     def test_container_rtype_hook(self):
-        self.assertEqual(len(self.execute('Any X,Y WHERE X diamond Y')), 4)
+        self.assertEqual(4, len(self.execute('Any X,Y WHERE X diamond Y')))
         req = self.request()
         l = req.entity_from_eid(self.l.eid)
-        self.assertEqual(l.cw_adapt_to('Container').related_container.eid, self.d.eid)
-        self.assertEqual(l.container_etype[0].name, 'Diamond')
-        self.assertEqual(self.b1.cw_adapt_to('Container').parent.eid, l.eid)
-        self.assertEqual(self.b2.cw_adapt_to('Container').parent.eid, self.r.eid)
+        self.assertEqual(self.d.eid, l.cw_adapt_to('Container').related_container.eid)
+        self.assertEqual('Diamond', l.container_etype[0].name)
+        self.assertEqual(l.eid, self.b1.cw_adapt_to('Container').parent.eid)
+        self.assertEqual(self.r.eid, self.b2.cw_adapt_to('Container').parent.eid)
 
         req = self.request()
         m = req.create_entity('Mess')
@@ -57,26 +57,26 @@ class ContainerEntitiesTC(CubicWebTC):
         i = req.create_entity('IAmAnAttributeCarryingRelation',
                               foo=42, to_left=l, to_right=self.r)
         self.commit()
-        self.assertEqual(i.to_left[0].eid, l.eid)
-        self.assertEqual(i.to_right[0].eid, self.r.eid)
+        self.assertEqual(l.eid, i.to_left[0].eid)
+        self.assertEqual(self.r.eid, i.to_right[0].eid)
 
     def test_relocate_to_other_parent(self):
         req = self.request()
         b1 = req.entity_from_eid(self.b1.eid)
-        self.assertEqual(b1.cw_adapt_to('Container').parent.eid, self.l.eid)
+        self.assertEqual(self.l.eid, b1.cw_adapt_to('Container').parent.eid)
         l2 = req.create_entity('Left', top_from_left=self.d)
         self.commit()
         # relocate within same container/same rtype
         req = self.request()
         b1 = req.entity_from_eid(self.b1.eid)
-        self.assertEqual(b1.cw_adapt_to('Container').parent.eid, self.l.eid)
+        self.assertEqual(self.l.eid, b1.cw_adapt_to('Container').parent.eid)
         b1.set_relations(top_by_left=l2.eid)
-        self.assertEqual(b1.cw_adapt_to('Container').parent.eid, self.l.eid) # still
+        self.assertEqual(self.l.eid, b1.cw_adapt_to('Container').parent.eid) # still
         self.commit()
         # relocate within same container/different rtype
         req = self.request()
         b1 = req.entity_from_eid(self.b1.eid)
-        self.assertEqual(b1.cw_adapt_to('Container').parent.eid, l2.eid)
+        self.assertEqual(l2.eid, b1.cw_adapt_to('Container').parent.eid)
         with self.assertRaises(ValidationError) as wraperr:
             b1.set_relations(top_by_right=self.r.eid)
         self.assertEqual({'top_by_right': u'Bottom is already in a container through top_by_right'},
