@@ -23,6 +23,15 @@ class ContainerEntitiesTC(CubicWebTC):
         self.b1 = req.create_entity('Bottom', top_by_left=self.l)
         self.b2 = req.create_entity('Bottom', top_by_right=self.r)
 
+    def test_clone_entry_point(self):
+        req = self.request()
+        newd = req.create_entity('Diamond')
+        cloner = newd.cw_adapt_to('Container.clone')
+        self.assertRaises(TypeError, cloner.clone)
+        self.assertRaises(TypeError, cloner.clone, original=newd)
+        cloner.clone(original=newd.eid)
+        self.commit()
+
     def test_container_relation_hook(self):
         req = self.request()
         u = req.create_entity('NearTop', reverse_has_near_top=self.d)

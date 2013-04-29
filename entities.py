@@ -97,11 +97,29 @@ class ContainerClone(EntityAdapter):
     """
     __regid__ = 'Container.clone'
 
-    def clone(self):
-        """ entry point """
+    def clone(self, original=None):
+        """ entry point
+
+        To get the original container:
+        * either we are given the eid of the original container,
+        * or there exists a .clone_rtype_role tuple on the entity
+
+        At the end, self.entity is the fully cloned container.
+        """
+        if original:
+            if not isinstance(original, int):
+                raise TypeError('.clone original should be an eid')
+            self.orig_container_eid = original
+        else: # assumes entity.clone_rtype_role tuple
+            if self.clone_rtype:
+                rtype, role = self.entity.clone_rtype_role
+                self.orig_container_eid = self.entity.related(rtype, role).rows[0][0]
+            else:
+                raise TypeError('.clone wants the original or a relation to the original')
+
         internal_rtypes, clonable_etypes = self.container_rtypes_etypes()
 
-        orig_to_clone = self._init_clone_map()
+        orig_to_clone = {self.orig_container_eid: self.entity.eid}
         relations = defaultdict(list)
         cloned_etypes = []
         for etype in self.clonable_etypes():
@@ -133,10 +151,16 @@ class ContainerClone(EntityAdapter):
                 subj_obj.append((subj, obj))
             self._cw.add_relations([(rtype, subj_obj)])
 
-    def _init_clone_map(self):
-        rtype, role = self.entity.clone_rtype_role
-        self.orig_container_eid = self.entity.related(rtype, role).rows[0][0]
-        return {self.orig_container_eid: self.entity.eid}
+    @cachedproperty
+    def clone_rtype(self):
+        """ returns the <clone> rtype if it exists
+        (it should be defined as a .clone_rtype_role 2-uple
+        defined on the container entity)
+        """
+        try:
+            return self.entity.clone_rtype_role[0]
+        except (AttributeError, IndexError):
+            return None
 
     def _complete_rql(self, etype):
         """ etype -> rql to fetch all instances from the container """
@@ -301,8 +325,9 @@ class ContainerClone(EntityAdapter):
         etype = ceschema.type
         etype_rql = 'Any X WHERE X is %s, X eid %s' % (
                 etype, self.orig_container_eid)
-        clone_rtype = self.entity.clone_rtype_role[0]
-        skiprtypes = set((clone_rtype,)).union(self.entity.clone_rtypes_to_skip)
+        skiprtypes = set(self.entity.clone_rtypes_to_skip)
+        if self.clone_rtype:
+            skiprtypes.add(self.clone_rtype)
         for rschema in ceschema.subject_relations():
             if rschema.final:
                 continue

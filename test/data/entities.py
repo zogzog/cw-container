@@ -7,6 +7,10 @@ class Diamond(Container):
     __regid__ = 'Diamond'
     container_rtype = 'diamond'
     container_skipetypes = ('EtypeNotInContainers',)
+    # cloning configuration
+    clone_rtypes_to_skip = ()
+    clone_etypes_to_skip = ()
+
 
 class Mess(Container):
     __regid__ = 'Mess'
