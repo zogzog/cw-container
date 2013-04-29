@@ -97,6 +97,47 @@ class ContainerClone(EntityAdapter):
     """
     __regid__ = 'Container.clone'
 
+    def clone(self):
+        """ entry point """
+        internal_rtypes, clonable_etypes = self.container_rtypes_etypes()
+
+        orig_to_clone = self._init_clone_map()
+        relations = defaultdict(list)
+        cloned_etypes = []
+        for etype in self.clonable_etypes():
+            cloned_etypes.append(etype)
+            for rtype, from_to in self._etype_clone(etype, orig_to_clone).iteritems():
+                relations[rtype].extend(from_to)
+
+        # the container itself is walked: its subject relations have not yet
+        # been collected
+        for rtype, from_to in self._container_relink(orig_to_clone).iteritems():
+            relations[rtype].extend(from_to)
+
+        uncloned_etypes = set(cloned_etypes) - clonable_etypes
+        if uncloned_etypes:
+            self.info('etypes %s were not cloned', uncloned_etypes)
+
+        # let's flush all collected relations
+        self.info('linking (%d relations)', len(relations))
+        for rtype, eids in relations.iteritems():
+            self.info('%s linking %s' %
+                      ('internal' if rtype in internal_rtypes else 'external', rtype))
+            subj_obj = []
+            for subj, obj in eids:
+                subj = orig_to_clone[subj]
+                if obj in orig_to_clone:
+                    # internal relinking, else it is a link
+                    # between internal and external nodes
+                    obj = orig_to_clone[obj]
+                subj_obj.append((subj, obj))
+            self._cw.add_relations([(rtype, subj_obj)])
+
+    def _init_clone_map(self):
+        rtype, role = self.entity.clone_rtype_role
+        self.orig_container_eid = self.entity.related(rtype, role).rows[0][0]
+        return {self.orig_container_eid: self.entity.eid}
+
     def _complete_rql(self, etype):
         """ etype -> rql to fetch all instances from the container """
         if hasattr(self.entity, '_complete_rql'):
@@ -288,47 +329,6 @@ class ContainerClone(EntityAdapter):
                                                  containerclass.container_rtype,
                                                  skiprtypes=containerclass.container_skiprtypes)
         return rtypes, etypes
-
-    def _init_clone_map(self):
-        rtype, role = self.entity.clone_rtype_role
-        self.orig_container_eid = self.entity.related(rtype, role).rows[0][0]
-        return {self.orig_container_eid: self.entity.eid}
-
-    def clone(self):
-        """ entry point """
-        internal_rtypes, clonable_etypes = self.container_rtypes_etypes()
-
-        orig_to_clone = self._init_clone_map()
-        relations = defaultdict(list)
-        cloned_etypes = []
-        for etype in self.clonable_etypes():
-            cloned_etypes.append(etype)
-            for rtype, from_to in self._etype_clone(etype, orig_to_clone).iteritems():
-                relations[rtype].extend(from_to)
-
-        # the container itself is walked: its subject relations have not yet
-        # been collected
-        for rtype, from_to in self._container_relink(orig_to_clone).iteritems():
-            relations[rtype].extend(from_to)
-
-        uncloned_etypes = set(cloned_etypes) - clonable_etypes
-        if uncloned_etypes:
-            self.info('etypes %s were not cloned', uncloned_etypes)
-
-        # let's flush all collected relations
-        self.info('linking (%d relations)', len(relations))
-        for rtype, eids in relations.iteritems():
-            self.info('%s linking %s' %
-                      ('internal' if rtype in internal_rtypes else 'external', rtype))
-            subj_obj = []
-            for subj, obj in eids:
-                subj = orig_to_clone[subj]
-                if obj in orig_to_clone:
-                    # internal relinking, else it is a link
-                    # between internal and external nodes
-                    obj = orig_to_clone[obj]
-                subj_obj.append((subj, obj))
-            self._cw.add_relations([(rtype, subj_obj)])
 
     @cachedproperty
     def _specially_handled_rtypes(self):

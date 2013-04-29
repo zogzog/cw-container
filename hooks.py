@@ -128,6 +128,8 @@ class AddContainerRelationOp(DataOperationMixIn, Operation):
             session.add_relations([('container_etype', container_etype_rel)])
 
 
+# clone using <clone_relation> Hook & Operation
+
 class CloneContainer(Hook):
     __regid__ = 'container.clone'
     events = ('after_add_relation',)
