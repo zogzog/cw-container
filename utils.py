@@ -78,7 +78,6 @@ def define_container(schema, cetype, crtype, rtype_permissions=None,
         schema.warning('setting standard lenient permissions on %s relation', crtype)
     crschema = schema[crtype]
     cetype_rschema = schema['container_etype']
-    cparent_rschema = schema['container_parent']
     for etype in etypes:
         if (etype, cetype) not in crschema.rdefs:
             # checking this will help adding containers to existing applications
@@ -91,13 +90,18 @@ def define_container(schema, cetype, crtype, rtype_permissions=None,
         if (etype, 'CWEType') not in cetype_rschema.rdefs:
             schema.add_relation_def(RelationDefinition(etype, 'container_etype', 'CWEType',
                                                        cardinality='?*'))
-        eschema = schema[etype]
-        if needs_container_parent(eschema):
-            for peschema in parent_eschemas(eschema):
-                petype = peschema.type
-                if (etype, petype) not in cparent_rschema.rdefs:
-                    schema.add_relation_def(RelationDefinition(etype, 'container_parent', petype,
-                                                               cardinality='?*'))
+        define_container_parent_rdefs(schema, etype)
+
+def define_container_parent_rdefs(schema, etype,
+                                  needs_container_parent=needs_container_parent):
+    eschema = schema[etype]
+    cparent_rschema = schema['container_parent']
+    if needs_container_parent(eschema):
+        for peschema in parent_eschemas(eschema):
+            petype = peschema.type
+            if (etype, petype) not in cparent_rschema.rdefs:
+                schema.add_relation_def(RelationDefinition(etype, 'container_parent', petype,
+                                                           cardinality='?*'))
 
 
 def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes=()):

@@ -1,12 +1,9 @@
-from cubes.container import utils
+msg = r'container: after this migration, you should run the sync_container_parent script'
 
-def unneeded_container_parent_rdefs(schema):
-    rdefs = []
-    for subj, obj in schema['container_parent'].rdefs:
-        if not utils.needs_container_parent(subj):
-            rdefs.append((subj, obj))
-    return rdefs
+print
+print '-' * len(msg)
+print msg
+print '-' * len(msg)
+print
 
-for subj, obj in unneeded_container_parent_rdefs(schema):
-    drop_relation_definition(subj.type, 'container_parent', obj.type)
 
