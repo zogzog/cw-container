@@ -6,11 +6,16 @@ from cubes.container import utils
 class Diamond(EntityType):
     name = String()
     require_group = SubjectRelation('CWGroup')
+    has_near_top = SubjectRelation('NearTop', composite='subject',
+                                   cardinality='*?')
+
+class NearTop(EntityType):
+    pass
 
 class Left(EntityType):
     # defines structure
     top_from_left = SubjectRelation('Diamond', composite='object',
-                                    cardinality='1*', inlined=True)
+                                    cardinality='?*', inlined=True)
     # outgoing rtype
     watcher = SubjectRelation('CWUser')
 
@@ -45,6 +50,22 @@ class to_mess(RelationDefinition):
     object = 'Mess'
     composite = 'object'
     cardinality = '??'
+
+
+# Assert skipetypes
+class EtypeNotInContainers(EntityType):
+    pass
+
+class composite_but_not_in_diamond(RelationDefinition):
+    subject = 'EtypeNotInContainers'
+    object = 'Left'
+    composite = 'object'
+
+
+class linked_to_mess(RelationDefinition):
+    subject = 'EtypeNotInContainers'
+    object = 'Mess'
+
 
 def post_build_callback(schema):
     utils.define_container(schema, 'Diamond', 'diamond')

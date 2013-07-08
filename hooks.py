@@ -23,6 +23,20 @@ from cubicweb.server.hook import Hook, DataOperationMixIn, Operation, match_rtyp
 from cubes.container.utils import yet_unset, parent_rschemas
 
 
+def entity_and_parent(req, eidfrom, rtype, eidto):
+    """ given a triple (eidfrom, rtype, eidto)
+    where one of the two eids is the parent of the other,
+    compute a return (eid, eidparent)
+    """
+    subjetype = req.describe(eidfrom)[0]
+    objetype = req.describe(eidto)[0]
+    crole = req.vreg.schema[rtype].rdef(subjetype, objetype).composite
+    if crole == 'object':
+        return eidfrom, eidto
+    else:
+        return eidto, eidfrom
+
+
 class SetContainerRelation(Hook):
     __regid__ = 'container.set_container_relation'
     __abstract__ = True
@@ -30,7 +44,8 @@ class SetContainerRelation(Hook):
     category = 'container'
 
     def __call__(self):
-        AddContainerRelationOp.get_instance(self._cw).add_data((self.eidfrom, self.eidto))
+        eid, peid = entity_and_parent(self._cw, self.eidfrom, self.rtype, self.eidto)
+        AddContainerRelationOp.get_instance(self._cw).add_data((eid, peid))
 
 
 def find_valued_parent_rtype(entity):
@@ -47,14 +62,7 @@ class SetContainerParent(Hook):
 
     def __call__(self):
         req = self._cw
-        schema = req.vreg.schema
-        subjetype = req.describe(self.eidfrom)[0]
-        objetype = req.describe(self.eidto)[0]
-        crole = schema[self.rtype].rdef(subjetype, objetype).composite
-        if crole == 'object':
-            eeid, peid = self.eidfrom, self.eidto
-        else:
-            eeid, peid = self.eidto, self.eidfrom
+        eeid, peid = entity_and_parent(req, self.eidfrom, self.rtype, self.eidto)
         target = req.entity_from_eid(eeid)
         if target.container_parent:
             mp_protocol = target.cw_adapt_to('container.multiple_parents')
@@ -109,6 +117,8 @@ class AddContainerRelationOp(DataOperationMixIn, Operation):
             cprotocol = parent.cw_adapt_to('Container')
             container = cprotocol.related_container
             if container is None:
+                self.critical('container entity could not be reached from %s, '
+                              'you may have ordering issues', parent)
                 continue
             container_rtype_rel[container.container_rtype].append((eid, container.eid))
             container_etype_rel.append((eid, self._container_cwetype_eid(container, cwetype_eid_map)))
@@ -118,6 +128,8 @@ class AddContainerRelationOp(DataOperationMixIn, Operation):
             session.add_relations([('container_etype', container_etype_rel)])
 
 
+# clone using <clone_relation> Hook & Operation
+
 class CloneContainer(Hook):
     __regid__ = 'container.clone'
     events = ('after_add_relation',)
@@ -126,6 +138,7 @@ class CloneContainer(Hook):
 
     def __call__(self):
         CloneContainerOp.get_instance(self._cw).add_data(self.eidfrom)
+
 
 class CloneContainerOp(DataOperationMixIn, Operation):
 

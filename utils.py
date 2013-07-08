@@ -78,7 +78,6 @@ def define_container(schema, cetype, crtype, rtype_permissions=None,
         schema.warning('setting standard lenient permissions on %s relation', crtype)
     crschema = schema[crtype]
     cetype_rschema = schema['container_etype']
-    cparent_rschema = schema['container_parent']
     for etype in etypes:
         if (etype, cetype) not in crschema.rdefs:
             # checking this will help adding containers to existing applications
@@ -91,13 +90,18 @@ def define_container(schema, cetype, crtype, rtype_permissions=None,
         if (etype, 'CWEType') not in cetype_rschema.rdefs:
             schema.add_relation_def(RelationDefinition(etype, 'container_etype', 'CWEType',
                                                        cardinality='?*'))
-        eschema = schema[etype]
-        if needs_container_parent(eschema):
-            for peschema in parent_eschemas(eschema):
-                petype = peschema.type
-                if (etype, petype) not in cparent_rschema.rdefs:
-                    schema.add_relation_def(RelationDefinition(etype, 'container_parent', petype,
-                                                               cardinality='?*'))
+        define_container_parent_rdefs(schema, etype)
+
+def define_container_parent_rdefs(schema, etype,
+                                  needs_container_parent=needs_container_parent):
+    eschema = schema[etype]
+    cparent_rschema = schema['container_parent']
+    if needs_container_parent(eschema):
+        for peschema in parent_eschemas(eschema):
+            petype = peschema.type
+            if (etype, petype) not in cparent_rschema.rdefs:
+                schema.add_relation_def(RelationDefinition(etype, 'container_parent', petype,
+                                                           cardinality='?*'))
 
 
 def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
@@ -115,6 +119,8 @@ def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes
             if rschema.meta or rschema in skiprtypes:
                 continue
             if not composite_role(eschema, rschema) == role:
+                continue
+            if skipetypes.intersection(teschemas):
                 continue
             rtypes.add(rschema.type)
             for teschema in teschemas:
@@ -232,23 +238,25 @@ def linearize(etype_map, all_etypes):
     return [etype for etype in sorted_etypes
             if etype in all_etypes]
 
-def ordered_container_etypes(schema, cetype, crtype, skiprtypes=()):
+def ordered_container_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
     """ return list of etypes of a container by dependency order
     this is provided for simplicity and backward compatibility
     reasons
     etypes that are parts of a cycle are undiscriminately
     added at the end
     """
-    orders, etype_map = container_etype_orders(schema, cetype, crtype, skiprtypes)
+    orders, etype_map = container_etype_orders(schema, cetype, crtype,
+                                               skiprtypes, skipetypes)
     total_order = []
     for order in orders:
         total_order += order
     return total_order + etype_map.keys()
 
-def container_etype_orders(schema, cetype, crtype, skiprtypes=()):
+def container_etype_orders(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
     """ computes linearizations and cycles of etypes within a container """
     _rtypes, etypes = container_static_structure(schema, cetype, crtype,
-                                                 skiprtypes=skiprtypes)
+                                                 skiprtypes=skiprtypes,
+                                                 skipetypes=skipetypes)
     orders = []
     etype_map = dict((etype, needed_etypes(schema, etype, cetype, crtype,
                                            skiprtypes))

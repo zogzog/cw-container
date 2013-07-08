@@ -10,11 +10,13 @@ class SetContainerRelation(hooks.SetContainerRelation):
 
 def registration_callback(vreg):
     schema = vreg.schema
-    rtypes_d = utils.set_container_parent_rtypes_hook(schema, 'Diamond', 'diamond')
+    rtypes_d = utils.set_container_parent_rtypes_hook(schema, 'Diamond', 'diamond',
+                                                      skipetypes=('EtypeNotInContainers',))
     rtypes_m = utils.set_container_parent_rtypes_hook(schema, 'Mess', 'in_mess')
     SetContainerParent.__select__ = (Hook.__select__ &
                                      match_rtype(*rtypes_d.union(rtypes_m)))
-    rtypes_d = utils.set_container_relation_rtypes_hook(schema, 'Diamond', 'diamond')
+    rtypes_d = utils.set_container_relation_rtypes_hook(schema, 'Diamond', 'diamond',
+                                                        skipetypes=('EtypeNotInContainers',))
     rtypes_m = utils.set_container_relation_rtypes_hook(schema, 'Mess', 'in_mess')
     SetContainerRelation.__select__ = (Hook.__select__ &
                                        match_rtype(*rtypes_d.union(rtypes_m)))

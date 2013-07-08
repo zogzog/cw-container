@@ -1,3 +1,27 @@
+cubicweb-container (1.0.3-1) unstable; urgency=low
+
+  * new upstream release
+
+ -- Aurélien Campéas <aurelien.campeas@logilab.fr>  Mon, 29 May 2013 14:42:00 +0200
+
+cubicweb-container (1.0.2-1) unstable; urgency=low
+
+  * new upstream release
+
+ -- Aurélien Campéas <aurelien.campeas@logilab.fr>  Mon, 27 May 2013 19:19:00 +0200
+
+cubicweb-container (1.0.1-1) unstable; urgency=low
+
+  * new upstream release
+
+ -- David Douard <david.douard@logilab.fr>  Mon, 08 Apr 2013 15:43:45 +0200
+
+cubicweb-container (1.0.0-1) unstable; urgency=low
+
+  * upstream release
+
+ -- Aurélien Campéas <aurelien.campeas@logilab.fr>  Wed, 30 Jan 2013 12:28:00 +0100
+
 cubicweb-container (0.3.0-1) unstable; urgency=low
 
   * upstream release
