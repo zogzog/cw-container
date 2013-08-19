@@ -276,10 +276,10 @@ class ContainerClone(EntityAdapter):
         self._etype_relink_clones(etype, queryargs, relations, deferred_relations)
 
         # 4/ handle deferred relations
-        self._flush_deferred(deferred_relations)
+        self._flush_deferred(deferred_relations, orig_to_clone)
         return relations
 
-    def _flush_deferred(self, deferred_relations):
+    def _flush_deferred(self, deferred_relations, orig_to_clone):
         if len(deferred_relations):
             self.info('relinking deferred (%d relations)', len(deferred_relations))
             self.handle_special_relations((rtype, orig_to_clone[orig], linked)
@@ -354,7 +354,7 @@ class ContainerClone(EntityAdapter):
                     deferred_relations.append((rtype, ceid, linked_eid))
                 else:
                     relations[rtype].append((ceid, linked_eid))
-        self._flush_deferred(deferred_relations)
+        self._flush_deferred(deferred_relations, orig_to_clone)
         return relations
 
     def container_rtypes_etypes(self):
