@@ -55,6 +55,7 @@ def first_parent_rtype_role(eschema):
 
 class ContainerProtocol(EntityAdapter):
     __regid__ = 'Container'
+    clone_rtype_role = None
 
     @property
     def related_container(self):
@@ -113,22 +114,9 @@ class ContainerClone(EntityAdapter):
     def clone(self, original=None):
         """ entry point
 
-        To get the original container:
-        * either we are given the eid of the original container,
-        * or there exists a .clone_rtype_role tuple on the entity
-
         At the end, self.entity is the fully cloned container.
         """
-        if original:
-            if not isinstance(original, int):
-                raise TypeError('.clone original should be an eid')
-            self.orig_container_eid = original
-        else: # assumes entity.clone_rtype_role tuple
-            if self.clone_rtype:
-                rtype, role = self.entity.clone_rtype_role
-                self.orig_container_eid = self.entity.related(rtype, role).rows[0][0]
-            else:
-                raise TypeError('.clone wants the original or a relation to the original')
+        self.orig_container_eid = self._origin_eid(original)
 
         internal_rtypes, clonable_etypes = self.container_rtypes_etypes()
 
@@ -167,13 +155,31 @@ class ContainerClone(EntityAdapter):
     @cachedproperty
     def clone_rtype(self):
         """ returns the <clone> rtype if it exists
-        (it should be defined as a .clone_rtype_role 2-uple
-        defined on the container entity)
-        """
+        (it should be defined as a .clone_rtype_role 2-uple) """
         try:
-            return self.entity.clone_rtype_role[0]
+            return self.clone_rtype_role[0]
         except (AttributeError, IndexError):
             return None
+
+    def _origin_eid(self, original):
+        """ computes the original container eid using
+        several methods
+
+        To get the original container:
+        * either we are given the eid of the original container,
+        * or the .clone_rtype_role attribute is a tuple
+        """
+        if original:
+            if not isinstance(original, int):
+                raise TypeError('.clone original should be an eid')
+            return original
+        else:
+            if self.clone_rtype:
+                rtype, role = self.clone_rtype_role
+                return self.entity.related(rtype, role).rows[0][0]
+            else:
+                raise TypeError('.clone wants the original or a relation to the original')
+
 
     def _complete_rql(self, etype):
         """ etype -> rql to fetch all instances from the container """
