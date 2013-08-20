@@ -95,7 +95,20 @@ class ContainerClone(EntityAdapter):
     and not too memory hungry
     (This is quite 'optimized' already, hence not always easy to follow.)
     """
+    __abstract__ = True
     __regid__ = 'Container.clone'
+
+    # These two unimplemented properties are bw compat
+    # to drive users from entity.clone_(e/r)types_to_skip
+    # to adapter.(e/r)types_to_skip
+    @cachedproperty
+    def etypes_to_skip(self):
+        raise NotImplementedError
+
+    @cachedproperty
+    def rtypes_to_skip(self):
+        raise NotImplementedError
+    # /bw compat
 
     def clone(self, original=None):
         """ entry point
@@ -199,7 +212,7 @@ class ContainerClone(EntityAdapter):
         #  - fetch_rqlst() recurses on target etypes: we don't want this
         for rschema in self._cw.vreg.schema[etype].subject_relations():
             rtype = rschema.type
-            if (rtype in self.entity.clone_rtypes_to_skip
+            if (rtype in self.rtypes_to_skip
                 or not (rschema.final or rschema.inlined)
                 or (rschema.meta and not rtype in meta_but_fetched)):
                 continue
@@ -232,15 +245,15 @@ class ContainerClone(EntityAdapter):
         for rschema in eschema.subject_relations():
             rtype = rschema.type
             if not (rschema.inlined or rschema.final
-                    or rschema.meta or rtype in self.entity.clone_rtypes_to_skip):
+                    or rschema.meta or rtype in self.rtypes_to_skip):
                 yield rtype
 
     def clonable_etypes(self):
         for etype in ordered_container_etypes(self._cw.vreg.schema,
                                               self.entity.__regid__,
                                               self.entity.container_rtype,
-                                              self.entity.clone_rtypes_to_skip):
-            if etype in self.entity.clone_etypes_to_skip:
+                                              self.rtypes_to_skip):
+            if etype in self.etypes_to_skip:
                 continue
             yield etype
 
@@ -325,7 +338,7 @@ class ContainerClone(EntityAdapter):
         etype = ceschema.type
         etype_rql = 'Any X WHERE X is %s, X eid %s' % (
                 etype, self.orig_container_eid)
-        skiprtypes = set(self.entity.clone_rtypes_to_skip)
+        skiprtypes = set(self.rtypes_to_skip)
         if self.clone_rtype:
             skiprtypes.add(self.clone_rtype)
         for rschema in ceschema.subject_relations():
