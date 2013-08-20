@@ -229,15 +229,6 @@ class ContainerClone(EntityAdapter):
         return rqlst, fetched_rtypes, inlined_rtypes
 
     def _queryargs(self):
-        if hasattr(self.entity, '_queryargs'):
-            warn('container: you should move _query_args to an adapter',
-                 DeprecationWarning)
-            qa = self.entity._queryargs()
-            if 'case' in qa:
-                # rename case -> container
-                qa['container'] = qa['case']
-                del qa['case']
-            return qa
         return {'container': self.orig_container_eid}
 
     def clonable_rtypes(self, etype):
@@ -375,17 +366,11 @@ class ContainerClone(EntityAdapter):
         the end to the handle_special_relations method (whose default
         implementation does nothing)
         """
-        if hasattr(self.entity, '_specially_handled_rtypes'):
-            warn('container: you should move _specially_handled_rtypes '
-                 'to an adapter', DeprecationWarning)
-            return self.entity._specially_handled_rtypes
         return ()
 
     def handle_special_relations(self, deferred_relations):
-        if hasattr(self.entity, 'handle_special_relations'):
-            warn('container: you should move handle_special_relations '
-                 'to an adapter', DeprecationWarning)
-            self.entity.handle_special_relations(deferred_relations)
+        pass
+
 
 
 class MultiParentProtocol(EntityAdapter):
