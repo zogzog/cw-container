@@ -84,7 +84,13 @@ class ContainerProtocol(EntityAdapter):
         if needs_container_parent(self.entity.e_schema):
             parent = self.entity.container_parent
             return parent[0] if parent else None
-        rtype, role = first_parent_rtype_role(self.entity.e_schema)
+        try:
+            rtype, role = first_parent_rtype_role(self.entity.e_schema)
+        except IndexError:
+            # that was likely a non-container entity
+            # this can happen since this adapter is selectable
+            # for any entity type
+            return None
         parent = self.entity.related(rtype=rtype, role=role, entities=True)
         if parent:
             return parent[0]
