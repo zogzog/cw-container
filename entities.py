@@ -40,7 +40,6 @@ class Container(AnyEntity):
     container_rtype = None
     container_skiprtypes = ()
     container_skipetypes = ()
-    container_computedrtypes = ()
 
 @cached
 def container_etypes(vreg):
