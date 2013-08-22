@@ -187,8 +187,7 @@ def border_rtypes(schema, etypes, inner_rtypes):
     """ compute the set of rtypes that go from/to an etype in a container
     to/from an etype outside
     """
-    from cubes.container.site_cubicweb import schema as _cwschema
-    META = _cwschema.META_RTYPES
+    META = cw_schema.META_RTYPES
     border_crossing = set()
     for etype in etypes:
         eschema = schema[etype]
