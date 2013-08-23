@@ -40,7 +40,6 @@ class Container(AnyEntity):
     container_rtype = None
     container_skiprtypes = ()
     container_skipetypes = ()
-    container_computedrtypes = ()
 
 @cached
 def container_etypes(vreg):
@@ -55,6 +54,7 @@ def first_parent_rtype_role(eschema):
 
 class ContainerProtocol(EntityAdapter):
     __regid__ = 'Container'
+    clone_rtype_role = None
 
     @property
     def related_container(self):
@@ -84,7 +84,13 @@ class ContainerProtocol(EntityAdapter):
         if needs_container_parent(self.entity.e_schema):
             parent = self.entity.container_parent
             return parent[0] if parent else None
-        rtype, role = first_parent_rtype_role(self.entity.e_schema)
+        try:
+            rtype, role = first_parent_rtype_role(self.entity.e_schema)
+        except IndexError:
+            # that was likely a non-container entity
+            # this can happen since this adapter is selectable
+            # for any entity type
+            return None
         parent = self.entity.related(rtype=rtype, role=role, entities=True)
         if parent:
             return parent[0]
@@ -95,27 +101,27 @@ class ContainerClone(EntityAdapter):
     and not too memory hungry
     (This is quite 'optimized' already, hence not always easy to follow.)
     """
+    __abstract__ = True
     __regid__ = 'Container.clone'
+
+    # These two unimplemented properties are bw compat
+    # to drive users from entity.clone_(e/r)types_to_skip
+    # to adapter.(e/r)types_to_skip
+    @cachedproperty
+    def etypes_to_skip(self):
+        raise NotImplementedError
+
+    @cachedproperty
+    def rtypes_to_skip(self):
+        raise NotImplementedError
+    # /bw compat
 
     def clone(self, original=None):
         """ entry point
 
-        To get the original container:
-        * either we are given the eid of the original container,
-        * or there exists a .clone_rtype_role tuple on the entity
-
         At the end, self.entity is the fully cloned container.
         """
-        if original:
-            if not isinstance(original, int):
-                raise TypeError('.clone original should be an eid')
-            self.orig_container_eid = original
-        else: # assumes entity.clone_rtype_role tuple
-            if self.clone_rtype:
-                rtype, role = self.entity.clone_rtype_role
-                self.orig_container_eid = self.entity.related(rtype, role).rows[0][0]
-            else:
-                raise TypeError('.clone wants the original or a relation to the original')
+        self.orig_container_eid = self._origin_eid(original)
 
         internal_rtypes, clonable_etypes = self.container_rtypes_etypes()
 
@@ -154,13 +160,31 @@ class ContainerClone(EntityAdapter):
     @cachedproperty
     def clone_rtype(self):
         """ returns the <clone> rtype if it exists
-        (it should be defined as a .clone_rtype_role 2-uple
-        defined on the container entity)
-        """
+        (it should be defined as a .clone_rtype_role 2-uple) """
         try:
-            return self.entity.clone_rtype_role[0]
+            return self.clone_rtype_role[0]
         except (AttributeError, IndexError):
             return None
+
+    def _origin_eid(self, original):
+        """ computes the original container eid using
+        several methods
+
+        To get the original container:
+        * either we are given the eid of the original container,
+        * or the .clone_rtype_role attribute is a tuple
+        """
+        if original:
+            if not isinstance(original, int):
+                raise TypeError('.clone original should be an eid')
+            return original
+        else:
+            if self.clone_rtype:
+                rtype, role = self.clone_rtype_role
+                return self.entity.related(rtype, role).rows[0][0]
+            else:
+                raise TypeError('.clone wants the original or a relation to the original')
+
 
     def _complete_rql(self, etype):
         """ etype -> rql to fetch all instances from the container """
@@ -199,7 +223,7 @@ class ContainerClone(EntityAdapter):
         #  - fetch_rqlst() recurses on target etypes: we don't want this
         for rschema in self._cw.vreg.schema[etype].subject_relations():
             rtype = rschema.type
-            if (rtype in self.entity.clone_rtypes_to_skip
+            if (rtype in self.rtypes_to_skip
                 or not (rschema.final or rschema.inlined)
                 or (rschema.meta and not rtype in meta_but_fetched)):
                 continue
@@ -216,15 +240,6 @@ class ContainerClone(EntityAdapter):
         return rqlst, fetched_rtypes, inlined_rtypes
 
     def _queryargs(self):
-        if hasattr(self.entity, '_queryargs'):
-            warn('container: you should move _query_args to an adapter',
-                 DeprecationWarning)
-            qa = self.entity._queryargs()
-            if 'case' in qa:
-                # rename case -> container
-                qa['container'] = qa['case']
-                del qa['case']
-            return qa
         return {'container': self.orig_container_eid}
 
     def clonable_rtypes(self, etype):
@@ -232,15 +247,15 @@ class ContainerClone(EntityAdapter):
         for rschema in eschema.subject_relations():
             rtype = rschema.type
             if not (rschema.inlined or rschema.final
-                    or rschema.meta or rtype in self.entity.clone_rtypes_to_skip):
+                    or rschema.meta or rtype in self.rtypes_to_skip):
                 yield rtype
 
     def clonable_etypes(self):
         for etype in ordered_container_etypes(self._cw.vreg.schema,
                                               self.entity.__regid__,
                                               self.entity.container_rtype,
-                                              self.entity.clone_rtypes_to_skip):
-            if etype in self.entity.clone_etypes_to_skip:
+                                              self.rtypes_to_skip):
+            if etype in self.etypes_to_skip:
                 continue
             yield etype
 
@@ -266,10 +281,10 @@ class ContainerClone(EntityAdapter):
         self._etype_relink_clones(etype, queryargs, relations, deferred_relations)
 
         # 4/ handle deferred relations
-        self._flush_deferred(deferred_relations)
+        self._flush_deferred(deferred_relations, orig_to_clone)
         return relations
 
-    def _flush_deferred(self, deferred_relations):
+    def _flush_deferred(self, deferred_relations, orig_to_clone):
         if len(deferred_relations):
             self.info('relinking deferred (%d relations)', len(deferred_relations))
             self.handle_special_relations((rtype, orig_to_clone[orig], linked)
@@ -325,7 +340,7 @@ class ContainerClone(EntityAdapter):
         etype = ceschema.type
         etype_rql = 'Any X WHERE X is %s, X eid %s' % (
                 etype, self.orig_container_eid)
-        skiprtypes = set(self.entity.clone_rtypes_to_skip)
+        skiprtypes = set(self.rtypes_to_skip)
         if self.clone_rtype:
             skiprtypes.add(self.clone_rtype)
         for rschema in ceschema.subject_relations():
@@ -344,7 +359,7 @@ class ContainerClone(EntityAdapter):
                     deferred_relations.append((rtype, ceid, linked_eid))
                 else:
                     relations[rtype].append((ceid, linked_eid))
-        self._flush_deferred(deferred_relations)
+        self._flush_deferred(deferred_relations, orig_to_clone)
         return relations
 
     def container_rtypes_etypes(self):
@@ -362,17 +377,11 @@ class ContainerClone(EntityAdapter):
         the end to the handle_special_relations method (whose default
         implementation does nothing)
         """
-        if hasattr(self.entity, '_specially_handled_rtypes'):
-            warn('container: you should move _specially_handled_rtypes '
-                 'to an adapter', DeprecationWarning)
-            return self.entity._specially_handled_rtypes
         return ()
 
     def handle_special_relations(self, deferred_relations):
-        if hasattr(self.entity, 'handle_special_relations'):
-            warn('container: you should move handle_special_relations '
-                 'to an adapter', DeprecationWarning)
-            self.entity.handle_special_relations(deferred_relations)
+        pass
+
 
 
 class MultiParentProtocol(EntityAdapter):

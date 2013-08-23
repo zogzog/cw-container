@@ -6,11 +6,17 @@ class ContainerLessTC(CubicWebTC):
 
     def test_free_from_container(self):
         l = self.request().create_entity('Left')
-        self.assertEqual(None, l.cw_adapt_to('Container').related_container)
-        self.assertEqual(None, l.cw_adapt_to('Container').parent)
+        self.assertNone(l.cw_adapt_to('Container').related_container)
+        self.assertNone(l.cw_adapt_to('Container').parent)
         self.commit()
-        self.assertEqual(None, l.cw_adapt_to('Container').related_container)
-        self.assertEqual(None, l.cw_adapt_to('Container').parent)
+        self.assertNone(l.cw_adapt_to('Container').related_container)
+        self.assertNone(l.cw_adapt_to('Container').parent)
+
+    def test_adapter_without_container(self):
+        u = self.request().execute('CWUser U WHERE U login "admin"').get_entity(0,0)
+        adapter = u.cw_adapt_to('Container')
+        self.assertNone(adapter.parent)
+        self.assertNone(adapter.related_container)
 
 class ContainerEntitiesTC(CubicWebTC):
 

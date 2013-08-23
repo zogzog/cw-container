@@ -183,6 +183,23 @@ def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=()
     return frozenset(rtypes), frozenset(etypes)
 
 
+def border_rtypes(schema, etypes, inner_rtypes):
+    """ compute the set of rtypes that go from/to an etype in a container
+    to/from an etype outside
+    """
+    META = cw_schema.META_RTYPES
+    border_crossing = set()
+    for etype in etypes:
+        eschema = schema[etype]
+        for rschema, _teschemas, _role in eschema.relation_definitions():
+            if rschema.meta or rschema.final or rschema.type in META:
+                continue
+            if rschema.type in inner_rtypes:
+                continue
+            border_crossing.add(rschema.type)
+    return border_crossing
+
+
 def needed_etypes(schema, etype, cetype, crtype, computed_rtypes=()):
     """ finds all container etypes this one depends on to be built
     start from all subject + object relations """
