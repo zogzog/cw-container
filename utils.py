@@ -330,3 +330,43 @@ def _iter_mainvar_relations(rqlst):
             if (isinstance(rel.children[1], Comparison)
                 and isinstance(rel.children[1].children[0], VariableRef)):
                 yield rel.r_type, rel.children[1].children[0]
+
+
+# migration helper
+
+def synchronize_container_parent_rdefs(schema,
+                                       add_relation_definition,
+                                       drop_relation_definition,
+                                       cetype, crtype, skiprtypes, skipetypes):
+    """ To be used in migration involving added/removed etypes in a container
+    It will automatically add/remove rdefs for the `container_parent` rtype.
+
+    example usage:
+
+      from mycube.entities.box import Box # Box is a container etype
+      synchronize_container_parent_rdefs(schema,
+                                         add_relation_definition,
+                                         drop_relation_definition,
+                                         Box.__regid__,
+                                         Box.container_rtype,
+                                         Box.container_skiprtypes,
+                                         Box.container_skipetypes)
+    """
+    _rtypes, etypes = container_static_structure(schema, cetype, crtype, skiprtypes, skipetypes)
+    cparent = schema['container_parent']
+    for etype in etypes:
+        eschema = schema[etype]
+        if needs_container_parent(eschema):
+            for peschema in parent_eschemas(eschema):
+                if (eschema, peschema) not in cparent.rdefs:
+                    add_relation_definition(etype, 'container_parent', peschema.type)
+
+    def unneeded_container_parent_rdefs():
+        rdefs = []
+        for subj, obj in cparent.rdefs:
+            if not needs_container_parent(subj):
+                rdefs.append((subj, obj))
+        return rdefs
+
+    for subj, obj in unneeded_container_parent_rdefs():
+        drop_relation_definition(subj.type, 'container_parent', obj.type)
