@@ -103,16 +103,18 @@ class ContainerClone(EntityAdapter):
     """
     __abstract__ = True
     __regid__ = 'Container.clone'
+    rtypes_to_skip = set()
+    etypes_to_skip = set()
 
     # These two unimplemented properties are bw compat
     # to drive users from entity.clone_(e/r)types_to_skip
     # to adapter.(e/r)types_to_skip
     @cachedproperty
-    def etypes_to_skip(self):
+    def clone_etypes_to_skip(self):
         raise NotImplementedError
 
     @cachedproperty
-    def rtypes_to_skip(self):
+    def clone_rtypes_to_skip(self):
         raise NotImplementedError
     # /bw compat
 
