@@ -13,8 +13,8 @@ class TwoContainersTC(CubicWebTC):
     def test_project_static_structure(self):
         schema = self.vreg.schema
         project = self.vreg['etypes'].etype_class('Project')
-        self.assertEqual((frozenset(['documents', 'implements', 'concerns', 'version_of']),
-                          frozenset(['Patch', 'Ticket', 'Version', 'Folder'])),
+        self.assertEqual((frozenset(['documents', 'implements', 'concerns', 'version_of', 'subproject_of']),
+                          frozenset(['Patch', 'Ticket', 'Version', 'Folder','Project'])),
                          utils.container_static_structure(schema, 'Project', 'project',
                                                           skiprtypes=project.container_skiprtypes,
                                                           skipetypes=project.container_skipetypes,
@@ -29,8 +29,8 @@ class TwoContainersTC(CubicWebTC):
         # we cannot do much against that. We really need some support viz Yams
         # (e.g. http://www.logilab.org/ticket/100723)
         self.assertEqual((frozenset(['implements', 'documents', 'parent', 'done_in_version',
-                                     'concerns', 'version_of']),
-                          frozenset(['Folder', 'Patch', 'Ticket', 'Version'])),
+                                     'concerns', 'version_of', 'subproject_of']),
+                          frozenset(['Folder', 'Patch', 'Ticket', 'Version', 'Project'])),
                          utils.container_rtypes_etypes(schema, 'Project', 'project',
                                                        skiprtypes=project.container_skiprtypes,
                                                        skipetypes=project.container_skipetypes,
@@ -45,7 +45,7 @@ class TwoContainersTC(CubicWebTC):
                                                                   skiprtypes=project.container_skiprtypes,
                                                                   skipetypes=project.container_skipetypes,
                                                                   subcontainers=project.container_subcontainers))
-        self.assertEqual(set(['implements', 'concerns', 'version_of']),
+        self.assertEqual(set(['implements', 'concerns', 'version_of', 'subproject_of']),
                          utils.set_container_relation_rtypes_hook(schema, 'Project', 'project',
                                                                   skiprtypes=project.container_skiprtypes,
                                                                   skipetypes=project.container_skipetypes,
@@ -96,7 +96,6 @@ def parent_titles(parent):
 class CloneTC(CubicWebTC):
     userlogin = userlogin
 
-
     def setup_database(self):
         req = self.request()
         proj = req.create_entity('Project', name=u'Babar')
@@ -110,12 +109,28 @@ class CloneTC(CubicWebTC):
         fold1 = req.create_entity('Folder', name=u'Babar documentation',
                                   element=doc1, documents=projeid)
 
+        # a subproject
+        proj = req.create_entity('Project', name=u'Celeste',
+                                 subproject_of=proj)
+        projeid = proj.eid
+        ver = new_version(req, projeid)
+        tick = new_ticket(req, projeid, ver, name=u'write bio', descr=u'do it')
+        afile = req.create_entity('File', data=Binary('foo'))
+        patch = new_patch(req, tick, afile, name=u'bio part one')
+
+        doc2 = req.create_entity('File', data=Binary('How I met Babar'))
+        fold2 = req.create_entity('Folder', name=u'Celeste bio',
+                                  element=doc2, documents=projeid)
+
     def test_project_and_folder(self):
         req = self.session
         babar = req.execute('Project P WHERE P name "Babar"').get_entity(0,0)
+
         # start from File (in the Folder sub-container)
-        thefile = req.execute('File F WHERE EXISTS(F folder_root R)').get_entity(0,0)
+        thefile = req.execute('File F WHERE FO element F, FO name like "Babar%"').get_entity(0,0)
         self.assertEqual(['Babar documentation', 'Babar'], parent_titles(thefile))
+        thefile = req.execute('File F WHERE FO element F, FO name like "Celeste%"').get_entity(0,0)
+        self.assertEqual(['Celeste bio', 'Celeste', 'Babar'], parent_titles(thefile))
 
         # start from Patch (in Project)
         patch = req.execute('Patch P WHERE EXISTS(P project X)').get_entity(0,0)
@@ -124,29 +139,48 @@ class CloneTC(CubicWebTC):
     def test_clone(self):
         req = self.session
         babar = req.execute('Project P WHERE P name "Babar"').get_entity(0,0)
+        celeste = req.execute('Project P WHERE P name "Celeste"').get_entity(0,0)
         self.assertEqual([('Folder', u'Babar documentation'),
                           ('Patch', u'some code'),
+                          ('Project', u'Celeste'),
                           ('Ticket', u'think about it'),
                           ('Version', u'0.1.0')],
                          sorted([(e.__regid__, e.dc_title())
                                  for e in babar.reverse_project]))
+        self.assertEqual([('Folder', u'Celeste bio'),
+                          ('Patch', u'bio part one'),
+                          ('Ticket', u'write bio'),
+                          ('Version', u'0.1.0')],
+                         sorted([(e.__regid__, e.dc_title())
+                                 for e in celeste.reverse_project]))
 
-        babar_eids = set(babar.reverse_project)
+        babar_eids = set(x.eid for x in babar.reverse_project)
+        celeste_eids = set(x.eid for x in celeste.reverse_project)
 
         clone = req.create_entity('Project', name=u'Babar clone')
         cloner = clone.cw_adapt_to('Container.clone')
-        self.assertEqual(['Folder', 'Patch', 'Ticket', 'Version'],
+        self.assertEqual(['Folder', 'Patch', 'Project', 'Ticket', 'Version'],
                          sorted(cloner.clonable_etypes()))
 
-        cloner.clone(original=babar.eid)
-        self.commit()
+        with self.session.deny_all_hooks_but(*clone.compulsory_hooks_categories):
+            cloner.clone(original=babar.eid)
+            self.commit()
 
         clone.cw_clear_all_caches()
         self.assertEqual([('Folder', u'Babar documentation'),
                           ('Patch', u'some code'),
+                          ('Project', u'Celeste'),
                           ('Ticket', u'think about it'),
                           ('Version', u'0.1.0')],
                          sorted([(e.__regid__, e.dc_title())
                                  for e in clone.reverse_project]))
 
-        self.assertNotEqual(babar_eids, set(clone.reverse_project))
+        self.assertNotEqual(babar_eids, set(x.eid for x in clone.reverse_project))
+        cloned_celeste = clone.reverse_subproject_of[0]
+        self.assertEqual([('Folder', u'Celeste bio'),
+                          ('Patch', u'bio part one'),
+                          ('Ticket', u'write bio'),
+                          ('Version', u'0.1.0')],
+                         sorted([(e.__regid__, e.dc_title())
+                                 for e in cloned_celeste.reverse_project]))
+        self.assertNotEqual(celeste_eids, set(x.eid for x in cloned_celeste.reverse_project))

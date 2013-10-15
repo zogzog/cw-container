@@ -41,6 +41,7 @@ class Container(AnyEntity):
     container_skiprtypes = ()
     container_skipetypes = ()
     container_subcontainers = ()
+    compulsory_hooks_categories = ()
 
 
 @cached
@@ -138,7 +139,7 @@ class ContainerClone(EntityAdapter):
         internal_rtypes, clonable_etypes = self.container_rtypes_etypes()
 
         for etype in self.clonable_etypes():
-            if etype in self.entity.container_subcontainers:
+            if etype in container_etypes(self._cw.vreg):
                 # We will delegate much of the job to the container
                 # adapter itself. The sub-container however will be
                 # handled like another clonable entity.

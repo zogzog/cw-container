@@ -12,6 +12,8 @@ class Project(EntityType):
         'update': ('managers', ERQLExpression('U canwrite X')),
         'delete': ('managers', ERQLExpression('U canwrite X'))
     }
+    subproject_of = SubjectRelation('Project', composite='object',
+                                    inlined=True, cardinality='?*')
 
 
 # a standard read-write permission scheme
