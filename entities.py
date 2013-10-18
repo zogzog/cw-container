@@ -40,6 +40,8 @@ class Container(AnyEntity):
     container_rtype = None
     container_skiprtypes = ()
     container_skipetypes = ()
+    container_subcontainers = ()
+
 
 @cached
 def container_etypes(vreg):
@@ -125,24 +127,43 @@ class ContainerClone(EntityAdapter):
         """
         self.orig_container_eid = self._origin_eid(original)
 
-        internal_rtypes, clonable_etypes = self.container_rtypes_etypes()
-
         orig_to_clone = {self.orig_container_eid: self.entity.eid}
         relations = defaultdict(list)
+        self._clone(orig_to_clone, relations)
+
+    def _clone(self, orig_to_clone, relations, toplevel=True):
+        self.info('started cloning %s (toplevel=%s)', self.entity.e_schema, toplevel)
         cloned_etypes = []
+        subcontainers = set()
+        internal_rtypes, clonable_etypes = self.container_rtypes_etypes()
+
         for etype in self.clonable_etypes():
+            if etype in self.entity.container_subcontainers:
+                # We will delegate much of the job to the container
+                # adapter itself. The sub-container however will be
+                # handled like another clonable entity.
+                self.info('%s is a container etype scheduled for delegated cloning', etype)
+                subcontainers.add(etype)
             cloned_etypes.append(etype)
             for rtype, from_to in self._etype_clone(etype, orig_to_clone).iteritems():
                 relations[rtype].extend(from_to)
 
-        # the container itself is walked: its subject relations have not yet
+        uncloned_etypes = set(cloned_etypes) - clonable_etypes
+        if uncloned_etypes:
+            self.info('etypes %s were not cloned', uncloned_etypes)
+
+        for cetype in subcontainers:
+            self._delegate_clone_to_subcontainer(cetype, orig_to_clone, relations)
+
+        if not toplevel:
+            self.info('sub-clone terminated, resuming to parent')
+            return
+
+        # the top container itself is walked: its subject relations have not yet
         # been collected
         for rtype, from_to in self._container_relink(orig_to_clone).iteritems():
             relations[rtype].extend(from_to)
 
-        uncloned_etypes = set(cloned_etypes) - clonable_etypes
-        if uncloned_etypes:
-            self.info('etypes %s were not cloned', uncloned_etypes)
 
         # let's flush all collected relations
         self.info('linking (%d relations)', len(relations))
@@ -158,6 +179,20 @@ class ContainerClone(EntityAdapter):
                     obj = orig_to_clone[obj]
                 subj_obj.append((subj, obj))
             self._cw.add_relations([(rtype, subj_obj)])
+
+    def _delegate_clone_to_subcontainer(self, cetype, orig_to_clone, relations):
+        self.info('delegated cloning for %s', cetype)
+        query = self._complete_rql(cetype)
+        candidates_rset = self._cw.execute(query, self._queryargs())
+        for candidate in candidates_rset.entities():
+            # fetch the container clone
+            cclone = self._cw.entity_from_eid(orig_to_clone[candidate.eid])
+            cloner = cclone.cw_adapt_to('Container.clone')
+            cloner.orig_container_eid = cloner._origin_eid(candidate.eid)
+            # the orig-clone mapping and relations will be augmented
+            # by the delegated clone
+            cloner._clone(orig_to_clone, relations, toplevel=False)
+
 
     @cachedproperty
     def clone_rtype(self):
@@ -256,19 +291,19 @@ class ContainerClone(EntityAdapter):
         for etype in ordered_container_etypes(self._cw.vreg.schema,
                                               self.entity.__regid__,
                                               self.entity.container_rtype,
-                                              self.rtypes_to_skip):
-            if etype in self.etypes_to_skip:
-                continue
+                                              self.rtypes_to_skip,
+                                              self.etypes_to_skip,
+                                              self.entity.container_subcontainers):
             yield etype
 
     def _etype_clone(self, etype, orig_to_clone):
         # 1/ fetch all <etype> entities in current container
-        queryargs = self._queryargs()
         query, fetched_rtypes, inlined_rtypes = self._etype_fetch_rqlst(etype)
-        candidates_rset = self._cw.execute(query, queryargs)
+        candidates_rset = self._cw.execute(query, self._queryargs())
         if not candidates_rset:
             self.info('nothing to be cloned for %s', etype)
             return {}
+
         self.info('cloning %d %s BOs', len(candidates_rset.rows), etype)
 
         relations = defaultdict(list)
@@ -280,7 +315,7 @@ class ContainerClone(EntityAdapter):
                                   fetched_rtypes, inlined_rtypes)
 
         # 3/ clone standard (i.e non-inlined) relations
-        self._etype_relink_clones(etype, queryargs, relations, deferred_relations)
+        self._etype_relink_clones(etype, self._queryargs(), relations, deferred_relations)
 
         # 4/ handle deferred relations
         self._flush_deferred(deferred_relations, orig_to_clone)

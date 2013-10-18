@@ -60,10 +60,11 @@ def needs_container_parent(eschema):
     return len(list(parent_rschemas(eschema))) > 1
 
 def define_container(schema, cetype, crtype, rtype_permissions=None,
-                     skiprtypes=(), skipetypes=()):
+                     skiprtypes=(), skipetypes=(), subcontainers=()):
     _rtypes, etypes = container_static_structure(schema, cetype, crtype,
                                                  skiprtypes=skiprtypes,
-                                                 skipetypes=skipetypes)
+                                                 skipetypes=skipetypes,
+                                                 subcontainers=subcontainers)
     if not crtype in schema:
         # ease pluggability of container in existing applications
         schema.add_relation_type(RelationType(crtype, inlined=True))
@@ -104,17 +105,24 @@ def define_container_parent_rdefs(schema, etype,
                                                            cardinality='?*'))
 
 
-def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
+def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
+                               subcontainers=()):
     """ return etypes and composite rtypes (the rtypes
     that _define_ the structure of the Container graph)
     """
     skiprtypes = set(skiprtypes).union((crtype, 'container_etype', 'container_parent'))
     skipetypes = set(skipetypes)
+    subcontainers = set(subcontainers)
     etypes = set()
     rtypes = set()
     candidates = deque([schema[cetype]])
     while candidates:
         eschema = candidates.pop()
+        if eschema.type in subcontainers:
+            etypes.add(eschema.type)
+            # however we stop right here as the subcontainer is responsible for
+            # his own stuff
+            continue
         for rschema, teschemas, role in eschema.relation_definitions():
             if rschema.meta or rschema in skiprtypes:
                 continue
@@ -131,13 +139,15 @@ def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes
     return frozenset(rtypes), frozenset(etypes)
 
 
-def set_container_parent_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
+def set_container_parent_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
+                                     subcontainers=()):
     """ etypes having several upward paths to the container have a dedicated container_parent
     rtype to speed up the parent computation
     this function computes the rtype set needed for the SetContainerParent hook selector
     """
     rtypes, etypes = container_static_structure(schema, cetype, crtype,
-                                                skiprtypes=skiprtypes, skipetypes=skipetypes)
+                                                skiprtypes=skiprtypes, skipetypes=skipetypes,
+                                                subcontainers=subcontainers)
     select_rtypes = set()
     for etype in etypes:
         eschema = schema[etype]
@@ -149,22 +159,26 @@ def set_container_parent_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skip
     return select_rtypes
 
 
-def set_container_relation_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
+def set_container_relation_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
+                                       subcontainers=()):
     """computes the rtype set needed for etypes having just one upward
     path to the container, to be given to the SetContainerRealtion hook
     """
-    rtypes, etypes = container_static_structure(schema, cetype, crtype, skiprtypes, skipetypes)
+    rtypes, etypes = container_static_structure(schema, cetype, crtype, skiprtypes, skipetypes,
+                                                subcontainers)
     # the container_parent rtype will be set for these etypes having several upard paths
     # to the container through the SetContainerParent hook
-    cp_rtypes = set_container_parent_rtypes_hook(schema, cetype, crtype, skiprtypes, skipetypes)
+    cp_rtypes = set_container_parent_rtypes_hook(schema, cetype, crtype, skiprtypes, skipetypes,
+                                                 subcontainers)
     return rtypes - cp_rtypes
 
 
-def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
+def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
+                            subcontainers=()):
     """ returns set of rtypes, set of etypes of what is in a Container """
     skiprtypes = set(skiprtypes).union((crtype,'container_etype', 'container_parent'))
     rtypes, etypes = container_static_structure(schema, cetype, crtype,
-                                                skiprtypes, skipetypes)
+                                                skiprtypes, skipetypes, subcontainers)
     rtypes = set(rtypes)
     for etype in etypes:
         eschema = schema[etype]
@@ -255,7 +269,8 @@ def linearize(etype_map, all_etypes):
     return [etype for etype in sorted_etypes
             if etype in all_etypes]
 
-def ordered_container_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
+def ordered_container_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
+                             subcontainers=()):
     """ return list of etypes of a container by dependency order
     this is provided for simplicity and backward compatibility
     reasons
@@ -263,17 +278,19 @@ def ordered_container_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=(
     added at the end
     """
     orders, etype_map = container_etype_orders(schema, cetype, crtype,
-                                               skiprtypes, skipetypes)
+                                               skiprtypes, skipetypes, subcontainers)
     total_order = []
     for order in orders:
         total_order += order
     return total_order + etype_map.keys()
 
-def container_etype_orders(schema, cetype, crtype, skiprtypes=(), skipetypes=()):
+def container_etype_orders(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
+                           subcontainers=()):
     """ computes linearizations and cycles of etypes within a container """
     _rtypes, etypes = container_static_structure(schema, cetype, crtype,
                                                  skiprtypes=skiprtypes,
-                                                 skipetypes=skipetypes)
+                                                 skipetypes=skipetypes,
+                                                 subcontainers=subcontainers)
     orders = []
     etype_map = dict((etype, needed_etypes(schema, etype, cetype, crtype,
                                            skiprtypes))
