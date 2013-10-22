@@ -156,4 +156,11 @@ class CloneContainerOp(DataOperationMixIn, Operation):
                 with session.deny_all_hooks_but(*cloned.compulsory_hooks_categories):
                     self.prepare_cloned_container(session, cloned)
                     cloned.cw_adapt_to('Container.clone').clone()
+                    self.finalize_cloned_container(session, cloned)
                     session.commit()
+
+    def finalize_cloned_container(self, session, clone):
+        """ give a chance to cleanup cloned container after the cloning
+        (can be useful for various hooks)
+        """
+        pass

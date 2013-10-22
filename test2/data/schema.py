@@ -12,6 +12,9 @@ class Project(EntityType):
         'update': ('managers', ERQLExpression('U canwrite X')),
         'delete': ('managers', ERQLExpression('U canwrite X'))
     }
+    subproject_of = SubjectRelation('Project', composite='object',
+                                    inlined=True, cardinality='?*')
+
 
 # a standard read-write permission scheme
 class canread(RelationDefinition):
@@ -50,7 +53,7 @@ class Ticket(EntityType):
     description = String(required=True)
     concerns = SubjectRelation('Project', cardinality='1*',
                                composite='object', inlined=True)
-    done_in_version = SubjectRelation('Version', cardinality='?*')
+    done_in_version = SubjectRelation('Version', cardinality='?*', inlined=True)
 
 
 # ad-hoc rule
@@ -70,6 +73,7 @@ class Patch(EntityType):
 
 
 class File(EntityType):
+    """ does NOT belong to Project """
     data = Bytes()
 
 def setup_security(schema):
@@ -101,6 +105,24 @@ def setup_security(schema):
                                     inner_rtypes_perms=container_rtypes_perms,
                                     border_rtypes_perms=container_rtypes_perms)
 
+
+# let's leave security there and complete the setup with an embedded container
+
+class Folder(EntityType):
+    __unique_together__ = [('name', 'parent')]
+    name = String(required=True)
+    parent = SubjectRelation('Folder', inlined=True,
+                             cardinality='?*', composite='object')
+    element = SubjectRelation('File', composite='subject')
+
+
+class documents(RelationDefinition):
+    subject = 'Folder'
+    object = 'Project'
+    composite = 'object'
+
+
 def post_build_callback(schema):
-    utils.define_container(schema, 'Project', 'project')
+    utils.define_container(schema, 'Project', 'project', subcontainers=('Folder',))
+    utils.define_container(schema, 'Folder', 'folder_root')
     setup_security(schema)
