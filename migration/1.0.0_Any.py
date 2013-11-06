@@ -1,4 +1,4 @@
-msg = r'container: after this migration, you should run the sync_container_parent script'
+msg = r'container: after this migration, you should be careful to use utils.synchronize_container_parent_rdefs in your app migrations'
 
 print
 print '-' * len(msg)
