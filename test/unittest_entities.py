@@ -30,7 +30,7 @@ class ContainerEntitiesTC(CubicWebTC):
         self.b2 = req.create_entity('Bottom', top_by_right=self.r)
 
     def test_clone_entry_point(self):
-        req = self.request()
+        req = self.session
         newd = req.create_entity('Diamond')
         cloner = newd.cw_adapt_to('Container.clone')
         self.assertRaises(TypeError, cloner.clone)

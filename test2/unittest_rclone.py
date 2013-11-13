@@ -9,6 +9,14 @@ from cubes.container.testutils import userlogin, new_version, new_ticket, new_pa
 
 class TwoContainersTC(CubicWebTC):
 
+    def test_needs_container_parent(self):
+        needs_cp = set(eschema.type
+                       for eschema in self.schema.entities()
+                       if utils.needs_container_parent(eschema))
+        self.assertEqual(['CWAttribute', 'CWRelation', 'CWSourceSchemaConfig',
+                          'Folder', 'RQLExpression'],
+                         sorted(needs_cp))
+
     # Project
     def test_project_static_structure(self):
         schema = self.vreg.schema
@@ -184,3 +192,24 @@ class CloneTC(CubicWebTC):
                          sorted([(e.__regid__, e.dc_title())
                                  for e in cloned_celeste.reverse_project]))
         self.assertNotEqual(celeste_eids, set(x.eid for x in cloned_celeste.reverse_project))
+
+        # check container_parent, container_etype, created_by, owned_by, is_instance_of
+        req = self.request()
+
+        patch = req.execute('Patch P WHERE P project X, X name "Babar"').get_entity(0,0)
+        self.assertEqual('File', patch.content[0].__regid__)
+        cloned_patch = req.execute('Patch P WHERE P project X, X name "Babar clone"').get_entity(0,0)
+        self.assertEqual('File', cloned_patch.content[0].__regid__)
+
+
+        folder = req.execute('Folder F WHERE F project P, P name "Babar"').get_entity(0,0)
+        cloned_folder = req.execute('Folder F WHERE F project P, P name "Babar clone"').get_entity(0,0)
+        self.assertEqual(folder.cw_adapt_to('Container').parent.__regid__,
+                         cloned_folder.cw_adapt_to('Container').parent.__regid__)
+        self.assertEqual(folder.container_etype, cloned_folder.container_etype)
+        self.assertEqual(folder.created_by, cloned_folder.created_by)
+        self.assertEqual(folder.owned_by, cloned_folder.owned_by)
+        self.assertEqual(folder.is_instance_of, cloned_folder.is_instance_of)
+
+        self.assertIn(str(folder.eid), folder.cwuri)
+        self.assertEqual('', cloned_folder.cwuri)

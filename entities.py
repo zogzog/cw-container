@@ -22,6 +22,9 @@ from logilab.common.decorators import cached, cachedproperty
 
 from rql import parse
 
+from cubicweb.server.ssplanner import READ_ONLY_RTYPES
+
+from cubicweb.schema import VIRTUAL_RTYPES
 from cubicweb.entities import AnyEntity
 from cubicweb.view import EntityAdapter
 
@@ -234,9 +237,11 @@ class ContainerClone(EntityAdapter):
             etype, self.entity.container_rtype)
 
     @cachedproperty
-    def _meta_but_fetched(self):
-        return set([self.entity.container_rtype,
-                    'creation_date', 'modification_date', 'cwuri'])
+    def _no_copy_meta(self):
+        # handled unconditionnally by the native source, hence we must not touch them
+        # ALSO include cwuri, which is mandatory in cw but maybe should not
+        # (see cw#3267139)
+        return set(('cw_source', 'cwuri')) | READ_ONLY_RTYPES | VIRTUAL_RTYPES
 
     def _etype_fetch_rqlst(self, etype):
         """ returns an rqlst ready to be executed, plus a sequence of
@@ -250,7 +255,7 @@ class ContainerClone(EntityAdapter):
         already_used_rtypes = dict(_iter_mainvar_relations(rqlst))
         # running without metadata hooks: we must handle some rtypes here
         # we also will loose: is_instance_of, created_by, owned_by
-        meta_but_fetched = self._meta_but_fetched
+        no_copy_meta = self._no_copy_meta
         # keep an ordered-list of selected rtypes
         fetched_rtypes = []
         inlined_rtypes = set()
@@ -261,9 +266,11 @@ class ContainerClone(EntityAdapter):
         #  - fetch_rqlst() recurses on target etypes: we don't want this
         for rschema in self._cw.vreg.schema[etype].subject_relations():
             rtype = rschema.type
-            if (rtype in self.rtypes_to_skip
-                or not (rschema.final or rschema.inlined)
-                or (rschema.meta and not rtype in meta_but_fetched)):
+            if rtype in self.rtypes_to_skip or rtype in VIRTUAL_RTYPES:
+                continue
+            if rschema.meta and rtype in no_copy_meta:
+                continue
+            if not rschema.final and not rschema.inlined:
                 continue
             fetched_rtypes.append(rtype)
             if rschema.inlined:
@@ -282,10 +289,12 @@ class ContainerClone(EntityAdapter):
 
     def clonable_rtypes(self, etype):
         eschema = self._cw.vreg.schema[etype]
+        no_copy_metas = self._no_copy_meta
         for rschema in eschema.subject_relations():
             rtype = rschema.type
             if not (rschema.inlined or rschema.final
-                    or rschema.meta or rtype in self.rtypes_to_skip):
+                    or (rschema.meta and rtype in no_copy_metas)
+                    or rtype in self.rtypes_to_skip):
                 yield rtype
 
     def clonable_etypes(self):
@@ -347,6 +356,9 @@ class ContainerClone(EntityAdapter):
                         relations[rtype].append((candidate_eid, val))
                 else: # standard attribute
                     attributes[rtype] = val
+            # work around cwuri obnoxiousness
+            if 'cwuri' not in attributes:
+                attributes['cwuri'] = u''
             clone = create(etype, **attributes)
             clone.cw_clear_all_caches()
             orig_to_clone[candidate_eid] = clone.eid
@@ -387,7 +399,7 @@ class ContainerClone(EntityAdapter):
             rtype = rschema.type
             if rtype in skiprtypes:
                 continue
-            if rschema.meta and rtype not in self._meta_but_fetched:
+            if rtype not in VIRTUAL_RTYPES:
                 continue
             etype_rqlst = parse(etype_rql).children[0]
             _add_rqlst_restriction(etype_rqlst, rtype)
