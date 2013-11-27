@@ -1,4 +1,4 @@
-# copyright 2011-2012 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
+# copyright 2011-2013 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
 # contact http://www.logilab.fr -- mailto:contact@logilab.fr
 #
 # This program is free software: you can redistribute it and/or modify it under
@@ -16,25 +16,59 @@
 
 """cubicweb-container specific hooks and operations"""
 from collections import defaultdict
+from logilab.common.deprecation import class_deprecated
+from logilab.common.registry import Predicate
 
 from cubicweb import ValidationError
 from cubicweb.server.hook import Hook, DataOperationMixIn, Operation, match_rtype
 
 from cubes.container.utils import yet_unset, parent_rschemas
 
+def eid_etype(session, eid):
+    return session.describe(eid)[0]
 
-def entity_and_parent(req, eidfrom, rtype, eidto):
+def entity_and_parent(session, eidfrom, rtype, eidto, etypefrom, etypeto):
     """ given a triple (eidfrom, rtype, eidto)
     where one of the two eids is the parent of the other,
     compute a return (eid, eidparent)
     """
-    subjetype = req.describe(eidfrom)[0]
-    objetype = req.describe(eidto)[0]
-    crole = req.vreg.schema[rtype].rdef(subjetype, objetype).composite
+    crole = session.vreg.schema[rtype].rdef(etypefrom, etypeto).composite
     if crole == 'object':
         return eidfrom, eidto
     else:
         return eidto, eidfrom
+
+def find_valued_parent_rtype(entity):
+    for rschema, role in parent_rschemas(entity.e_schema):
+        if entity.related(rschema.type, role=role):
+            return rschema.type
+
+def _set_container_parent(session, rtype, eid, peid):
+    target = session.entity_from_eid(eid)
+    if target.container_parent:
+        mp_protocol = target.cw_adapt_to('container.multiple_parents')
+        if mp_protocol:
+            mp_protocol.possible_parent(rtype, peid)
+            return
+        cparent = target.container_parent[0]
+        if cparent.eid == peid:
+            session.warning('relinking %s (eid:%s parent:%s)', rtype, eid, peid)
+            return
+        # this is a replacement: we allow replacing within the same container
+        #                        for the same rtype
+        old_rtype = find_valued_parent_rtype(target)
+        assert old_rtype
+        container = target.cw_adapt_to('Container').related_container
+        parent = session.entity_from_eid(peid)
+        parent_container = parent.cw_adapt_to('Container').related_container
+        if container.eid != parent_container.eid or old_rtype != rtype:
+            session.warning('%s is already in container %s, cannot go into %s '
+                         ' (rtype from: %s, rtype to: %s)',
+                         target, parent_container, container, old_rtype, rtype)
+            msg = (session._('%s is already in a container through %s') %
+                   (target.e_schema, rtype))
+            raise ValidationError(target.eid, {rtype: msg})
+    target.set_relations(container_parent=peid)
 
 
 class SetContainerRelation(Hook):
@@ -42,53 +76,37 @@ class SetContainerRelation(Hook):
     __abstract__ = True
     events = ('after_add_relation',)
     category = 'container'
+    # __select__ = match_rtype(set_container_relation_rtypes_hook(...))
+    # _container_parent_rdefs = container_parent_rdefs(...)
+    _container_parent_rdefs = {}
 
     def __call__(self):
-        eid, peid = entity_and_parent(self._cw, self.eidfrom, self.rtype, self.eidto)
+        etypefrom = eid_etype(self._cw, self.eidfrom)
+        etypeto = eid_etype(self._cw, self.eidto)
+        eid, peid = entity_and_parent(self._cw, self.eidfrom, self.rtype, self.eidto,
+                                      etypefrom, etypeto)
         AddContainerRelationOp.get_instance(self._cw).add_data((eid, peid))
-
-
-def find_valued_parent_rtype(entity):
-    for rschema, role in parent_rschemas(entity.e_schema):
-        if entity.related(rschema.type, role=role):
-            return rschema.type
+        # container_parent handling
+        rdefs = self._container_parent_rdefs.get(self.rtype)
+        if rdefs and (etypefrom, etypeto) in rdefs:
+            _set_container_parent(self._cw, self.rtype, eid, peid)
 
 
 class SetContainerParent(Hook):
+    __metaclass__ = class_deprecated
+    __deprecation_warning__ = ('[2.2.0] SetContainerParent is deprecated, '
+                               'read the upgrade notes')
     __regid__ = 'container.set_container_parent'
     __abstract__ = True
     events = ('before_add_relation',)
     category = 'container'
 
     def __call__(self):
-        req = self._cw
-        eeid, peid = entity_and_parent(req, self.eidfrom, self.rtype, self.eidto)
-        target = req.entity_from_eid(eeid)
-        if target.container_parent:
-            mp_protocol = target.cw_adapt_to('container.multiple_parents')
-            if mp_protocol:
-                mp_protocol.possible_parent(self.rtype, peid)
-                return
-            cparent = target.container_parent[0]
-            if cparent.eid == peid:
-                self.warning('relinking %s %s %s', self.eidfrom, self.rtype, self.eidto)
-                return
-            # this is a replacement: we allow replacing within the same container
-            #                        for the same rtype
-            old_rtype = find_valued_parent_rtype(target)
-            assert old_rtype
-            container = target.cw_adapt_to('Container').related_container
-            parent = req.entity_from_eid(peid)
-            parent_container = parent.cw_adapt_to('Container').related_container
-            if container.eid != parent_container.eid or old_rtype != self.rtype:
-                self.warning('%s is already in container %s, cannot go into %s '
-                             ' (rtype from: %s, rtype to: %s)',
-                             target, parent_container, container, old_rtype, self.rtype)
-                msg = (req._('%s is already in a container through %s') %
-                       (target.e_schema, self.rtype))
-                raise ValidationError(target.eid, {self.rtype: msg})
-        AddContainerRelationOp.get_instance(self._cw).add_data((eeid, peid))
-        target.set_relations(container_parent=peid)
+        etypefrom = eid_etype(self._cw, self.eidfrom)
+        etypeto = eid_etype(self._cw, self.eidto)
+        eid, peid = entity_and_parent(self._cw, self.eidfrom, self.rtype, self.eidto,
+                                      etypefrom, etypeto)
+        _set_container_parent(self._cw, self.rtype, eid, peid)
 
 
 class AddContainerRelationOp(DataOperationMixIn, Operation):

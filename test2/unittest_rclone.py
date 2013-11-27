@@ -4,7 +4,8 @@ from cubicweb import Binary, ValidationError
 from cubicweb.devtools.testlib import CubicWebTC
 
 from cubes.container import utils
-from cubes.container.testutils import userlogin, new_version, new_ticket, new_patch
+from cubes.container.testutils import (userlogin, new_version, new_ticket,
+                                       new_patch, new_card)
 
 
 class TwoContainersTC(CubicWebTC):
@@ -14,15 +15,16 @@ class TwoContainersTC(CubicWebTC):
                        for eschema in self.schema.entities()
                        if utils.needs_container_parent(eschema))
         self.assertEqual(['CWAttribute', 'CWRelation', 'CWSourceSchemaConfig',
-                          'Folder', 'RQLExpression'],
+                          'Card', 'Folder', 'RQLExpression'],
                          sorted(needs_cp))
 
     # Project
     def test_project_static_structure(self):
         schema = self.vreg.schema
         project = self.vreg['etypes'].etype_class('Project')
-        self.assertEqual((frozenset(['documents', 'implements', 'concerns', 'version_of', 'subproject_of']),
-                          frozenset(['Patch', 'Ticket', 'Version', 'Folder','Project'])),
+        self.assertEqual((frozenset(['documents', 'implements', 'concerns', 'version_of',
+                                     'subproject_of', 'requirement']),
+                          frozenset(['Card', 'Patch', 'Ticket', 'Version', 'Folder','Project'])),
                          utils.container_static_structure(schema, 'Project', 'project',
                                                           skiprtypes=project.container_skiprtypes,
                                                           skipetypes=project.container_skipetypes,
@@ -32,13 +34,14 @@ class TwoContainersTC(CubicWebTC):
     def test_project_etypes_rtypes(self):
         schema = self.vreg.schema
         project = self.vreg['etypes'].etype_class('Project')
-        # NOTE: this contains 'parent', which is WRONG
+        # NOTE: this contains 'parent' and 'element', which is WRONG
         # However, short of fully specifying the subcontainer (not just the top entity type)
         # we cannot do much against that. We really need some support viz Yams
         # (e.g. http://www.logilab.org/ticket/100723)
         self.assertEqual((frozenset(['implements', 'documents', 'parent', 'done_in_version',
+                                     'element', 'requirement',
                                      'concerns', 'version_of', 'subproject_of']),
-                          frozenset(['Folder', 'Patch', 'Ticket', 'Version', 'Project'])),
+                          frozenset(['Card', 'Folder', 'Patch', 'Ticket', 'Version', 'Project'])),
                          utils.container_rtypes_etypes(schema, 'Project', 'project',
                                                        skiprtypes=project.container_skiprtypes,
                                                        skipetypes=project.container_skipetypes,
@@ -48,12 +51,19 @@ class TwoContainersTC(CubicWebTC):
     def test_project_hooks(self):
         schema = self.vreg.schema
         project = self.vreg['etypes'].etype_class('Project')
-        self.assertEqual(set(['documents']),
+        self.assertEqual(set(['documents', 'requirement']),
                          utils.set_container_parent_rtypes_hook(schema, 'Project', 'project',
                                                                   skiprtypes=project.container_skiprtypes,
                                                                   skipetypes=project.container_skipetypes,
                                                                   subcontainers=project.container_subcontainers))
-        self.assertEqual(set(['implements', 'concerns', 'version_of', 'subproject_of']),
+        self.assertEqual({'documents': set([('Folder', 'Project')]),
+                          'requirement': set([('Ticket', 'Card')])},
+                         utils.container_parent_rdefs(schema, 'Project', 'project',
+                                                      skiprtypes=project.container_skiprtypes,
+                                                      skipetypes=project.container_skipetypes,
+                                                      subcontainers=project.container_subcontainers))
+        self.assertEqual(set(['implements', 'concerns', 'version_of', 'subproject_of',
+                              'requirement', 'documents']),
                          utils.set_container_relation_rtypes_hook(schema, 'Project', 'project',
                                                                   skiprtypes=project.container_skiprtypes,
                                                                   skipetypes=project.container_skipetypes,
@@ -64,7 +74,7 @@ class TwoContainersTC(CubicWebTC):
         schema = self.vreg.schema
         folder = self.vreg['etypes'].etype_class('Folder')
         self.assertEqual((frozenset(['parent', 'element']),
-                          frozenset(['Folder', 'File'])),
+                          frozenset(['Card', 'Folder', 'File'])),
                          utils.container_static_structure(schema, 'Folder', 'folder_root',
                                                           skiprtypes=folder.container_skiprtypes,
                                                           skipetypes=folder.container_skipetypes))
@@ -73,7 +83,7 @@ class TwoContainersTC(CubicWebTC):
         schema = self.vreg.schema
         folder = self.vreg['etypes'].etype_class('Folder')
         self.assertEqual((frozenset(['parent', 'element']),
-                          frozenset(['Folder', 'File'])),
+                          frozenset(['Card', 'Folder', 'File'])),
                          utils.container_rtypes_etypes(schema, 'Folder', 'folder_root',
                                                        skiprtypes=folder.container_skiprtypes,
                                                        skipetypes=folder.container_skipetypes))
@@ -81,12 +91,18 @@ class TwoContainersTC(CubicWebTC):
     def test_folder_hooks(self):
         schema = self.vreg.schema
         folder = self.vreg['etypes'].etype_class('Folder')
-        self.assertEqual(set(['parent']),
+        self.assertEqual(set(['parent', 'element']),
                          utils.set_container_parent_rtypes_hook(schema, 'Folder', 'folder_root',
                                                                   skiprtypes=folder.container_skiprtypes,
                                                                   skipetypes=folder.container_skipetypes,
                                                                   subcontainers=folder.container_subcontainers))
-        self.assertEqual(set(['element']),
+        self.assertEqual({'parent': set([('Folder', 'Folder')]),
+                          'element': set([('Folder', 'Card')])},
+                         utils.container_parent_rdefs(schema, 'Folder', 'folder_root',
+                                                      skiprtypes=folder.container_skiprtypes,
+                                                      skipetypes=folder.container_skipetypes,
+                                                      subcontainers=folder.container_subcontainers))
+        self.assertEqual(set(('parent', 'element')),
                          utils.set_container_relation_rtypes_hook(schema, 'Folder', 'folder_root',
                                                                   skiprtypes=folder.container_skiprtypes,
                                                                   skipetypes=folder.container_skipetypes,
@@ -109,13 +125,19 @@ class CloneTC(CubicWebTC):
         proj = req.create_entity('Project', name=u'Babar')
         projeid = req.execute('Project P').get_entity(0, 0)
         ver = new_version(req, projeid)
+
         tick = new_ticket(req, projeid, ver)
+        card = new_card(req)
+        tick.cw_set(requirement=card)
+
         afile = req.create_entity('File', data=Binary('foo'))
         patch = new_patch(req, tick, afile)
 
         doc1 = req.create_entity('File', data=Binary('How I became King'))
         fold1 = req.create_entity('Folder', name=u'Babar documentation',
                                   element=doc1, documents=projeid)
+        card = new_card(req, u'Some doc bit')
+        fold1.cw_set(element=card)
 
         # a subproject
         proj = req.create_entity('Project', name=u'Celeste',
@@ -123,12 +145,17 @@ class CloneTC(CubicWebTC):
         projeid = proj.eid
         ver = new_version(req, projeid)
         tick = new_ticket(req, projeid, ver, name=u'write bio', descr=u'do it')
+        card = new_card(req, u'Write me')
+        tick.cw_set(requirement=card)
+
         afile = req.create_entity('File', data=Binary('foo'))
         patch = new_patch(req, tick, afile, name=u'bio part one')
 
         doc2 = req.create_entity('File', data=Binary('How I met Babar'))
         fold2 = req.create_entity('Folder', name=u'Celeste bio',
                                   element=doc2, documents=projeid)
+        card = new_card(req, u'A general doc item')
+        fold2.cw_set(element=card)
 
     def test_project_and_folder(self):
         req = self.session
@@ -140,25 +167,42 @@ class CloneTC(CubicWebTC):
         thefile = req.execute('File F WHERE FO element F, FO name like "Celeste%"').get_entity(0,0)
         self.assertEqual(['Celeste bio', 'Celeste', 'Babar'], parent_titles(thefile))
 
+        # start from Card (in Folder)
+        card1, card2 = list(req.execute('Card C ORDERBY C WHERE C folder_root F').entities())
+        self.assertEqual([u'Babar documentation', u'Babar'], parent_titles(card1))
+        self.assertEqual([u'Celeste bio', u'Celeste', u'Babar'], parent_titles(card2))
+
+        # start from Card (in Folder)
+        card1, card2 = list(req.execute('Card C ORDERBY C WHERE C project P').entities())
+        self.assertEqual([u'think about it', u'Babar'], parent_titles(card1))
+        self.assertEqual([u'write bio', u'Celeste', u'Babar'], parent_titles(card2))
+
         # start from Patch (in Project)
-        patch = req.execute('Patch P WHERE EXISTS(P project X)').get_entity(0,0)
+        patch = req.execute('Patch P WHERE P project X, X name "Babar"').get_entity(0,0)
         self.assertEqual(['think about it', 'Babar'], parent_titles(patch))
+
+        patch = req.execute('Patch P WHERE P project X, X name "Celeste"').get_entity(0,0)
+        self.assertEqual(['write bio', 'Celeste', 'Babar'], parent_titles(patch))
 
     def test_clone(self):
         req = self.session
         babar = req.execute('Project P WHERE P name "Babar"').get_entity(0,0)
         celeste = req.execute('Project P WHERE P name "Celeste"').get_entity(0,0)
-        self.assertEqual([('Folder', u'Babar documentation'),
+        babar_contents = [('Card', u"Let's start a spec ..."),
+                          ('Folder', u'Babar documentation'),
                           ('Patch', u'some code'),
                           ('Project', u'Celeste'),
                           ('Ticket', u'think about it'),
-                          ('Version', u'0.1.0')],
+                          ('Version', u'0.1.0')]
+        self.assertEqual(babar_contents,
                          sorted([(e.__regid__, e.dc_title())
                                  for e in babar.reverse_project]))
-        self.assertEqual([('Folder', u'Celeste bio'),
-                          ('Patch', u'bio part one'),
-                          ('Ticket', u'write bio'),
-                          ('Version', u'0.1.0')],
+        celeste_contents = [('Card', u'Write me'),
+                            ('Folder', u'Celeste bio'),
+                            ('Patch', u'bio part one'),
+                            ('Ticket', u'write bio'),
+                            ('Version', u'0.1.0')]
+        self.assertEqual(celeste_contents,
                          sorted([(e.__regid__, e.dc_title())
                                  for e in celeste.reverse_project]))
 
@@ -167,7 +211,7 @@ class CloneTC(CubicWebTC):
 
         clone = req.create_entity('Project', name=u'Babar clone')
         cloner = clone.cw_adapt_to('Container.clone')
-        self.assertEqual(['Folder', 'Patch', 'Project', 'Ticket', 'Version'],
+        self.assertEqual(['Card', 'Folder', 'Patch', 'Project', 'Ticket', 'Version'],
                          sorted(cloner.clonable_etypes()))
 
         with self.session.deny_all_hooks_but(*clone.compulsory_hooks_categories):
@@ -175,20 +219,13 @@ class CloneTC(CubicWebTC):
             self.commit()
 
         clone.cw_clear_all_caches()
-        self.assertEqual([('Folder', u'Babar documentation'),
-                          ('Patch', u'some code'),
-                          ('Project', u'Celeste'),
-                          ('Ticket', u'think about it'),
-                          ('Version', u'0.1.0')],
+        self.assertEqual(babar_contents,
                          sorted([(e.__regid__, e.dc_title())
                                  for e in clone.reverse_project]))
 
         self.assertNotEqual(babar_eids, set(x.eid for x in clone.reverse_project))
         cloned_celeste = clone.reverse_subproject_of[0]
-        self.assertEqual([('Folder', u'Celeste bio'),
-                          ('Patch', u'bio part one'),
-                          ('Ticket', u'write bio'),
-                          ('Version', u'0.1.0')],
+        self.assertEqual(celeste_contents,
                          sorted([(e.__regid__, e.dc_title())
                                  for e in cloned_celeste.reverse_project]))
         self.assertNotEqual(celeste_eids, set(x.eid for x in cloned_celeste.reverse_project))

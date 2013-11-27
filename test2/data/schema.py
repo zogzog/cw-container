@@ -122,6 +122,26 @@ class documents(RelationDefinition):
     composite = 'object'
 
 
+# let's have something to test properly match_rdefs
+# i.e. Card has two upward paths and uses 'element'
+# and also File is a Folder 'element'
+
+class Card(EntityType):
+    contents = String()
+
+
+class element(RelationDefinition):
+    subject = 'Folder'
+    object = 'Card'
+    composite = 'subject'
+
+
+class requirement(RelationDefinition):
+    subject = 'Ticket'
+    object = 'Card'
+    composite = 'subject'
+
+
 def post_build_callback(schema):
     utils.define_container(schema, 'Project', 'project', subcontainers=('Folder',))
     utils.define_container(schema, 'Folder', 'folder_root')

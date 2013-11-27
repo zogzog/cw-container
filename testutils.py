@@ -18,3 +18,6 @@ def new_ticket(req, proj, ver, name=u'think about it', descr=u'start stuff'):
 def new_patch(req, tick, afile, name=u'some code'):
     return req.create_entity('Patch', name=name,
                              content=afile, implements=tick)
+
+def new_card(req, contents=u"Let's start a spec ..."):
+    return req.create_entity('Card', contents=contents)

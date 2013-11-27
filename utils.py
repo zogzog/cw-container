@@ -3,6 +3,7 @@ from warnings import warn
 import logging
 
 from logilab.common.decorators import cached
+from logilab.common.deprecation import deprecated
 
 from yams.buildobjs import RelationType, RelationDefinition
 
@@ -49,6 +50,12 @@ def parent_rschemas(eschema):
     for rschema, role, crole in _composite_rschemas(eschema):
         if role != crole:
             yield rschema, role
+
+def parent_erschemas(eschema):
+    for rschema, role, crole in _composite_rschemas(eschema):
+        if role != crole:
+            for eschema in rschema.targets(role=role):
+                yield rschema, role, eschema
 
 def children_rschemas(eschema):
     for rschema, role, crole in _composite_rschemas(eschema):
@@ -139,6 +146,8 @@ def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes
     return frozenset(rtypes), frozenset(etypes)
 
 
+@deprecated('[container 2.1] the container_parent hook is merged into another; '
+            'please read the upgrade instructions')
 def set_container_parent_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
                                      subcontainers=()):
     """ etypes having several upward paths to the container have a dedicated container_parent
@@ -158,19 +167,42 @@ def set_container_parent_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skip
                     select_rtypes.add(rschema.type)
     return select_rtypes
 
+def container_parent_rdefs(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
+                           subcontainers=()):
+    """ etypes having several upward paths to the container have a dedicated container_parent
+    rtype to speed up the parent computation
+
+    usage:
+
+      rdefs_select = container_parent_hook_selector(...)
+      SetContainerRelation._container_parent_rdefs = rdefs_select
+    """
+    rtypes, etypes = container_static_structure(schema, cetype, crtype,
+                                                skiprtypes=skiprtypes, skipetypes=skipetypes,
+                                                subcontainers=subcontainers)
+    select_rdefs = defaultdict(set)
+    for etype in etypes:
+        eschema = schema[etype]
+        if not needs_container_parent(eschema):
+            continue
+        for rschema, role, teschema in parent_erschemas(eschema):
+            if rschema.type in rtypes:
+                if role == 'subject':
+                    frometype, toetype = etype, teschema.type
+                else:
+                    frometype, toetype = teschema.type, etype
+                select_rdefs[rschema.type].add((frometype, toetype))
+    return dict(select_rdefs)
+
 
 def set_container_relation_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
                                        subcontainers=()):
     """computes the rtype set needed for etypes having just one upward
     path to the container, to be given to the SetContainerRealtion hook
     """
-    rtypes, etypes = container_static_structure(schema, cetype, crtype, skiprtypes, skipetypes,
-                                                subcontainers)
-    # the container_parent rtype will be set for these etypes having several upard paths
-    # to the container through the SetContainerParent hook
-    cp_rtypes = set_container_parent_rtypes_hook(schema, cetype, crtype, skiprtypes, skipetypes,
+    rtypes, _etypes = container_static_structure(schema, cetype, crtype, skiprtypes, skipetypes,
                                                  subcontainers)
-    return rtypes - cp_rtypes
+    return rtypes
 
 
 def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
