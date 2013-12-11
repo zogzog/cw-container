@@ -4,7 +4,7 @@
 modname = 'container'
 distname = 'cubicweb-container'
 
-numversion = (2, 1, 0)
+numversion = (2, 2, 0)
 version = '.'.join(str(num) for num in numversion)
 
 license = 'LGPL'
