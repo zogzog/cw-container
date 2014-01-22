@@ -17,8 +17,8 @@
 """cubicweb-container views/forms/actions/components for web ui"""
 
 from cubicweb import schema
-from cubicweb.selectors import EClassPredicate
-from cubicweb.web import uicfg
+from cubicweb.predicates import EClassPredicate
+from cubicweb.web.views import uicfg
 
 from cubes.container import entities
 
