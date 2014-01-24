@@ -114,8 +114,12 @@ def define_container_parent_rdefs(schema, etype,
 
 def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
                                subcontainers=()):
-    """ return etypes and composite rtypes (the rtypes
-    that _define_ the structure of the Container graph)
+    """Return the sets of entity types and relation types that define the
+    structure of the container.
+
+    The skeleton (or structure) of the container is determined by following
+    composite relations, possibly skipping specified entity types and/or
+    relation types.
     """
     skiprtypes = set(skiprtypes).union((crtype, 'container_etype', 'container_parent'))
     skipetypes = set(skipetypes)
@@ -207,7 +211,11 @@ def set_container_relation_rtypes_hook(schema, cetype, crtype, skiprtypes=(), sk
 
 def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
                             subcontainers=()):
-    """ returns set of rtypes, set of etypes of what is in a Container """
+    """Return all entity types and relation types that are part of the container.
+
+    It extends ``container_static_structure`` with non structural relation types
+    between entity types belonging to the defining structure of the container.
+    """
     skiprtypes = set(skiprtypes).union((crtype,'container_etype', 'container_parent'))
     rtypes, etypes = container_static_structure(schema, cetype, crtype,
                                                 skiprtypes, skipetypes, subcontainers)
