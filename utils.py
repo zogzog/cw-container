@@ -336,12 +336,10 @@ def container_etype_orders(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
                                            skiprtypes))
                      for etype in etypes)
     maplen = len(etype_map)
-    def _append_order():
+    while etype_map:
         neworder = linearize(etype_map, etypes)
         if neworder:
             orders.append(neworder)
-    while etype_map:
-        _append_order()
         if maplen == len(etype_map):
             break
         maplen = len(etype_map)
