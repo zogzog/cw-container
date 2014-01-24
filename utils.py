@@ -68,6 +68,16 @@ def needs_container_parent(eschema):
 
 def define_container(schema, cetype, crtype, rtype_permissions=None,
                      skiprtypes=(), skipetypes=(), subcontainers=()):
+    """Handle container definition in schema
+
+    * insert the container relation type `crtype` in schema (possibly with
+      `rtype_permissions`) if not already present.
+
+    * insert all relation definitions `crtype` between the container
+      entity type and entities belonging to the container, the latter
+      being defined by construction of the container structure (see
+      `container_static_structure`).
+    """
     _rtypes, etypes = container_static_structure(schema, cetype, crtype,
                                                  skiprtypes=skiprtypes,
                                                  skipetypes=skipetypes,
