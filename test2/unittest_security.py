@@ -14,8 +14,8 @@ class SecurityTC(CubicWebTC):
         user = self.create_user(req, login=u'user', groups=('users',))
         reader = self.create_user(req, login=u'reader', groups=('users',))
         writer = self.create_user(req, login=u'writer', groups=('users',))
-        reader.set_relations(canread=proj)
-        writer.set_relations(canread=proj, canwrite=proj)
+        reader.cw_set(canread=proj)
+        writer.cw_set(canread=proj, canwrite=proj)
 
     def test_base(self):
         with self.userlogin('writer') as cnx:

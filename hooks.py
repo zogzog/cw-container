@@ -68,7 +68,7 @@ def _set_container_parent(session, rtype, eid, peid):
             msg = (session._('%s is already in a container through %s') %
                    (target.e_schema, rtype))
             raise ValidationError(target.eid, {rtype: msg})
-    target.set_relations(container_parent=peid)
+    target.cw_set(container_parent=peid)
 
 
 class SetContainerRelation(Hook):
