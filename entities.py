@@ -343,6 +343,7 @@ class ContainerClone(EntityAdapter):
                              relations, deferred_relations,
                              fetched_rtypes, inlined_rtypes):
         create = self._cw.create_entity
+        clonable_rtypes = set(self.clonable_rtypes(etype))
         for row in candidates_rset.rows:
             candidate_eid = row[0]
             attributes = {}
@@ -354,7 +355,11 @@ class ContainerClone(EntityAdapter):
                         deferred_relations.append((rtype, candidate_eid, val))
                     elif val in orig_to_clone:
                         attributes[rtype] = orig_to_clone[val]
+                    elif rtype not in clonable_rtypes:
+                        if rtype not in self.entity.container_skiprtypes:
+                            attributes[rtype] = val
                     else:
+                        # this will be costly
                         relations[rtype].append((candidate_eid, val))
                 else: # standard attribute
                     attributes[rtype] = val
