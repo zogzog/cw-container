@@ -238,7 +238,7 @@ We could formulate the relation as such:
      subject = 'Patch'
      object = 'File'
      __permissions__ = {
-         'read':   ('managers', RRQLExpression('S project P, U canread P')),
+         'read':   ('managers', 'users'),
          'add':    ('managers', RRQLExpression('S project P, U canwrite P')),
          'delete': ('managers', RRQLExpression('S implements T, NOT T done_in_version V'))
      }
@@ -253,7 +253,7 @@ used:
 .. code-block:: python
 
  PERMS['patch-content'] = {
-     'read':   ('managers', RRQLExpression('S project P, U canread P')),
+     'read':   ('managers', 'users'),
      'add':    ('managers', RRQLExpression('S project P, U canwrite P')),
      'delete': ('managers', RRQLExpression('S implements T, NOT T done_in_version V'))
  }
