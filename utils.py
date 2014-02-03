@@ -1,3 +1,19 @@
+# copyright 2011-2014 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
+# contact http://www.logilab.fr -- mailto:contact@logilab.fr
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License as published by the Free
+# Software Foundation, either version 2.1 of the License, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more
+# details.
+#
+# You should have received a copy of the GNU Lesser General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/>.
+
 from collections import deque, defaultdict
 from warnings import warn
 import logging
@@ -25,9 +41,9 @@ def composite_role(eschema, rschema):
     """ testing compositeness is a bit awkward with the standard
     yams API (due to potentially multirole relation definitions) """
     try:
-        return eschema.rdef(rschema, 'subject').composite
+        return eschema.rdef(rschema, 'subject', takefirst=True).composite
     except KeyError:
-        return eschema.rdef(rschema, 'object').composite
+        return eschema.rdef(rschema, 'object', takefirst=True).composite
 
 @cached
 def _composite_rschemas(eschema):
@@ -35,7 +51,7 @@ def _composite_rschemas(eschema):
     for rschema, _types, role in eschema.relation_definitions():
         if rschema.meta or rschema.final:
             continue
-        crole = eschema.rdef(rschema, role).composite
+        crole = eschema.rdef(rschema, role, takefirst=True).composite
         if crole:
             output.append( (rschema, role, crole) )
     return output
