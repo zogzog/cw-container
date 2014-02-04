@@ -343,18 +343,19 @@ class ContainerClone(EntityAdapter):
             self.handle_special_relations((rtype, orig_to_clone[orig], linked)
                                           for rtype, orig, linked in deferred_relations)
 
-    def _reserve_eids(self, qty):
+    def _fast_reserve_eids(self, qty):
         """ not fast enough (yet) """
         source = self._cw.repo.sources_by_uri['system']
-        for _x in range(qty):
-            yield source.create_eid(self._cw)
+        if qty == 1:
+            return (source.create_eid(self._cw),)
+        return source.create_eid(self._cw, count=qty)
 
     def _fast_create_entities(self, etype, entities, orig_to_clone):
         eschema = self._cw.vreg.schema[etype]
         etypeid = eschema_eid(self._cw, eschema)
         ancestorseid = [etypeid] + [eschema_eid(self._cw, aschema)
                                     for aschema in eschema.ancestors()]
-        eids = self._reserve_eids(len(entities))
+        eids = self._fast_reserve_eids(len(entities))
         metadata = []
         isrelation = []
         isinstanceof = []
