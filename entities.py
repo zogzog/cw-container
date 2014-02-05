@@ -15,14 +15,18 @@
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """cubicweb-container entity's classes"""
+from datetime import datetime
 from collections import defaultdict
+from itertools import izip
 from warnings import warn
 
 from logilab.common.decorators import cached, cachedproperty
 
 from rql import parse
 
+from cubicweb import Binary
 from cubicweb.server.ssplanner import READ_ONLY_RTYPES
+from cubicweb.server.utils import eschema_eid
 
 from cubicweb.schema import VIRTUAL_RTYPES
 from cubicweb.entities import AnyEntity
@@ -33,6 +37,7 @@ from cubes.container.utils import (yet_unset,
                                    container_rtypes_etypes,
                                    parent_rschemas,
                                    needs_container_parent,
+                                   _insertmany,
                                    _add_rqlst_restriction,
                                    _iter_mainvar_relations)
 
@@ -240,10 +245,9 @@ class ContainerClone(EntityAdapter):
 
     @cachedproperty
     def _no_copy_meta(self):
-        # handled unconditionnally by the native source, hence we must not touch them
-        # ALSO include cwuri, which is mandatory in cw but maybe should not
+        # include cwuri, which is mandatory in cw but maybe should not
         # (see cw#3267139)
-        return set(('cw_source', 'cwuri')) | READ_ONLY_RTYPES | VIRTUAL_RTYPES
+        return set(('cwuri',)) | READ_ONLY_RTYPES | VIRTUAL_RTYPES
 
     def _etype_fetch_rqlst(self, etype):
         """ returns an rqlst ready to be executed, plus a sequence of
@@ -339,17 +343,49 @@ class ContainerClone(EntityAdapter):
             self.handle_special_relations((rtype, orig_to_clone[orig], linked)
                                           for rtype, orig, linked in deferred_relations)
 
+    def _reserve_eids(self, qty):
+        """ not fast enough (yet) """
+        source = self._cw.repo.sources_by_uri['system']
+        for _x in range(qty):
+            yield source.create_eid(self._cw)
+
+    def _fast_create_entities(self, etype, entities, orig_to_clone):
+        eschema = self._cw.vreg.schema[etype]
+        etypeid = eschema_eid(self._cw, eschema)
+        ancestorseid = [etypeid] + [eschema_eid(self._cw, aschema)
+                                    for aschema in eschema.ancestors()]
+        eids = self._reserve_eids(len(entities))
+        metadata = []
+        isrelation = []
+        isinstanceof = []
+        now = datetime.utcnow()
+        for attributes, neweid in izip(entities, eids):
+            oldeid = attributes['eid']
+            orig_to_clone[oldeid] = attributes['eid'] = neweid
+            metadata.append({'type': etype, 'eid': neweid,
+                             'source': 'system', 'asource': 'system',
+                             'mtime': now})
+            isrelation.append({'eid_from': neweid, 'eid_to': etypeid})
+            for ancestor in ancestorseid:
+                isinstanceof.append({'eid_from': neweid, 'eid_to': ancestor})
+
+        # insert entities
+        _insertmany(self._cw, etype, entities, prefix='cw_')
+        # insert metadata
+        _insertmany(self._cw, 'entities', metadata)
+        _insertmany(self._cw, 'is_relation', isrelation)
+        _insertmany(self._cw, 'is_instance_of_relation', isinstanceof)
+
     def _etype_create_clones(self, etype, orig_to_clone, candidates_rset,
                              relations, deferred_relations,
                              fetched_rtypes, inlined_rtypes):
-        create = self._cw.create_entity
         clonable_rtypes = set(self.clonable_rtypes(etype))
+        entities = []
         for row in candidates_rset.rows:
             candidate_eid = row[0]
-            attributes = {}
+            attributes = {'eid': candidate_eid, 'cwuri': u''}
             for rtype, val in zip(fetched_rtypes, row[1:]):
-                if val is None:
-                    continue
+                # even if val is None, we take it
                 if rtype in inlined_rtypes:
                     if rtype in self._specially_handled_rtypes:
                         deferred_relations.append((rtype, candidate_eid, val))
@@ -362,13 +398,11 @@ class ContainerClone(EntityAdapter):
                         # this will be costly
                         relations[rtype].append((candidate_eid, val))
                 else: # standard attribute
+                    if isinstance(val, Binary):
+                        val = buffer(val.getvalue())
                     attributes[rtype] = val
-            # work around cwuri obnoxiousness
-            if 'cwuri' not in attributes:
-                attributes['cwuri'] = u''
-            clone = create(etype, **attributes)
-            clone.cw_clear_all_caches()
-            orig_to_clone[candidate_eid] = clone.eid
+            entities.append(attributes)
+        self._fast_create_entities(etype, entities, orig_to_clone)
 
     def _etype_relink_clones(self, etype, queryargs, relations, deferred_relations):
         etype_rql = self._complete_rql(etype)

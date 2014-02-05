@@ -413,6 +413,19 @@ def _iter_mainvar_relations(rqlst):
                 yield rel.r_type, rel.children[1].children[0]
 
 
+def _insertmany(session, table, attributes, prefix=''):
+    """ Low-level INSERT many entities of the same etype
+    at once
+    """
+    # the low-level python-dbapi cursor
+    cursor = session.cnxset['system']
+    columns = sorted(attributes[0])
+    cursor.executemany('INSERT INTO %s (%s) VALUES (%s)' % (
+        prefix + table,                                    # table name
+        ','.join(prefix + name for name in columns),       # column names
+        ','.join('%%(%s)s' %  name for name in columns)),  # dbapi placeholders
+                       attributes)
+
 # migration helper
 
 def synchronize_container_parent_rdefs(schema,
