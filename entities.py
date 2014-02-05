@@ -423,25 +423,29 @@ class ContainerClone(EntityAdapter):
     def _container_relink(self, orig_to_clone):
         """ handle subject relations of the container - this is
         handled specially because attributes have already been set
+
+        we partition subject relations in two sets:
+        * those that are already set (typically .owned_by, .created_by, ...)
+        * those that must yet be cloned
         """
         deferred_relations = []
         relations = defaultdict(list)
         queryargs = self._queryargs()
-        ceschema = self.entity.e_schema
-        etype = ceschema.type
+        clone = self.entity
+        etype = clone.e_schema.type
         etype_rql = 'Any X WHERE X is %s, X eid %s' % (
                 etype, self.orig_container_eid)
         skiprtypes = set(self.rtypes_to_skip)
         if self.clone_rtype:
             skiprtypes.add(self.clone_rtype)
-        for rschema in ceschema.subject_relations():
-            if rschema.final:
-                continue
-            rtype = rschema.type
-            if rtype in skiprtypes:
-                continue
-            if rtype not in VIRTUAL_RTYPES:
-                continue
+        clone_subject_relations = set(rschema.type
+                                      for rschema in clone.e_schema.subject_relations()
+                                      if not rschema.final)
+        for rtype in self.clonable_rtypes(etype):
+            if rtype in clone_subject_relations:
+                if self._cw.execute('Any Y LIMIT 1 WHERE X eid %%(clone)s, X %(rtype)s Y'
+                                    % {'rtype': rtype}, {'clone': clone.eid}):
+                    continue
             etype_rqlst = parse(etype_rql).children[0]
             _add_rqlst_restriction(etype_rqlst, rtype)
             linked_rset = self._cw.execute(etype_rqlst, queryargs)

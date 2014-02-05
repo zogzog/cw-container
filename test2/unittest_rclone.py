@@ -205,6 +205,19 @@ class CloneTC(CubicWebTC):
         self.assertEqual(celeste_contents,
                          sorted([(e.__regid__, e.dc_title())
                                  for e in celeste.reverse_project]))
+        # The folder containers contain what they are supposed to:
+        babar_doc = req.execute('Folder F WHERE F name "Babar documentation"').get_entity(0, 0)
+        celeste_doc = req.execute('Folder F WHERE F name "Celeste bio"').get_entity(0, 0)
+        babar_doc_contents = [('File', 'How I became King'),
+                              ('Card', u'Some doc bit')]
+        celeste_doc_contents = [('File', 'How I met Babar'),
+                                ('Card', u'A general doc item')]
+        self.assertEqual(frozenset(babar_doc_contents),
+                         frozenset((e.cw_etype, e.dc_title() or e.data.getvalue())
+                                   for e in babar_doc.element))
+        self.assertEqual(frozenset(celeste_doc_contents),
+                         frozenset((e.cw_etype, e.dc_title() or e.data.getvalue())
+                                   for e in celeste_doc.element))
 
         babar_eids = set(x.eid for x in babar.reverse_project)
         celeste_eids = set(x.eid for x in celeste.reverse_project)
@@ -250,3 +263,13 @@ class CloneTC(CubicWebTC):
 
         self.assertIn(str(folder.eid), folder.cwuri)
         self.assertEqual('', cloned_folder.cwuri)
+        # The entities linked via subject composite relations to the container
+        # are linked to the cloned container as well:
+        self.assertEqual(frozenset(doc.dc_title() or doc.data.getvalue()
+                                   for doc in folder.element),
+                         frozenset(doc.dc_title() or doc.data.getvalue()
+                                   for doc in cloned_folder.element))
+        # The entities linked via subject composite relations to the container
+        # are actually copied as well:
+        self.assertNotEqual(frozenset(doc.eid for doc in folder.element),
+                            frozenset(doc.eid for doc in cloned_folder.element))
