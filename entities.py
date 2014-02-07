@@ -1,4 +1,4 @@
-# copyright 2011-2012 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
+# copyright 2011-2014 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
 # contact http://www.logilab.fr -- mailto:contact@logilab.fr
 #
 # This program is free software: you can redistribute it and/or modify it under
@@ -82,6 +82,8 @@ class ContainerProtocol(EntityAdapter):
         parent = self.parent
         if parent:
             container = parent.cw_adapt_to('Container').related_container
+            if container is None:
+                return
             if self.entity.e_schema not in container.container_skipetypes:
                 return container
 
