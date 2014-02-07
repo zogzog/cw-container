@@ -21,5 +21,17 @@ class Joke(EntityType):
     content = String()
 
 
+
+class Menagerie(EntityType):
+    animals = SubjectRelation('Animal', composite='subject', cardinality='*?')
+    in_circus = SubjectRelation('Circus', composite='object', cardinality='?*')
+
+
+class Animal(EntityType):
+    name = String()
+
+
+
 def post_build_callback(schema):
-    utils.define_container(schema, 'Circus', 'circus')
+    utils.define_container(schema, 'Circus', 'circus', subcontainers=('Menagerie',))
+    utils.define_container(schema, 'Menagerie', 'zoo')

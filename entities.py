@@ -203,7 +203,7 @@ class ContainerClone(EntityAdapter):
             # the orig-clone mapping and relations will be augmented
             # by the delegated clone
             cloner._clone(orig_to_clone, relations, toplevel=False)
-
+            cloner._container_relink(orig_to_clone)
 
     @cachedproperty
     def clone_rtype(self):
