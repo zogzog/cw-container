@@ -350,19 +350,20 @@ class ContainerClone(EntityAdapter):
             return (source.create_eid(self._cw),)
         return source.create_eid(self._cw, count=qty)
 
+    def preprocess_attributes(self, etype, oldeid, attributes):
+        pass
+
     def _fast_create_entities(self, etype, entities, orig_to_clone):
         eschema = self._cw.vreg.schema[etype]
         etypeid = eschema_eid(self._cw, eschema)
         ancestorseid = [etypeid] + [eschema_eid(self._cw, aschema)
                                     for aschema in eschema.ancestors()]
-        eids = self._fast_reserve_eids(len(entities))
         metadata = []
         isrelation = []
         isinstanceof = []
         now = datetime.utcnow()
-        for attributes, neweid in izip(entities, eids):
-            oldeid = attributes['eid']
-            orig_to_clone[oldeid] = attributes['eid'] = neweid
+        for attributes in entities:
+            neweid = attributes['eid']
             metadata.append({'type': etype, 'eid': neweid,
                              'source': 'system', 'asource': 'system',
                              'mtime': now})
@@ -382,14 +383,15 @@ class ContainerClone(EntityAdapter):
                              fetched_rtypes, inlined_rtypes):
         clonable_rtypes = set(self.clonable_rtypes(etype))
         entities = []
-        for row in candidates_rset.rows:
-            candidate_eid = row[0]
-            attributes = {'eid': candidate_eid, 'cwuri': u''}
+        eids = self._fast_reserve_eids(len(candidates_rset))
+        for row, neweid in izip(candidates_rset.rows, eids):
+            oldeid = row[0]
+            attributes = {'eid': neweid, 'cwuri': u''}
             for rtype, val in zip(fetched_rtypes, row[1:]):
                 # even if val is None, we take it
                 if rtype in inlined_rtypes:
                     if rtype in self._specially_handled_rtypes:
-                        deferred_relations.append((rtype, candidate_eid, val))
+                        deferred_relations.append((rtype, oldeid, val))
                     elif val in orig_to_clone:
                         attributes[rtype] = orig_to_clone[val]
                     elif rtype not in clonable_rtypes:
@@ -397,11 +399,13 @@ class ContainerClone(EntityAdapter):
                             attributes[rtype] = val
                     else:
                         # this will be costly
-                        relations[rtype].append((candidate_eid, val))
+                        relations[rtype].append((oldeid, val))
                 else: # standard attribute
                     if isinstance(val, Binary):
                         val = buffer(val.getvalue())
                     attributes[rtype] = val
+            self.preprocess_attributes(etype, oldeid, attributes)
+            orig_to_clone[oldeid] = neweid
             entities.append(attributes)
         self._fast_create_entities(etype, entities, orig_to_clone)
 
