@@ -35,7 +35,6 @@ class MenagerieClone(ContainerClone):
 
 def registration_callback(vreg):
     vreg.register_all(globals().values(), __name__)
-    _, etypes = utils.container_static_structure(vreg.schema, 'Circus', 'circus')
-    etypes = set(etypes)
-    etypes.remove('Menagerie')
+    _, etypes = utils.container_static_structure(vreg.schema, 'Circus', 'circus',
+                                                 skipetypes=('Menagerie', ))
     CProtocol.__select__ = is_instance('Circus', *etypes)
