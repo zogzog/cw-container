@@ -1,6 +1,6 @@
 from logilab.common.testlib import unittest_main
 
-from cubicweb import Binary, ValidationError
+from cubicweb import Binary, ValidationError, Unauthorized
 from cubicweb.devtools.testlib import CubicWebTC
 
 from cubes.container.testutils import userlogin, new_version, new_ticket, new_patch
@@ -34,11 +34,13 @@ class SecurityTC(CubicWebTC):
             ver = new_version(req, projeid, u'0.2.0')
             tick = new_ticket(req, projeid, ver)
             patch = new_patch(req, tick, afile)
-            self.assertRaises(cnx.commit)
+            with self.assertRaises(Unauthorized):
+                cnx.commit()
             cnx.rollback()
             req = cnx.request()
             ver = new_version(req, projeid, u'0.3.0')
-            self.assertRaises(cnx.commit)
+            with self.assertRaises(Unauthorized):
+                cnx.commit()
 
         with self.userlogin('user') as cnx:
             req = cnx.request()
