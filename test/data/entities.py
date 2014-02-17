@@ -1,4 +1,4 @@
-from cubicweb.selectors import is_instance
+from cubicweb.predicates import is_instance
 
 from cubes.container import utils
 from cubes.container.entities import (Container, ContainerProtocol,
