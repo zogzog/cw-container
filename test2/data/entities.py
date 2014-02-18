@@ -28,4 +28,6 @@ def registration_callback(vreg):
                                                             Project.container_rtype,
                                                             subcontainers=Project.container_subcontainers)
     _rtypes, fold_etypes = utils.container_static_structure(vreg.schema, 'Folder', Folder.container_rtype)
-    Container.__select__ = is_instance('Project', *(proj_etypes | fold_etypes))
+    protocol = type('CProtocol', (ContainerProtocol, ),
+                    {'__select__': is_instance('Project', *(proj_etypes | fold_etypes))})
+    vreg.register(protocol)

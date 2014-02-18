@@ -27,6 +27,9 @@ def registration_callback(vreg):
     _rtypes, etypes_d = utils.container_static_structure(vreg.schema, 'Diamond', Diamond.container_rtype)
     _rtypes, etypes_m = utils.container_static_structure(vreg.schema, 'Mess', Mess.container_rtype)
     # let's add CWUser for tests
-    ContainerProtocol.__select__ = (ContainerProtocol.__select__ &
-                                    is_instance('CWUser', 'Diamond', 'Mess', *etypes_d.union(etypes_m)))
-    MultiParentProtocol.__select__ = is_instance('IAmAnAttributeCarryingRelation')
+    protocol = type('CProtocol', (ContainerProtocol, ),
+                    {'__select__': is_instance('CWUser', 'Diamond', 'Mess', *etypes_d.union(etypes_m))})
+    vreg.register(protocol)
+    mprotocol = type('MProtocol', (MultiParentProtocol, ),
+                     {'__select__': is_instance('IAmAnAttributeCarryingRelation')})
+    vreg.register(mprotocol)

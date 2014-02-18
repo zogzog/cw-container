@@ -32,11 +32,6 @@ from cubicweb.appobject import Predicate
 
 logger = logging.getLogger()
 
-class yet_unset(Predicate):
-    def __call__(self, cls, *args, **kwargs):
-        warn('%s has no selector set' % cls)
-        return 0
-
 
 def composite_role(eschema, rschema):
     """ testing compositeness is a bit awkward with the standard

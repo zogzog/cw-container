@@ -22,7 +22,7 @@ from logilab.common.registry import Predicate
 from cubicweb import ValidationError
 from cubicweb.server.hook import Hook, DataOperationMixIn, Operation, match_rtype
 
-from cubes.container.utils import yet_unset, parent_rschemas
+from cubes.container.utils import parent_rschemas
 
 def eid_etype(session, eid):
     return session.describe(eid)[0]
@@ -158,7 +158,8 @@ class AddContainerRelationOp(DataOperationMixIn, Operation):
 class CloneContainer(Hook):
     __regid__ = 'container.clone'
     events = ('after_add_relation',)
-    __select__ = yet_unset() # use match_rtype(container_clone_rtype)
+    #__select__ = None use match_rtype(container_clone_rtype)
+    __abstract__ = True
     category = 'container'
 
     def __call__(self):

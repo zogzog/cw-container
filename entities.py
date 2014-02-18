@@ -34,8 +34,7 @@ from cubicweb.entities import AnyEntity
 from cubicweb.view import EntityAdapter
 
 from cubes.container import ContainerConfiguration
-from cubes.container.utils import (yet_unset,
-                                   ordered_container_etypes,
+from cubes.container.utils import (ordered_container_etypes,
                                    parent_rschemas,
                                    needs_container_parent,
                                    _insertmany,
@@ -505,7 +504,7 @@ class ContainerClone(EntityAdapter):
 
 class MultiParentProtocol(EntityAdapter):
     __regid__ = 'container.multiple_parents'
-    __select__ = yet_unset()
+    __abstract__ = True
 
     def possible_parent(self, rtype, eid):
         pass
