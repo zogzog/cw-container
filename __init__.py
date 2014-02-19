@@ -59,6 +59,10 @@ class ContainerConfiguration(object):
     of `schema.py`, `build_container_hook` and `build_container_protocol` to
     be respectively called in `registration_callback` of `hooks.py` and
     `entities.py`.
+
+    Note about migration: the container relation type (`rtype` attribute)
+    should be added and entity types returned by `etypes_to_sync` should be
+    synchronized (especially if security rules were added).
     """
 
     def __init__(self, etype, rtype, skiprtypes=(), skipetypes=(),
@@ -204,3 +208,9 @@ class ContainerConfiguration(object):
         return type(self.etype + 'ContainerProtocol', (ContainerProtocol, ),
                     {'__select__': is_instance(self.etype, *etypes) & is_in_container(self),
                      'container_rtype': self.rtype})
+
+    # migration helpers ########################################################
+
+    def etypes_to_sync(self, schema):
+        """Return the entity types to be synchronized in migration."""
+        return self.structure(schema)[1].union([self.etype])
