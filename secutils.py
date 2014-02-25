@@ -83,35 +83,36 @@ def setup_container_rtypes_security(schema,
         """
         rdefs_roles = {}
         for (subj, obj), rdef in rschema.rdefs.iteritems():
-            composite_role = rdef.composite
-            if composite_role is None:
+            if rdef.composite is None:
                 # if both the subj/obj are in the container, we
                 # default to the subject (it does not really matter)
                 if subj.type in etypes:
                     rdefs_roles[(subj.type, obj.type)] = 'S'
                 elif obj.type in etypes:
                     rdefs_roles[(subj.type, obj.type)] = 'O'
-            else:
-                # structural relations:
-                # we must choose the side nearest to the container root
-                # 'subject' => 'S', 'object' => 'O'
-                # Both subj/obj must be in etypes
-                if subj not in etypesplus and obj not in etypesplus:
-                    continue
 
-                composite = subj if composite_role == 'subject' else obj
-                # filter out subcontainer
-                # any relation who defined a subcontainer as a composite
-                # is not ours and its handling will be delegated
-                if composite in subcontainers:
-                    continue
+                continue
 
-                # any relation that points to an etype which is not ours
-                # (including ourselves) will be handled by someone else
-                if composite not in etypesplus:
-                    continue
+            # structural relations:
+            # we must choose the side nearest to the container root
+            # 'subject' => 'S', 'object' => 'O'
+            # Both subj/obj must be in etypes
+            if subj not in etypesplus and obj not in etypesplus:
+                continue
 
-                rdefs_roles[(subj.type, obj.type)] = composite_role[:1].upper()
+            composite = subj if rdef.composite == 'subject' else obj
+            # filter out subcontainer
+            # any relation who defined a subcontainer as a composite
+            # is not ours and its handling will be delegated
+            if composite in subcontainers:
+                continue
+
+            # any relation that points to an etype which is not ours
+            # (including ourselves) will be handled by someone else
+            if composite not in etypesplus:
+                continue
+
+            rdefs_roles[(subj.type, obj.type)] = rdef.composite[:1].upper()
         return rdefs_roles
 
     def set_rdefs_perms(rschema, rdefs_roles, perms):
