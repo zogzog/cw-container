@@ -260,7 +260,7 @@ class ContainerClone(EntityAdapter):
         # a dict from rtype to rql variable
         already_used_rtypes = dict(_iter_mainvar_relations(rqlst))
         # running without metadata hooks: we must handle some rtypes here
-        # we also will loose: is_instance_of, created_by, owned_by
+        # we also will loose: is_instance_of, cwuri, has_text, eid, is, identity
         no_copy_meta = self._no_copy_meta
         # keep an ordered-list of selected rtypes
         fetched_rtypes = []
