@@ -179,8 +179,9 @@ class ContainerClone(EntityAdapter):
         # let's flush all collected relations
         self.info('linking (%d relations)', len(relations))
         for rtype, eids in relations.iteritems():
-            self.info('%s linking %s' %
-                      ('internal' if rtype in internal_rtypes else 'external', rtype))
+            self.info('%s linking %s (%s elements)' %
+                      ('internal' if rtype in internal_rtypes else 'external',
+                       rtype, len(eids)))
             subj_obj = []
             for subj, obj in eids:
                 subj = orig_to_clone[subj]
