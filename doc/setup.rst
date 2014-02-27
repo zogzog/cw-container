@@ -118,25 +118,22 @@ have a look at some code.
  from cubicweb.server.hook import match_rtype
  from cubes.container import hooks, utils
 
- class SetContainerParent(hooks.SetContainerParent):
-     __select__ = utils.yet_unset()
-
  class SetContainerRelation(hooks.SetContainerRelation):
      __select__ = utils.yet_unset()
 
 
  def registration_callback(vreg):
      schema = vreg.schema
-     rtypes = utils.set_container_parent_rtypes_hook(schema, 'Project', 'project')
-     SetContainerParent.__select__ = Hook.__select__ & match_rtype(*rtypes)
-     rtypes_m = utils.set_container_relation_rtypes_hook(schema, 'Project', 'project')
+     from cubes.tracker.entities import Project
+     rtypes = utils.set_container_relation_rtypes_hook(schema,
+                                                       Project.cw_etype,
+                                                       Project.container_rtype)
      SetContainerRelation.__select__ = Hook.__select__ & match_rtype(*rtypes)
-     vreg.register(SetContainerParent)
+     rdefs = utils.container_parent_rdefs(schema,
+                                          Project.cw_etype,
+                                          Project.container_rtype)
+     SetContainerRelation._container_parent_rdefs = rdefs
      vreg.register(SetContainerRelation)
-
-
-The `SetContainerParent` hook computes and sets the parent when a
-`container_parent` relation is needed.
 
 The `SetContainerRelation` hook computes and sets the
 `<container_rtype>` relation at creation time for any containerised
