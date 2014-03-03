@@ -8,6 +8,10 @@ class SetMessContainerRelation(hooks.SetContainerRelation):
     pass
 
 
+class CloneDiamond(hooks.CloneContainer):
+    __select__ = hooks.CloneContainer.__select__ & match_rtype('is_clone_of')
+
+
 def registration_callback(vreg):
     schema = vreg.schema
     rdefs = utils.container_parent_rdefs(schema, 'Diamond', 'diamond',
@@ -26,3 +30,4 @@ def registration_callback(vreg):
 
     vreg.register(SetDiamondContainerRelation)
     vreg.register(SetMessContainerRelation)
+    vreg.register(CloneDiamond)

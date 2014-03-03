@@ -8,6 +8,7 @@ class Diamond(Container):
     __regid__ = 'Diamond'
     container_rtype = 'diamond'
     container_skipetypes = ('EtypeNotInContainers',)
+    clone_rtype_role = ('is_clone_of', 'subject')
 
 
 class DiamondClone(ContainerClone):

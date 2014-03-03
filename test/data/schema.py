@@ -40,6 +40,12 @@ class Bottom(EntityType):
                                    cardinality='??', inlined=True)
 
 
+class is_clone_of(RelationDefinition):
+    subject = 'Diamond'
+    object = 'Diamond'
+    cardinality = '?*'
+
+
 class Mess(WorkflowableEntityType):
     # security related: must not be cloned/exported, etc.
     local_group = SubjectRelation('CWGroup', composite='subject')

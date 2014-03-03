@@ -1,5 +1,8 @@
 from contextlib import contextmanager
 
+from cubicweb.devtools.testlib import CubicWebTC
+
+
 @contextmanager
 def userlogin(self, *args):
     cnx = self.login(*args)
@@ -21,3 +24,13 @@ def new_patch(req, tick, afile, name=u'some code'):
 
 def new_card(req, contents=u"Let's start a spec ..."):
     return req.create_entity('Card', contents=contents)
+
+
+
+class ContainerTC(CubicWebTC):
+
+    def setUp(self):
+        super(ContainerTC, self).setUp()
+        # utils monkeypatch had the time to fire
+        patched_create_eid = self.session.repo.system_source._create_eid_sqlite
+        self.session.repo.system_source.create_eid = patched_create_eid

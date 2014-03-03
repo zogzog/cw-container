@@ -1,12 +1,12 @@
 
 
-
 class Container(object):
     cetype = None
     crtype = None
     skiprtypes = ()
     skipetypes = ()
     subcontainers = ()
+    clone_rtype_role = None
     compulsory_hooks_categories = ()
 
     def __init__(self,
@@ -15,6 +15,7 @@ class Container(object):
                  skiprtypes=(),
                  skipetypes=(),
                  subcontainers=(),
+                 clone_rtype_role=None,
                  compulsory_hooks_categories=()):
 
         self.cetype = cetype
@@ -22,6 +23,7 @@ class Container(object):
         self.skiprtypes = skiprtypes
         self.skipetypes = skipetypes
         self.subcontainers = subcontainers
+        self.clone_rtype_role = clone_rtype_role
         self.compulsory_hooks_categories = compulsory_hooks_categories
 
 

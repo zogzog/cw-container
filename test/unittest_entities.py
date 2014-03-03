@@ -2,6 +2,8 @@ from logilab.common.testlib import unittest_main
 from cubicweb import ValidationError
 from cubicweb.devtools.testlib import CubicWebTC
 
+from cubes.container.testutils import ContainerTC
+
 class ContainerLessTC(CubicWebTC):
 
     def test_free_from_container(self):
@@ -18,7 +20,7 @@ class ContainerLessTC(CubicWebTC):
         self.assertIsNone(adapter.parent)
         self.assertIsNone(adapter.related_container)
 
-class ContainerEntitiesTC(CubicWebTC):
+class ContainerEntitiesTC(ContainerTC):
 
     def setup_database(self):
         req = self.request()
@@ -30,13 +32,25 @@ class ContainerEntitiesTC(CubicWebTC):
         self.b2 = req.create_entity('Bottom', top_by_right=self.r)
 
     def test_clone_entry_point(self):
+        # the Mess container hasn't got any `is_clone_of` kind of relation
+        # we test here that .clone will only work called
+        # as .clone(original=original.eid)
         req = self.session
-        newd = req.create_entity('Diamond')
+        newd = req.create_entity('Mess')
         cloner = newd.cw_adapt_to('Container.clone')
         self.assertRaises(TypeError, cloner.clone)
         self.assertRaises(TypeError, cloner.clone, original=newd)
         cloner.clone(original=newd.eid)
         self.commit()
+
+    def test_is_clone_of_relation(self):
+        from cubes.container import utils
+        d = self.session.create_entity('Diamond')
+        d.cw_set(is_clone_of=self.d)
+        self.commit()
+        d = self.session.entity_from_eid(d.eid)
+        self.assertEqual(len(d.reverse_diamond),
+                         len(self.d.reverse_diamond))
 
     def test_container_relation_hook(self):
         req = self.request()

@@ -437,6 +437,11 @@ def _insertmany(session, table, attributes, prefix=''):
                        attributes)
 
 # clone: fast eid range creation
+
+# sqlite: monkeypatching is not sufficient
+# because the native source already does live patching
+# create_eid at __init__ time (before _this module_ is
+# even loaded).
 @monkeypatch(NativeSQLSource)
 def _create_eid_sqlite(self, session, count=1, eids=None):
     with self._eid_cnx_lock:
@@ -448,6 +453,8 @@ def _create_eid_sqlite(self, session, count=1, eids=None):
         if count > 1:
             return eids
         return eids[0]
+
+# postgres / sqlserver
 
 @monkeypatch(NativeSQLSource)
 def create_eid(self, session, count=1):

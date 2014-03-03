@@ -53,6 +53,7 @@ class Container(AnyEntity):
     container_skiprtypes = ()
     container_skipetypes = ()
     container_subcontainers = ()
+    clone_rtype_role = None
     compulsory_hooks_categories = ()
 
     @classmethod
@@ -64,6 +65,7 @@ class Container(AnyEntity):
             skiprtypes=cls.container_skiprtypes,
             skipetypes=cls.container_skipetypes,
             subcontainers=cls.container_subcontainers,
+            clone_rtype_role=cls.clone_rtype_role,
             compulsory_hooks_categories=cls.compulsory_hooks_categories)
 
 
@@ -81,7 +83,6 @@ def first_parent_rtype_role(eschema):
 class ContainerProtocol(EntityAdapter):
     __regid__ = 'Container'
     __abstract__ = True
-    clone_rtype_role = None
 
     @property
     def related_container(self):
@@ -227,8 +228,8 @@ class ContainerClone(EntityAdapter):
         """ returns the <clone> rtype if it exists
         (it should be defined as a .clone_rtype_role 2-uple) """
         try:
-            return self.clone_rtype_role[0]
-        except (AttributeError, IndexError):
+            return self.entity.container_config.clone_rtype_role[0]
+        except (TypeError, IndexError):
             return None
 
     def _origin_eid(self, original):
@@ -245,7 +246,7 @@ class ContainerClone(EntityAdapter):
             return original
         else:
             if self.clone_rtype:
-                rtype, role = self.clone_rtype_role
+                rtype, role = self.entity.container_config.clone_rtype_role
                 return self.entity.related(rtype, role).rows[0][0]
             else:
                 raise TypeError('.clone wants the original or a relation to the original')
