@@ -21,6 +21,7 @@ from itertools import izip, chain
 from warnings import warn
 
 from logilab.common.decorators import cached, cachedproperty
+from logilab.common.deprecation import class_deprecated
 
 from rql import parse
 
@@ -32,6 +33,7 @@ from cubicweb.schema import VIRTUAL_RTYPES
 from cubicweb.entities import AnyEntity
 from cubicweb.view import EntityAdapter
 
+from cubes.container import config
 from cubes.container.utils import (ordered_container_etypes,
                                    container_rtypes_etypes,
                                    parent_rschemas,
@@ -42,6 +44,9 @@ from cubes.container.utils import (ordered_container_etypes,
 
 class Container(AnyEntity):
     __abstract__ = True
+    __metaclass__ = class_deprecated
+    __deprecation_warning__ = ('[container 2.4] '
+                               'use cubes.container.config.Container instead')
 
     # container API
     container_rtype = None
@@ -49,6 +54,17 @@ class Container(AnyEntity):
     container_skipetypes = ()
     container_subcontainers = ()
     compulsory_hooks_categories = ()
+
+    @classmethod
+    def __initialize__(cls, schema):
+        super(Container, cls).__initialize__(schema)
+        cls.container_config = config.Container(
+            cls.cw_etype,
+            cls.container_rtype,
+            skiprtypes=cls.container_skiprtypes,
+            skipetypes=cls.container_skipetypes,
+            subcontainers=cls.container_subcontainers,
+            compulsory_hooks_categories=cls.compulsory_hooks_categories)
 
 
 @cached
