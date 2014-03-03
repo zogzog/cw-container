@@ -1,5 +1,5 @@
 from cubicweb.server.hook import Hook, match_rtype
-from cubes.container import hooks, utils
+from cubes.container import hooks, utils, config
 
 class SetProjectContainerRelation(hooks.SetContainerRelation):
     pass
@@ -10,29 +10,27 @@ class SetFolderContainerRelation(hooks.SetContainerRelation):
 
 def registration_callback(vreg):
     schema = vreg.schema
-    projeclass = vreg['etypes'].etype_class('Project')
+    project = config.Container.by_etype('Project')
 
     # Project definition
-    rdefs = utils.container_parent_rdefs(schema, 'Project',
-                                         projeclass.container_rtype,
-                                         projeclass.container_skiprtypes,
-                                         projeclass.container_skipetypes,
-                                         projeclass.container_subcontainers)
+    rdefs = project._container_parent_rdefs(schema)
     SetProjectContainerRelation._container_parent_rdefs = rdefs
-    rtypes = utils.set_container_relation_rtypes_hook(schema, 'Project',
-                                                      projeclass.container_rtype,
-                                                      projeclass.container_skiprtypes,
-                                                      projeclass.container_skipetypes,
-                                                      projeclass.container_subcontainers)
+    rtypes = utils.set_container_relation_rtypes_hook(schema,
+                                                      project.cetype,
+                                                      project.crtype,
+                                                      skiprtypes=project.skiprtypes,
+                                                      skipetypes=project.skipetypes,
+                                                      subcontainers=project.subcontainers)
     SetProjectContainerRelation.__select__ = Hook.__select__ & match_rtype(*rtypes)
 
     # Folder definition
-    foldeclass = vreg['etypes'].etype_class('Folder')
-    rdefs = utils.container_parent_rdefs(schema, 'Folder',
-                                         foldeclass.container_rtype)
+    folder = config.Container.by_etype('Folder')
+    rdefs = folder._container_parent_rdefs(schema)
+
     SetFolderContainerRelation._container_parent_rdefs = rdefs
-    rtypes = utils.set_container_relation_rtypes_hook(schema, 'Folder',
-                                                      foldeclass.container_rtype)
+    rtypes = utils.set_container_relation_rtypes_hook(schema,
+                                                      folder.cetype,
+                                                      folder.crtype)
     SetFolderContainerRelation.__select__ = (Hook.__select__ & match_rtype(*rtypes))
 
     vreg.register(SetProjectContainerRelation)

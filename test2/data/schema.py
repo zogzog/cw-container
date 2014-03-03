@@ -1,7 +1,7 @@
 from yams.buildobjs import EntityType, RelationDefinition, String, SubjectRelation, Bytes
 from cubicweb.schema import RRQLExpression, ERQLExpression
 
-from cubes.container import utils
+from cubes.container import utils, config
 from cubes.container.secutils import PERM, PERMS, setup_container_rtypes_security
 
 class Project(EntityType):
@@ -143,6 +143,8 @@ class requirement(RelationDefinition):
 
 
 def post_build_callback(schema):
-    utils.define_container(schema, 'Project', 'project', subcontainers=('Folder',))
-    utils.define_container(schema, 'Folder', 'folder_root')
+    project = config.Container('Project', 'project', subcontainers=('Folder',))
+    project.define_container(schema)
+    folder = config.Container('Folder', 'folder_root')
+    folder.define_container(schema)
     setup_security(schema)

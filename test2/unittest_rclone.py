@@ -4,6 +4,7 @@ from cubicweb import Binary, ValidationError
 from cubicweb.devtools.testlib import CubicWebTC
 
 from cubes.container import utils
+from cubes.container.config import Container
 from cubes.container.testutils import (userlogin, new_version, new_ticket,
                                        new_patch, new_card)
 
@@ -21,19 +22,16 @@ class TwoContainersTC(CubicWebTC):
     # Project
     def test_project_static_structure(self):
         schema = self.vreg.schema
-        project = self.vreg['etypes'].etype_class('Project')
+        project = Container.by_etype('Project')
         self.assertEqual((frozenset(['documents', 'implements', 'concerns', 'version_of',
                                      'subproject_of', 'requirement']),
                           frozenset(['Card', 'Patch', 'Ticket', 'Version', 'Folder','Project'])),
-                         utils.container_static_structure(schema, 'Project', 'project',
-                                                          skiprtypes=project.container_skiprtypes,
-                                                          skipetypes=project.container_skipetypes,
-                                                          subcontainers=project.container_subcontainers))
+                         project._structure_cache)
 
 
     def test_project_etypes_rtypes(self):
         schema = self.vreg.schema
-        project = self.vreg['etypes'].etype_class('Project')
+        project = Container.by_etype('Project')
         # NOTE: this contains 'parent' and 'element', which is WRONG
         # However, short of fully specifying the subcontainer (not just the top entity type)
         # we cannot do much against that. We really need some support viz Yams
@@ -42,71 +40,84 @@ class TwoContainersTC(CubicWebTC):
                                      'element', 'requirement',
                                      'concerns', 'version_of', 'subproject_of']),
                           frozenset(['Card', 'Folder', 'Patch', 'Ticket', 'Version', 'Project'])),
-                         utils.container_rtypes_etypes(schema, 'Project', 'project',
-                                                       skiprtypes=project.container_skiprtypes,
-                                                       skipetypes=project.container_skipetypes,
-                                                       subcontainers=project.container_subcontainers))
+                         utils.container_rtypes_etypes(schema,
+                                                       project.cetype,
+                                                       project.crtype,
+                                                       skiprtypes=project.skiprtypes,
+                                                       skipetypes=project.skipetypes,
+                                                       subcontainers=project.subcontainers))
 
 
     def test_project_hooks(self):
         schema = self.vreg.schema
-        project = self.vreg['etypes'].etype_class('Project')
+        project = Container.by_etype('Project')
         self.assertEqual(set(['documents', 'requirement']),
-                         utils.set_container_parent_rtypes_hook(schema, 'Project', 'project',
-                                                                  skiprtypes=project.container_skiprtypes,
-                                                                  skipetypes=project.container_skipetypes,
-                                                                  subcontainers=project.container_subcontainers))
+                         utils.set_container_parent_rtypes_hook(schema,
+                                                                project.cetype,
+                                                                project.crtype,
+                                                                skiprtypes=project.skiprtypes,
+                                                                skipetypes=project.skipetypes,
+                                                                subcontainers=project.subcontainers))
         self.assertEqual({'documents': set([('Folder', 'Project')]),
                           'requirement': set([('Ticket', 'Card')])},
-                         utils.container_parent_rdefs(schema, 'Project', 'project',
-                                                      skiprtypes=project.container_skiprtypes,
-                                                      skipetypes=project.container_skipetypes,
-                                                      subcontainers=project.container_subcontainers))
+                         project._container_parent_rdefs(schema))
         self.assertEqual(set(['implements', 'concerns', 'version_of', 'subproject_of',
                               'requirement', 'documents']),
-                         utils.set_container_relation_rtypes_hook(schema, 'Project', 'project',
-                                                                  skiprtypes=project.container_skiprtypes,
-                                                                  skipetypes=project.container_skipetypes,
-                                                                  subcontainers=project.container_subcontainers))
+                         utils.set_container_relation_rtypes_hook(schema,
+                                                                  project.cetype,
+                                                                  project.crtype,
+                                                                  skiprtypes=project.skiprtypes,
+                                                                  skipetypes=project.skipetypes,
+                                                                  subcontainers=project.subcontainers))
 
     # Folder
     def test_folder_static_structure(self):
         schema = self.vreg.schema
-        folder = self.vreg['etypes'].etype_class('Folder')
+        folder = Container.by_etype('Folder')
         self.assertEqual((frozenset(['parent', 'element']),
                           frozenset(['Card', 'Folder', 'File'])),
-                         utils.container_static_structure(schema, 'Folder', 'folder_root',
-                                                          skiprtypes=folder.container_skiprtypes,
-                                                          skipetypes=folder.container_skipetypes))
+                         utils.container_static_structure(schema,
+                                                          folder.cetype,
+                                                          folder.crtype,
+                                                          skiprtypes=folder.skiprtypes,
+                                                          skipetypes=folder.skipetypes))
 
     def test_folder_etypes_rtypes(self):
         schema = self.vreg.schema
-        folder = self.vreg['etypes'].etype_class('Folder')
+        folder = Container.by_etype('Folder')
         self.assertEqual((frozenset(['parent', 'element']),
                           frozenset(['Card', 'Folder', 'File'])),
-                         utils.container_rtypes_etypes(schema, 'Folder', 'folder_root',
-                                                       skiprtypes=folder.container_skiprtypes,
-                                                       skipetypes=folder.container_skipetypes))
+                         utils.container_rtypes_etypes(schema,
+                                                       folder.cetype,
+                                                       folder.crtype,
+                                                       skiprtypes=folder.skiprtypes,
+                                                       skipetypes=folder.skipetypes))
 
     def test_folder_hooks(self):
         schema = self.vreg.schema
-        folder = self.vreg['etypes'].etype_class('Folder')
+        folder = Container.by_etype('Folder')
         self.assertEqual(set(['parent', 'element']),
-                         utils.set_container_parent_rtypes_hook(schema, 'Folder', 'folder_root',
-                                                                  skiprtypes=folder.container_skiprtypes,
-                                                                  skipetypes=folder.container_skipetypes,
-                                                                  subcontainers=folder.container_subcontainers))
+                         utils.set_container_parent_rtypes_hook(schema,
+                                                                folder.cetype,
+                                                                folder.crtype,
+                                                                skiprtypes=folder.skiprtypes,
+                                                                skipetypes=folder.skipetypes,
+                                                                subcontainers=folder.subcontainers))
         self.assertEqual({'parent': set([('Folder', 'Folder')]),
                           'element': set([('Folder', 'Card')])},
-                         utils.container_parent_rdefs(schema, 'Folder', 'folder_root',
-                                                      skiprtypes=folder.container_skiprtypes,
-                                                      skipetypes=folder.container_skipetypes,
-                                                      subcontainers=folder.container_subcontainers))
+                         utils.container_parent_rdefs(schema,
+                                                      folder.cetype,
+                                                      folder.crtype,
+                                                      skiprtypes=folder.skiprtypes,
+                                                      skipetypes=folder.skipetypes,
+                                                      subcontainers=folder.subcontainers))
         self.assertEqual(set(('parent', 'element')),
-                         utils.set_container_relation_rtypes_hook(schema, 'Folder', 'folder_root',
-                                                                  skiprtypes=folder.container_skiprtypes,
-                                                                  skipetypes=folder.container_skipetypes,
-                                                                  subcontainers=folder.container_subcontainers))
+                         utils.set_container_relation_rtypes_hook(schema,
+                                                                  folder.cetype,
+                                                                  folder.crtype,
+                                                                  skiprtypes=folder.skiprtypes,
+                                                                  skipetypes=folder.skipetypes,
+                                                                  subcontainers=folder.subcontainers))
 
 def parent_titles(parent):
     parents = []
@@ -227,7 +238,7 @@ class CloneTC(CubicWebTC):
         self.assertEqual(['Card', 'Folder', 'Patch', 'Project', 'Ticket', 'Version'],
                          sorted(cloner.clonable_etypes()))
 
-        with self.session.deny_all_hooks_but(*clone.compulsory_hooks_categories):
+        with self.session.deny_all_hooks_but(*cloner.config.compulsory_hooks_categories):
             cloner.clone(original=babar.eid)
             self.commit()
 
