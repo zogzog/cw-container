@@ -19,7 +19,7 @@ from warnings import warn
 import logging
 
 from logilab.common.decorators import cached, monkeypatch
-from logilab.common.deprecation import deprecated
+from logilab.common.deprecation import deprecated, class_deprecated
 
 from yams.buildobjs import RelationType, RelationDefinition
 
@@ -34,7 +34,15 @@ from cubicweb.server.sources.native import NativeSQLSource
 logger = logging.getLogger()
 
 class yet_unset(Predicate):
+    # can't use class_deprecated here because
+    # "the metaclass of a derived class must be a
+    # (non-strict) subclass of the metaclasses of all its bases"
+    # and Predicate already has its own (incompatible) metaclass
+    __deprecation_warning__ = '[container 2.4] you should drop any usage of this'
+
     def __call__(self, cls, *args, **kwargs):
+        warn(self.__deprecation_warning__,
+             DeprecationWarning)
         warn('%s has no selector set' % cls)
         return 0
 

@@ -32,8 +32,7 @@ from cubicweb.schema import VIRTUAL_RTYPES
 from cubicweb.entities import AnyEntity
 from cubicweb.view import EntityAdapter
 
-from cubes.container.utils import (yet_unset,
-                                   ordered_container_etypes,
+from cubes.container.utils import (ordered_container_etypes,
                                    container_rtypes_etypes,
                                    parent_rschemas,
                                    needs_container_parent,
@@ -65,6 +64,7 @@ def first_parent_rtype_role(eschema):
 
 class ContainerProtocol(EntityAdapter):
     __regid__ = 'Container'
+    __abstract__ = True
     clone_rtype_role = None
 
     @property
@@ -577,7 +577,7 @@ class ContainerClone(EntityAdapter):
 
 class MultiParentProtocol(EntityAdapter):
     __regid__ = 'container.multiple_parents'
-    __select__ = yet_unset()
+    __abstract__ = True
 
     def possible_parent(self, rtype, eid):
         pass

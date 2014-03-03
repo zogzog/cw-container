@@ -119,8 +119,7 @@ have a look at some code.
  from cubes.container import hooks, utils
 
  class SetContainerRelation(hooks.SetContainerRelation):
-     __select__ = utils.yet_unset()
-
+     pass
 
  def registration_callback(vreg):
      schema = vreg.schema
