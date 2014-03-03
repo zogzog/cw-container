@@ -14,12 +14,6 @@ class ContainerLessTC(CubicWebTC):
         self.assertIsNone(l.cw_adapt_to('Container').related_container)
         self.assertIsNone(l.cw_adapt_to('Container').parent)
 
-    def test_adapter_without_container(self):
-        u = self.request().execute('CWUser U WHERE U login "admin"').get_entity(0,0)
-        adapter = u.cw_adapt_to('Container')
-        self.assertIsNone(adapter.parent)
-        self.assertIsNone(adapter.related_container)
-
 class ContainerEntitiesTC(ContainerTC):
 
     def setup_database(self):

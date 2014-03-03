@@ -1,5 +1,7 @@
 from warnings import warn
 
+from cubicweb.predicates import is_instance
+
 from cubes.container import utils
 
 _CONTAINER_ETYPE_MAP = {}
@@ -31,6 +33,8 @@ class Container(object):
         self.clone_rtype_role = clone_rtype_role
         self.compulsory_hooks_categories = compulsory_hooks_categories
 
+        self._protocol_adapter_cache = None
+
         if cetype in _CONTAINER_ETYPE_MAP:
             warn('Replacing existing container definition for %s' % cetype)
         _CONTAINER_ETYPE_MAP[cetype] = self
@@ -50,4 +54,36 @@ class Container(object):
                                skiprtypes=self.skiprtypes,
                                skipetypes=self.skipetypes,
                                subcontainers=self.subcontainers)
+
+    def container_adapter(self, vreg):
+        """ Return a subclass of the ContainerProtocol adapter with selector set """
+        if self._protocol_adapter_cache is not None:
+            return self._protocol_adapter_cache
+        from cubes.container.entities import ContainerProtocol
+        _, etypes = utils.container_static_structure(vreg.schema,
+                                                     self.cetype,
+                                                     self.crtype,
+                                                     skiprtypes=self.skiprtypes,
+                                                     skipetypes=self.skipetypes,
+                                                     subcontainers=self.subcontainers)
+        # let's walk already registered containers to include *only* etypes
+        # for which the adapter is not already defined
+        for container in _CONTAINER_ETYPE_MAP.itervalues():
+            if container._protocol_adapter_cache is not None:
+                # a reasonnable thing to do is to not care if, for
+                # some reason this container has no adapter set yet
+                structure = utils.container_static_structure
+                _, otheretypes = structure(vreg.schema,
+                                           self.cetype, self.crtype,
+                                           skiprtypes=self.skiprtypes,
+                                           skipetypes=self.skipetypes,
+                                           subcontainers=self.subcontainers)
+                etypes -= otheretypes
+        # at this point, etypes may be an empty set, but
+        # it should not really matter
+        adapter = type(self.cetype + 'ContainerProtocol', (ContainerProtocol, ),
+                       {'__select__': is_instance(self.cetype, *etypes)})
+        self._protocol_adapter_cache = adapter
+        vreg.register(adapter)
+        return adapter
 
