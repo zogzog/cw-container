@@ -114,12 +114,23 @@ These are the usual steps involved in a container definition:
 
 * schema definition: see test/data/schema.py
 
+  We use a Container configuration object to define a container.
+
+  The `crtype` attribute gives a name to the concrete
+  `<container_rtype>` relation.
+
+  The `skiprtypes` attribute is a tuple containing rtypes
+  not to follow when defining a container or operating on it. Security
+  or workflow information (as examplified by `local_group` and
+  `wf_info_for`) may indeed be excluded from most operations and be
+  kept under the control of specific hooks.
+
   The test schema defines two containers, with at least one shared
   entity type (which does not mean that its instances will be allowed
   to live in both containers at the same time!).
 
   For each container structure, a call to the `define_container`
-  function is made: this will build the `container` relations and the
+  method is made: this will build the `<container>` relations and the
   `container_parent` if they are needed.
 
 * schema tests: having tests suchs as the ones in unittest_schema in
@@ -137,18 +148,6 @@ These are the usual steps involved in a container definition:
   container definitions.
 
 * entities and adapters: see test/data/entities.py
-
-  As of today, entity classes of the CubicWeb `orm` are used to
-  customize a container definition.
-
-  The `container_rtype` attribute gives a name to the concrete
-  `<container_rtype>` relation.
-
-  The `container_skiprtypes` attribute is a tuple containing rtypes
-  not to follow when defining a container or operating on it. Security
-  or workflow information (as examplified by `local_group` and
-  `wf_info_for`) may indeed be excluded from most operations and be
-  kept under the control of specific hooks.
 
   The `ContainerProtocol` must be set up an all container etypes. This
   is the main API to get to a container or a parent entity within a

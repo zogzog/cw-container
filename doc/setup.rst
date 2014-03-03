@@ -11,7 +11,7 @@ Let's start with a schema:
  from yams.buildobjs import SubjectRelation, String, Date, RelationDefinition
  from cubicweb.schema import WorkflowableEntityType, RichString
 
- from cubes.container import utils
+ from cubes.container import config
 
  class Project(WorkflowableEntityType):
      name = String()
@@ -38,7 +38,8 @@ Let's start with a schema:
      composite = 'subject'
 
  def post_build_callback(schema):
-    utils.define_container(schema, 'Project', 'project')
+    project = config.Container('Project', 'project')
+    project.define_container(schema)
 
 
 And now, let's discuss. There are 4 (four) entity types here:
@@ -57,7 +58,8 @@ By telling, in the `post_build_callback` schema function as such:
 
 .. code-block:: python
 
-  utils.define_container(schema, 'Project', 'project')
+    project = config.Container('Project', 'project')
+    project.define_container(schema)
 
 one actually defines the following:
 
@@ -81,16 +83,15 @@ the entities.
  from cubes.container import utils
  from cubes.container.entities import Container, ContainerProtocol
 
- class Project(Container):
-     __regid__ = 'Project'
-     container_rtype = 'project'
-
  class ProjectContainer(ContainerProtocol):
      pass
 
  def registration_callback(vreg):
      vreg.register_all(globals().values(), __name__)
-     _r, etypes = utils.container_static_structure(vreg.schema, 'Project', 'project')
+     project = config.Container.by_etype('Project')
+     _r, etypes = utils.container_static_structure(vreg.schema,
+                                                   project.cetype,
+                                                   project.crtype)
      ProjectContainer.__select__ = (ProjectContainer.__select__ &
                                     is_instance('Project', *etypes))
 
@@ -124,13 +125,14 @@ have a look at some code.
  def registration_callback(vreg):
      schema = vreg.schema
      from cubes.tracker.entities import Project
+     project = config.Container.by_etype('Project')
      rtypes = utils.set_container_relation_rtypes_hook(schema,
-                                                       Project.cw_etype,
-                                                       Project.container_rtype)
+                                                       project.cetype,
+                                                       project.crtype)
      SetContainerRelation.__select__ = Hook.__select__ & match_rtype(*rtypes)
      rdefs = utils.container_parent_rdefs(schema,
-                                          Project.cw_etype,
-                                          Project.container_rtype)
+                                          project.cetype,
+                                          project.crtype)
      SetContainerRelation._container_parent_rdefs = rdefs
      vreg.register(SetContainerRelation)
 

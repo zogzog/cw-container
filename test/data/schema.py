@@ -1,7 +1,7 @@
 from yams.buildobjs import EntityType, RelationDefinition, SubjectRelation, String, Int
 from cubicweb.schema import WorkflowableEntityType
 
-from cubes.container import utils
+from cubes.container import utils, config
 
 class Diamond(EntityType):
     name = String()
@@ -74,7 +74,12 @@ class linked_to_mess(RelationDefinition):
 
 
 def post_build_callback(schema):
-    utils.define_container(schema, 'Diamond', 'diamond')
-    utils.define_container(schema, 'Mess', 'in_mess')
+    diamond = config.Container('Diamond', 'diamond',
+                               skipetypes=('EtypeNotInContainers',),
+                               clone_rtype_role=('is_clone_of', 'subject'))
+    mess = config.Container('Mess', 'in_mess',
+                            skiprtypes = ('local_group', 'wf_info_for'))
+    diamond.define_container(schema)
+    mess.define_container(schema)
 
 

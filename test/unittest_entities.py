@@ -44,7 +44,6 @@ class ContainerEntitiesTC(ContainerTC):
         self.commit()
 
     def test_is_clone_of_relation(self):
-        from cubes.container import utils
         d = self.session.create_entity('Diamond')
         d.cw_set(is_clone_of=self.d)
         self.commit()
@@ -61,8 +60,7 @@ class ContainerEntitiesTC(ContainerTC):
         req = self.request()
         notinside = req.entity_from_eid(notinside.eid)
         # notinside has a computable parent but no related container
-        self.assertEqual(self.l.eid, notinside.cw_adapt_to('Container').parent.eid)
-        self.assertEqual(None, notinside.cw_adapt_to('Container').related_container)
+        self.assertNone(notinside.cw_adapt_to('Container'))
         u = req.entity_from_eid(u.eid)
         self.assertEqual(self.d.eid, u.cw_adapt_to('Container').parent.eid)
         self.assertEqual(self.d.eid, u.cw_adapt_to('Container').related_container.eid)

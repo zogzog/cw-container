@@ -104,6 +104,16 @@ def define_container(schema, cetype, crtype, rtype_permissions=None,
       being defined by construction of the container structure (see
       `container_static_structure`).
     """
+    # prepare bw compat
+    from cubes.container.config import Container
+    if Container.by_etype(cetype) is None:
+        warn('[container 2.4] utils.define_container is deprecated, '
+             'use config.Container instead',
+             DeprecationWarning)
+        # and register it right away, which will allow the adapters
+        # & hooks code to work using only the new config api
+        Container(cetype, crtype, skiprtypes, skipetypes,
+                  subcontainers=subcontainers)
     _rtypes, etypes = container_static_structure(schema, cetype, crtype,
                                                  skiprtypes=skiprtypes,
                                                  skipetypes=skipetypes,

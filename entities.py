@@ -71,9 +71,9 @@ class Container(AnyEntity):
 
 @cached
 def container_etypes(vreg):
-    return set(c.__regid__
-               for c, in vreg['etypes'].itervalues()
-               if getattr(c, 'container_rtype', False))
+    warn('[container 2.4] container_etype is replaced '
+         'by config.Container.all()')
+    return config.Container.all_etypes()
 
 
 @cached
@@ -86,7 +86,7 @@ class ContainerProtocol(EntityAdapter):
 
     @property
     def related_container(self):
-        if self.entity.e_schema in container_etypes(self._cw.vreg):
+        if self.entity.e_schema in config.Container.all_etypes():
             # self.entity is the container itself
             return self.entity
         try:
@@ -95,8 +95,7 @@ class ContainerProtocol(EntityAdapter):
             # that was definitely not a container entity
             return None
         if ccwetype:
-            etypes = self._cw.vreg['etypes']
-            crtype = etypes.etype_class(ccwetype[0].name).container_rtype
+            crtype = config.Container.by_etype(ccwetype[0].name).crtype
             container = getattr(self.entity, crtype, None)
             if container:
                 return container[0]
@@ -106,7 +105,7 @@ class ContainerProtocol(EntityAdapter):
             container = parent.cw_adapt_to('Container').related_container
             if container is None:
                 return
-            if self.entity.e_schema not in container.container_skipetypes:
+            if self.entity.e_schema not in config.Container.by_etype(container.cw_etype).skipetypes:
                 return container
 
     @property
@@ -135,6 +134,10 @@ class ContainerClone(EntityAdapter):
     __regid__ = 'Container.clone'
     rtypes_to_skip = set()
     etypes_to_skip = set()
+
+    @cachedproperty
+    def config(self):
+        return config.Container.by_etype(self.entity.cw_etype)
 
     # These two unimplemented properties are bw compat
     # to drive users from entity.clone_(e/r)types_to_skip
@@ -166,7 +169,7 @@ class ContainerClone(EntityAdapter):
         internal_rtypes, clonable_etypes = self.container_rtypes_etypes()
 
         for etype in self.clonable_etypes():
-            if etype in container_etypes(self._cw.vreg):
+            if etype in config.Container.all_etypes():
                 # We will delegate much of the job to the container
                 # adapter itself. The sub-container however will be
                 # handled like another clonable entity.
@@ -228,7 +231,7 @@ class ContainerClone(EntityAdapter):
         """ returns the <clone> rtype if it exists
         (it should be defined as a .clone_rtype_role 2-uple) """
         try:
-            return self.entity.container_config.clone_rtype_role[0]
+            return self.config.clone_rtype_role[0]
         except (TypeError, IndexError):
             return None
 
@@ -246,7 +249,7 @@ class ContainerClone(EntityAdapter):
             return original
         else:
             if self.clone_rtype:
-                rtype, role = self.entity.container_config.clone_rtype_role
+                rtype, role = self.config.clone_rtype_role
                 return self.entity.related(rtype, role).rows[0][0]
             else:
                 raise TypeError('.clone wants the original or a relation to the original')
@@ -259,7 +262,7 @@ class ContainerClone(EntityAdapter):
                  DeprecationWarning)
             return self.entity._complete_rql(etype)
         return 'Any X WHERE X is %s, X %s C, C eid %%(container)s' % (
-            etype, self.entity.container_rtype)
+            etype, self.config.crtype)
 
     @cachedproperty
     def _no_copy_meta(self):
@@ -326,12 +329,15 @@ class ContainerClone(EntityAdapter):
         return list(self.clonable_etypes())
 
     def clonable_etypes(self):
+        cconf = self.config
+        skiprtypes = set(cconf.skiprtypes) | set(self.rtypes_to_skip)
+        skipetypes = set(cconf.skipetypes) | set(self.etypes_to_skip)
         for etype in ordered_container_etypes(self._cw.vreg.schema,
-                                              self.entity.__regid__,
-                                              self.entity.container_rtype,
-                                              self.rtypes_to_skip,
-                                              self.etypes_to_skip,
-                                              self.entity.container_subcontainers):
+                                              cconf.cetype,
+                                              cconf.crtype,
+                                              skiprtypes=skiprtypes,
+                                              skipetypes=skipetypes,
+                                              subcontainers=cconf.subcontainers):
             yield etype
 
     def _etype_clone(self, etype, orig_to_clone):
@@ -418,7 +424,7 @@ class ContainerClone(EntityAdapter):
         """ Tells whether all targets in the (etype, rtype, TARGET)
         relation can have been already cloned """
         # a shortcut for the container relation
-        if rtype == self.entity.container_rtype:
+        if rtype == self.config.crtype:
             return True
         schema = self._cw.vreg.schema
         ordered_etypes = self._ordered_etypes
@@ -572,10 +578,12 @@ class ContainerClone(EntityAdapter):
 
     def container_rtypes_etypes(self):
         etype = self.entity.e_schema.type
-        containerclass = self._cw.vreg['etypes'].etype_class(etype)
-        rtypes, etypes = container_rtypes_etypes(self._cw.vreg.schema, etype,
-                                                 containerclass.container_rtype,
-                                                 skiprtypes=containerclass.container_skiprtypes)
+        container = config.Container.by_etype(etype)
+        rtypes, etypes = container_rtypes_etypes(self._cw.vreg.schema,
+                                                 container.cetype,
+                                                 container.crtype,
+                                                 skiprtypes=container.skiprtypes,
+                                                 skipetypes=container.skipetypes)
         return rtypes, etypes
 
     @cachedproperty

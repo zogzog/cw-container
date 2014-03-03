@@ -23,6 +23,7 @@ from cubicweb import ValidationError
 from cubicweb.server.hook import Hook, DataOperationMixIn, Operation, match_rtype
 
 from cubes.container.utils import parent_rschemas
+from cubes.container.config import Container
 
 def eid_etype(session, eid):
     return session.describe(eid)[0]
@@ -138,7 +139,8 @@ class AddContainerRelationOp(DataOperationMixIn, Operation):
                 self.critical('container entity could not be reached from %s, '
                               'you may have ordering issues', parent)
                 continue
-            container_rtype_rel[container.container_rtype].append((eid, container.eid))
+            cconf = Container.by_etype(container.cw_etype)
+            container_rtype_rel[cconf.crtype].append((eid, container.eid))
             container_etype_rel.append((eid, self._container_cwetype_eid(container, cwetype_eid_map)))
         if container_rtype_rel:
             session.add_relations(container_rtype_rel.items())
@@ -172,7 +174,8 @@ class CloneContainerOp(DataOperationMixIn, Operation):
         for cloneid in self.get_data():
             with self.session.repo.internal_session() as session:
                 cloned = session.entity_from_eid(cloneid)
-                with session.deny_all_hooks_but(*cloned.compulsory_hooks_categories):
+                config = Container.by_etype(cloned.cw_etype)
+                with session.deny_all_hooks_but(*config.compulsory_hooks_categories):
                     self.prepare_cloned_container(session, cloned)
                     cloned.cw_adapt_to('Container.clone').clone()
                     self.finalize_cloned_container(session, cloned)
