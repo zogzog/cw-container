@@ -51,6 +51,10 @@ class Container(object):
             warn('Replacing existing container definition for %s' % cetype)
         _CONTAINER_ETYPE_MAP[cetype] = self
 
+    def __str__(self):
+        return '<Container(%s)>' % self.cetype
+    __repr__ = __str__
+
     @staticmethod
     def by_etype(cetype):
         return _CONTAINER_ETYPE_MAP.get(cetype)
@@ -250,21 +254,24 @@ class Container(object):
 
     @cachedproperty
     def _container_parent_rdefs(self):
-        rtypes, etypes = self.rtypes, set(self.etypes)
-        etypes.remove(self.cetype)
-        select_rdefs = defaultdict(set)
-        for etype in etypes:
+        """Compute a mapping from rtype to subject/object for use by the
+        container hook. The hook will notice when the from/to etypes
+        are in this mapping and compute the effective container_parent
+        relation.
+        """
+        cprdefs = defaultdict(set)
+        inner_rdefs = self.inner_rdefs
+        for etype in self.etypes:
             eschema = self._schema[etype]
             if not utils.needs_container_parent(eschema):
                 continue
-            for rschema, role, teschema in utils.parent_erschemas(eschema):
-                if rschema.type in rtypes:
-                    if role == 'subject':
-                        frometype, toetype = etype, teschema.type
-                    else:
-                        frometype, toetype = teschema.type, etype
-                    select_rdefs[rschema.type].add((frometype, toetype))
-        return dict(select_rdefs)
+            # let's compute the parent rdefs of this container
+            for parent_rdef in utils.parent_rdefs(eschema):
+                if parent_rdef not in inner_rdefs:
+                    continue
+                cprdefs[parent_rdef.rtype.type].add((parent_rdef.subject.type,
+                                                     parent_rdef.object.type))
+        return dict(cprdefs)
 
     def _needed_etypes(self, etype):
         """Finds all container etypes this one depends on to be built start

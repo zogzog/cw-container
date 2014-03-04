@@ -112,6 +112,14 @@ def parent_erschemas(eschema):
             for eschema in rschema.targets(role=role):
                 yield rschema, role, eschema
 
+def parent_rdefs(eschema):
+    for rdef in iterrdefs(eschema, meta=False, final=False):
+        if rdef.composite:
+            composite_eschema = composite(rdef)
+            if composite_eschema == eschema:
+                continue
+            yield rdef
+
 def children_rschemas(eschema):
     for rschema, role, crole in _composite_rschemas(eschema):
         if role == crole:
