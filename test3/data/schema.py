@@ -1,6 +1,6 @@
 from yams.buildobjs import EntityType, SubjectRelation, String
 
-from cubes.container import utils
+from cubes.container import utils, config
 
 
 class Circus(EntityType):
@@ -33,5 +33,7 @@ class Animal(EntityType):
 
 
 def post_build_callback(schema):
-    utils.define_container(schema, 'Circus', 'circus', subcontainers=('Menagerie',))
-    utils.define_container(schema, 'Menagerie', 'zoo')
+    circus = config.Container('Circus', 'circus', subcontainers=('Menagerie',))
+    menagerie = config.Container('Menagerie', 'zoo')
+    circus.define_container(schema)
+    menagerie.define_container(schema)

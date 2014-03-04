@@ -30,17 +30,9 @@ def registration_callback(vreg):
                                          skiprtypes=mess.skiprtypes)
     SetMessContainerRelation._container_parent_rdefs = rdefs
 
-    rtypes = utils.set_container_relation_rtypes_hook(schema,
-                                                      diamond.cetype,
-                                                      diamond.crtype,
-                                                      skipetypes=diamond.skipetypes)
-    SetDiamondContainerRelation.__select__ = Hook.__select__ & match_rtype(*rtypes)
+    SetDiamondContainerRelation.__select__ = Hook.__select__ & match_rtype(*diamond.rtypes)
 
-    rtypes = utils.set_container_relation_rtypes_hook(schema,
-                                                      mess.cetype,
-                                                      mess.crtype,
-                                                      skiprtypes=mess.skiprtypes)
-    SetMessContainerRelation.__select__ = Hook.__select__ & match_rtype(*rtypes)
+    SetMessContainerRelation.__select__ = Hook.__select__ & match_rtype(*mess.rtypes)
 
     vreg.register(SetDiamondContainerRelation)
     vreg.register(SetMessContainerRelation)

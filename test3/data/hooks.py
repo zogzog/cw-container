@@ -1,5 +1,5 @@
 from cubicweb.server.hook import Hook, match_rtype
-from cubes.container import hooks, utils
+from cubes.container import hooks, utils, config
 
 
 class SetCircusContainerRelation(hooks.SetContainerRelation):
@@ -10,36 +10,17 @@ class SetMenagerieContainerRelation(hooks.SetContainerRelation):
 
 def registration_callback(vreg):
     schema = vreg.schema
-    etype = 'Circus'
-    eclass = vreg['etypes'].etype_class(etype)
-    rdefs = utils.container_parent_rdefs(schema, etype,
-                                         eclass.container_rtype,
-                                         eclass.container_skiprtypes,
-                                         eclass.container_skipetypes,
-                                         eclass.container_subcontainers)
+
+    circus = config.Container.by_etype('Circus')
+    rdefs = circus._container_parent_rdefs(schema)
     SetCircusContainerRelation._container_parent_rdefs = rdefs
-    rtypes = utils.set_container_relation_rtypes_hook(schema, etype,
-                                                      eclass.container_rtype,
-                                                      eclass.container_skiprtypes,
-                                                      eclass.container_skipetypes,
-                                                      eclass.container_subcontainers)
-    SetCircusContainerRelation.__select__ = Hook.__select__ & match_rtype(*rtypes)
+    SetCircusContainerRelation.__select__ = Hook.__select__ & match_rtype(*circus.rtypes)
     vreg.register(SetCircusContainerRelation)
 
 
-    etype = 'Menagerie'
-    eclass = vreg['etypes'].etype_class(etype)
-    rdefs = utils.container_parent_rdefs(schema, etype,
-                                         eclass.container_rtype,
-                                         eclass.container_skiprtypes,
-                                         eclass.container_skipetypes,
-                                         eclass.container_subcontainers)
+    menagerie = config.Container.by_etype('Menagerie')
+    rdefs = menagerie._container_parent_rdefs(schema)
     SetMenagerieContainerRelation._container_parent_rdefs = rdefs
-    rtypes = utils.set_container_relation_rtypes_hook(schema, etype,
-                                                      eclass.container_rtype,
-                                                      eclass.container_skiprtypes,
-                                                      eclass.container_skipetypes,
-                                                      eclass.container_subcontainers)
-    SetMenagerieContainerRelation.__select__ = Hook.__select__ & match_rtype(*rtypes)
+    SetMenagerieContainerRelation.__select__ = Hook.__select__ & match_rtype(*menagerie.rtypes)
     vreg.register(SetMenagerieContainerRelation)
 

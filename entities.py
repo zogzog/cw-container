@@ -34,9 +34,7 @@ from cubicweb.entities import AnyEntity
 from cubicweb.view import EntityAdapter
 
 from cubes.container import config
-from cubes.container.utils import (ordered_container_etypes,
-                                   container_rtypes_etypes,
-                                   parent_rschemas,
+from cubes.container.utils import (parent_rschemas,
                                    needs_container_parent,
                                    _insertmany,
                                    _add_rqlst_restriction,
@@ -165,16 +163,11 @@ class ContainerClone(EntityAdapter):
     def _clone(self, orig_to_clone, relations, toplevel=True):
         self.info('started cloning %s (toplevel=%s)', self.entity.e_schema, toplevel)
         cloned_etypes = []
-        subcontainers = set()
-        internal_rtypes, clonable_etypes = self.container_rtypes_etypes()
+        subcontainers = self.config.subcontainers
+        internal_rtypes = self.config.rtypes
+        clonable_etypes = self.config.etypes
 
         for etype in self.clonable_etypes():
-            if etype in config.Container.all_etypes():
-                # We will delegate much of the job to the container
-                # adapter itself. The sub-container however will be
-                # handled like another clonable entity.
-                self.info('%s is a container etype scheduled for delegated cloning', etype)
-                subcontainers.add(etype)
             cloned_etypes.append(etype)
             for rtype, from_to in self._etype_clone(etype, orig_to_clone).iteritems():
                 relations[rtype].extend(from_to)
@@ -330,15 +323,12 @@ class ContainerClone(EntityAdapter):
 
     def clonable_etypes(self):
         cconf = self.config
-        skiprtypes = set(cconf.skiprtypes) | set(self.rtypes_to_skip)
+        # more skiprtypes must be deprecated
+        # skiprtypes = set(cconf.skiprtypes) | set(self.rtypes_to_skip)
         skipetypes = set(cconf.skipetypes) | set(self.etypes_to_skip)
-        for etype in ordered_container_etypes(self._cw.vreg.schema,
-                                              cconf.cetype,
-                                              cconf.crtype,
-                                              skiprtypes=skiprtypes,
-                                              skipetypes=skipetypes,
-                                              subcontainers=cconf.subcontainers):
-            yield etype
+        for etype in cconf.ordered_etypes:
+            if etype not in skipetypes:
+                yield etype
 
     def _etype_clone(self, etype, orig_to_clone):
         # 1/ fetch all <etype> entities in current container
@@ -575,16 +565,6 @@ class ContainerClone(EntityAdapter):
                     relations[rtype].append((ceid, linked_eid))
         self._flush_deferred(deferred_relations, orig_to_clone)
         return relations
-
-    def container_rtypes_etypes(self):
-        etype = self.entity.e_schema.type
-        container = config.Container.by_etype(etype)
-        rtypes, etypes = container_rtypes_etypes(self._cw.vreg.schema,
-                                                 container.cetype,
-                                                 container.crtype,
-                                                 skiprtypes=container.skiprtypes,
-                                                 skipetypes=container.skipetypes)
-        return rtypes, etypes
 
     @cachedproperty
     def _specially_handled_rtypes(self):

@@ -36,49 +36,24 @@ class TwoContainersTC(CubicWebTC):
         self.assertEqual((frozenset(['documents', 'implements', 'concerns', 'version_of',
                                      'subproject_of', 'requirement']),
                           frozenset(['Card', 'Patch', 'Ticket', 'Version', 'Folder','Project'])),
-                         project._structure_cache)
+                         (project.rtypes, project.etypes))
 
 
-    def test_project_etypes_rtypes(self):
-        schema = self.vreg.schema
+    def test_order(self):
         project = Container.by_etype('Project')
-        # NOTE: this contains 'parent' and 'element', which is WRONG
-        # However, short of fully specifying the subcontainer (not just the top entity type)
-        # we cannot do much against that. We really need some support viz Yams
-        # (e.g. http://www.logilab.org/ticket/100723)
-        self.assertEqual((frozenset(['implements', 'documents', 'parent', 'done_in_version',
-                                     'element', 'requirement',
-                                     'concerns', 'version_of', 'subproject_of']),
-                          frozenset(['Card', 'Folder', 'Patch', 'Ticket', 'Version', 'Project'])),
-                         utils.container_rtypes_etypes(schema,
-                                                       project.cetype,
-                                                       project.crtype,
-                                                       skiprtypes=project.skiprtypes,
-                                                       skipetypes=project.skipetypes,
-                                                       subcontainers=project.subcontainers))
+        self.assertEqual(['Project', 'Folder', 'Ticket', 'Card', 'Patch', 'Version'],
+                         project.ordered_etypes)
 
+        folder = Container.by_etype('Folder')
+        self.assertEqual(['Folder', 'File', 'Card'],
+                         folder.ordered_etypes)
 
     def test_project_hooks(self):
         schema = self.vreg.schema
         project = Container.by_etype('Project')
-        self.assertEqual(set(['documents', 'requirement']),
-                         utils.set_container_parent_rtypes_hook(schema,
-                                                                project.cetype,
-                                                                project.crtype,
-                                                                skiprtypes=project.skiprtypes,
-                                                                skipetypes=project.skipetypes,
-                                                                subcontainers=project.subcontainers))
         self.assertEqual({'documents': set([('Folder', 'Project')]),
                           'requirement': set([('Ticket', 'Card')])},
                          project._container_parent_rdefs(schema))
-        self.assertEqual(set(['implements', 'concerns', 'version_of', 'subproject_of',
-                              'requirement', 'documents']),
-                         utils.set_container_relation_rtypes_hook(schema,
-                                                                  project.cetype,
-                                                                  project.crtype,
-                                                                  skiprtypes=project.skiprtypes,
-                                                                  skipetypes=project.skipetypes,
-                                                                  subcontainers=project.subcontainers))
 
     # Folder
     def test_folder_static_structure(self):

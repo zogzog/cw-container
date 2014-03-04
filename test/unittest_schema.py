@@ -30,6 +30,7 @@ class SchemaContainerTC(CubicWebTC):
         self.assertEqual(set([('to_mess', 'Bottom', 'Mess')]),
                          set([rdefrepr(rdef) for rdef in mess.rdefs]))
 
+        # bw compat
         self.assertEqual((frozenset(['top_from_left', 'top_by_right', 'top_from_right', 'top_by_left',
                                      'to_left', 'to_right', 'has_near_top']),
                           frozenset(['NearTop', 'Left', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'])),
@@ -50,6 +51,23 @@ class SchemaContainerTC(CubicWebTC):
         schema = self.vreg.schema
         diamond = config.Container.by_etype('Diamond')
         mess = config.Container.by_etype('Mess')
+
+        self.assertEqual(frozenset(['to_inner_left', 'top_from_left', 'top_by_right',
+                                    'top_from_right', 'top_by_left', 'loop_in_place',
+                                    'to_left', 'to_right', 'has_near_top']),
+                         set(rdef.rtype.type
+                             for rdef in diamond.inner_rdefs))
+
+        self.assertEqual(frozenset(['Diamond', 'NearTop', 'Left', 'Right', 'Bottom',
+                                    'IAmAnAttributeCarryingRelation']),
+                         diamond.etypes)
+
+        self.assertEqual(frozenset(['to_mess']),
+                         set(rdef.rtype.type
+                           for rdef in mess.inner_rdefs))
+        self.assertEqual(frozenset(['Mess', 'Bottom']), mess.etypes)
+
+        # bw compat
         self.assertEqual((frozenset(['to_inner_left', 'top_from_left', 'top_by_right',
                                      'top_from_right', 'top_by_left', 'loop_in_place',
                                      'to_left', 'to_right', 'has_near_top']),
