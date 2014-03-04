@@ -7,6 +7,7 @@ from cubes.container import utils
 from cubes.container.config import Container
 from cubes.container.testutils import (userlogin, new_version, new_ticket,
                                        new_patch, new_card)
+from cubes.container.testutils import rdefrepr
 
 
 class TwoContainersTC(CubicWebTC):
@@ -23,6 +24,15 @@ class TwoContainersTC(CubicWebTC):
     def test_project_static_structure(self):
         schema = self.vreg.schema
         project = Container.by_etype('Project')
+
+        self.assertEqual(set([('requirement', 'Ticket', 'Card'),
+                              ('documents', 'Folder', 'Project'),
+                              ('version_of', 'Version', 'Project'),
+                              ('concerns', 'Ticket', 'Project'),
+                              ('implements', 'Patch', 'Ticket'),
+                              ('subproject_of', 'Project', 'Project')]),
+                         set([rdefrepr(rdef) for rdef in project.rdefs]))
+
         self.assertEqual((frozenset(['documents', 'implements', 'concerns', 'version_of',
                                      'subproject_of', 'requirement']),
                           frozenset(['Card', 'Patch', 'Ticket', 'Version', 'Folder','Project'])),
@@ -74,6 +84,13 @@ class TwoContainersTC(CubicWebTC):
     def test_folder_static_structure(self):
         schema = self.vreg.schema
         folder = Container.by_etype('Folder')
+
+
+        self.assertEqual(set([('element', 'Folder', 'File'),
+                              ('parent', 'Folder', 'Folder'),
+                              ('element', 'Folder', 'Card')]),
+                         set([rdefrepr(rdef) for rdef in folder.rdefs]))
+
         self.assertEqual((frozenset(['parent', 'element']),
                           frozenset(['Card', 'Folder', 'File'])),
                          utils.container_static_structure(schema,

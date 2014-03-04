@@ -2,6 +2,7 @@ from logilab.common.testlib import unittest_main
 from cubicweb.devtools.testlib import CubicWebTC
 
 from cubes.container import utils, config
+from cubes.container.testutils import rdefrepr
 
 class SchemaContainerTC(CubicWebTC):
 
@@ -15,6 +16,20 @@ class SchemaContainerTC(CubicWebTC):
         schema = self.vreg.schema
         diamond = config.Container.by_etype('Diamond')
         mess = config.Container.by_etype('Mess')
+
+
+        self.assertEqual(set([('to_right', 'IAmAnAttributeCarryingRelation', 'Right'),
+                              ('top_from_right', 'Right', 'Diamond'),
+                              ('top_by_right', 'Bottom', 'Right'),
+                              ('to_left', 'IAmAnAttributeCarryingRelation', 'Left'),
+                              ('has_near_top', 'Diamond', 'NearTop'),
+                              ('top_from_left', 'Left', 'Diamond'),
+                              ('top_by_left', 'Bottom', 'Left')]),
+                         set([rdefrepr(rdef) for rdef in diamond.rdefs]))
+
+        self.assertEqual(set([('to_mess', 'Bottom', 'Mess')]),
+                         set([rdefrepr(rdef) for rdef in mess.rdefs]))
+
         self.assertEqual((frozenset(['top_from_left', 'top_by_right', 'top_from_right', 'top_by_left',
                                      'to_left', 'to_right', 'has_near_top']),
                           frozenset(['NearTop', 'Left', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'])),

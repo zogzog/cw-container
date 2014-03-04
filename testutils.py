@@ -26,6 +26,10 @@ def new_card(req, contents=u"Let's start a spec ..."):
     return req.create_entity('Card', contents=contents)
 
 
+def rdefrepr(rdef):
+    """ rdef -> (rtype, subject type, object type) """
+    return  (rdef.rtype.type, rdef.subject.type, rdef.object.type)
+
 
 class ContainerTC(CubicWebTC):
 

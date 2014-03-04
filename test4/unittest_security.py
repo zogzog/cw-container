@@ -3,9 +3,23 @@ from logilab.common.testlib import unittest_main
 from cubicweb import Binary, ValidationError
 from cubicweb.devtools.testlib import CubicWebTC
 
-from cubes.container.testutils import userlogin, new_version, new_ticket, new_patch
+from cubes.container.testutils import (userlogin, new_version, new_ticket,
+                                       new_patch, rdefrepr)
+from cubes.container.config import Container
 
 class SecurityTC(CubicWebTC):
+
+    def test_rdefs(self):
+        project = Container.by_etype('Project')
+        self.assertEquals(set([('version_of', 'Version', 'Project'),
+                               ('documented_by', 'Project', 'File')]),
+                           set(rdefrepr(rdef) for rdef in project.rdefs))
+
+        version = Container.by_etype('Version')
+        self.assertEquals(set([('done_in_version', 'Ticket', 'Version'),
+                               ('documented_by', 'Version', 'File'),
+                               ('documented_by', 'Ticket', 'File')]),
+                           set(rdefrepr(rdef) for rdef in version.rdefs))
 
     def test_shared_rtypes_permissions(self):
         ticket_documented_by_rdef = self.schema['documented_by'].rdef('Ticket', 'File')

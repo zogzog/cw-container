@@ -1,7 +1,7 @@
 from yams.buildobjs import EntityType, RelationDefinition, String, SubjectRelation, Bytes
 from cubicweb.schema import RRQLExpression, ERQLExpression
 
-from cubes.container import utils
+from cubes.container import utils, config
 from cubes.container.secutils import PERM, PERMS, setup_container_rtypes_security
 from cubicweb.schema import PUB_SYSTEM_REL_PERMS
 
@@ -102,6 +102,8 @@ def setup_security(schema):
 
 
 def post_build_callback(schema):
-    utils.define_container(schema, 'Project', 'project', subcontainers=('Version',))
-    utils.define_container(schema, 'Version', 'version')
+    project = config.Container('Project', 'project', subcontainers=('Version',))
+    project.define_container(schema)
+    version = config.Container('Version', 'version')
+    version.define_container(schema)
     setup_security(schema)

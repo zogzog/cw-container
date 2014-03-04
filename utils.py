@@ -47,6 +47,35 @@ class yet_unset(Predicate):
         return 0
 
 
+def composite(rdef):
+    """ Return the `composite` eschema of a relation definition """
+    if rdef.composite is None:
+        return None
+    return rdef.subject if rdef.composite == 'subject' else rdef.object
+
+def component(rdef):
+    """ Return the `component` part of a composite relation  """
+    if rdef.composite is None:
+        return None
+    return rdef.object if rdef.composite == 'subject' else rdef.subject
+
+def iterrdefs(eschema, meta=True, final=True, skiprtypes=(), skipetypes=()):
+    """ yield all the relation definitions of an entity type """
+    for role in ('subject', 'object'):
+        rschemas = eschema.subjrels if role == 'subject' else eschema.objrels
+        for rschema in rschemas:
+            if not meta and rschema.meta:
+                continue
+            if not final and rschema.final:
+                continue
+            if rschema in skiprtypes:
+                continue
+            for rdef in rschema.rdefs.itervalues():
+                if getattr(rdef, neg_role(role)) in skipetypes:
+                    continue
+                if getattr(rdef, role) == eschema:
+                    yield rdef
+
 def composite_role(eschema, rschema):
     """ testing compositeness is a bit awkward with the standard
     yams API (due to potentially multirole relation definitions) """

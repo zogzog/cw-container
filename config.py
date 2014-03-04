@@ -1,5 +1,7 @@
 from warnings import warn
-from collections import defaultdict
+from collections import defaultdict, deque
+
+from logilab.common.decorators import cachedproperty
 
 from cubicweb.predicates import is_instance
 
@@ -9,6 +11,7 @@ _CONTAINER_ETYPE_MAP = {}
 
 
 class Container(object):
+    # API
     cetype = None
     crtype = None
     skiprtypes = ()
@@ -28,14 +31,15 @@ class Container(object):
 
         self.cetype = cetype
         self.crtype = crtype
-        self.skiprtypes = skiprtypes
-        self.skipetypes = skipetypes
-        self.subcontainers = subcontainers
+        self.skiprtypes = set(skiprtypes)
+        self.skipetypes = set(skipetypes)
+        self.subcontainers = set(subcontainers)
         self.clone_rtype_role = clone_rtype_role
         self.compulsory_hooks_categories = compulsory_hooks_categories
 
         self._protocol_adapter_cache = None
         self._structure_cache = ((), ())
+        self._schema = None
 
         if cetype in _CONTAINER_ETYPE_MAP:
             warn('Replacing existing container definition for %s' % cetype)
@@ -50,6 +54,7 @@ class Container(object):
         return set(_CONTAINER_ETYPE_MAP.keys())
 
     def define_container(self, schema):
+        self._schema = schema
         utils.define_container(schema,
                                self.cetype,
                                self.crtype,
@@ -96,7 +101,36 @@ class Container(object):
         vreg.register(adapter)
         return adapter
 
+    @cachedproperty
+    def rdefs(self):
+        """Return the rdefs that define the structure of the container. """
+        assert self._schema, 'did you call .define_container ?'
+        skiprtypes = self.skiprtypes | set((self.crtype, 'container_etype', 'container_parent'))
+        rdefs = set()
+        etypes = set()
+        candidates = deque([self._schema[self.cetype]])
+        while candidates:
+            eschema = candidates.pop()
+            etypes.add(eschema.type)
+            for rdef in utils.iterrdefs(eschema,
+                                        meta=False,
+                                        final=False,
+                                        skiprtypes=skiprtypes,
+                                        skipetypes=self.skipetypes):
 
+                if rdef.composite is None:
+                    continue
+                composite = utils.composite(rdef)
+                component = utils.component(rdef)
+                if eschema == composite:
+                    rdefs.add(rdef)
+                    if component in etypes or component in self.subcontainers:
+                        continue
+                    candidates.append(component)
+
+        return rdefs
+
+    # /API
     # private methods
 
     def _container_parent_rdefs(self, schema):
