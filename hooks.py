@@ -77,8 +77,6 @@ class SetContainerRelation(Hook):
     __abstract__ = True
     events = ('after_add_relation',)
     category = 'container'
-    # __select__ = match_rtype(set_container_relation_rtypes_hook(...))
-    # _container_parent_rdefs = container_parent_rdefs(...)
     _container_parent_rdefs = {}
 
     def __call__(self):

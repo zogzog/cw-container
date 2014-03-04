@@ -6,8 +6,9 @@ from logilab.common.decorators import cachedproperty
 
 from yams.buildobjs import RelationType, RelationDefinition
 
-from cubicweb.predicates import is_instance
 from cubicweb import schema as cw_schema
+from cubicweb.predicates import is_instance
+from cubicweb.server.hook import match_rtype
 
 from cubes.container import utils
 
@@ -129,6 +130,26 @@ class Container(object):
         adapter.__select__ = is_instance(*etypes)
         return adapter
 
+    @classmethod
+    def container_hook(cls):
+        """Return a concrete subclass of the SetContainerRelation hook
+        with selector set for *all* the containers
+        """
+        from cubes.container.hooks import SetContainerRelation
+        cetypes = []
+        rtypes = set()
+        parentrdefs = defaultdict(set)
+        for container in _CONTAINER_ETYPE_MAP.itervalues():
+            cetypes.append(container.cetype)
+            rtypes |=  container.rtypes
+            for rtype, from_to in container._container_parent_rdefs.iteritems():
+                parentrdefs[rtype] |= from_to
+        prefix = ''.join(cetypes)
+        hook = type(prefix + 'ContainerHook', (SetContainerRelation,), {})
+        hook.__select__ = match_rtype(*rtypes)
+        hook._container_parent_rdefs = parentrdefs
+        return hook
+
     @cachedproperty
     def rdefs(self):
         """Return the rdefs that define the structure of the container. """
@@ -227,12 +248,13 @@ class Container(object):
     # /API
     # private methods
 
-    def _container_parent_rdefs(self, schema):
+    @cachedproperty
+    def _container_parent_rdefs(self):
         rtypes, etypes = self.rtypes, set(self.etypes)
         etypes.remove(self.cetype)
         select_rdefs = defaultdict(set)
         for etype in etypes:
-            eschema = schema[etype]
+            eschema = self._schema[etype]
             if not utils.needs_container_parent(eschema):
                 continue
             for rschema, role, teschema in utils.parent_erschemas(eschema):

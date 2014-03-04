@@ -53,7 +53,7 @@ class TwoContainersTC(CubicWebTC):
         project = Container.by_etype('Project')
         self.assertEqual({'documents': set([('Folder', 'Project')]),
                           'requirement': set([('Ticket', 'Card')])},
-                         project._container_parent_rdefs(schema))
+                         project._container_parent_rdefs)
 
     # Folder
     def test_folder_static_structure(self):
