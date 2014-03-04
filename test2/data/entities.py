@@ -14,5 +14,4 @@ class FolderClone(ContainerClone):
 
 def registration_callback(vreg):
     vreg.register_all(globals().values(), __name__)
-    config.Container.by_etype('Project').container_adapter(vreg)
-    config.Container.by_etype('Folder').container_adapter(vreg)
+    vreg.register(config.Container.container_adapter())

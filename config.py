@@ -44,7 +44,6 @@ class Container(object):
         self.clone_rtype_role = clone_rtype_role
         self.compulsory_hooks_categories = compulsory_hooks_categories
 
-        self._protocol_adapter_cache = None
         self._schema = None
 
         if cetype in _CONTAINER_ETYPE_MAP:
@@ -114,26 +113,20 @@ class Container(object):
                                                                cardinality='?*'))
 
 
-    def container_adapter(self, vreg):
-        """ Return a subclass of the ContainerProtocol adapter with selector set """
-        if self._protocol_adapter_cache is not None:
-            return self._protocol_adapter_cache
+    @classmethod
+    def container_adapter(cls):
+        """Return a concrete subclass of the ContainerProtocol adapter with
+        selector set for *all* the containers
+        """
         from cubes.container.entities import ContainerProtocol
-        etypes = self.etypes
-        # let's walk already registered containers to include *only* etypes
-        # for which the adapter is not already defined
+        cetypes = []
+        etypes = set()
         for container in _CONTAINER_ETYPE_MAP.itervalues():
-            if container._protocol_adapter_cache is not None:
-                # a reasonnable thing to do is to not care if, for
-                # some reason this container has no adapter set yet
-                otheretypes = container.etypes
-                etypes -= otheretypes
-        # at this point, etypes may be an empty set, but
-        # it should not really matter
-        adapter = type(self.cetype + 'ContainerProtocol', (ContainerProtocol, ),
-                       {'__select__': is_instance(*etypes)})
-        self._protocol_adapter_cache = adapter
-        vreg.register(adapter)
+            cetypes.append(container.cetype)
+            etypes |=  container.etypes
+        prefix = ''.join(cetypes)
+        adapter = type(prefix + 'ContainerProtocol', (ContainerProtocol,), {})
+        adapter.__select__ = is_instance(*etypes)
         return adapter
 
     @cachedproperty

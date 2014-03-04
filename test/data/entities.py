@@ -14,5 +14,4 @@ class Multiparent(MultiParentProtocol):
 
 def registration_callback(vreg):
     vreg.register_all(globals().values(), __name__)
-    config.Container.by_etype('Diamond').container_adapter(vreg)
-    config.Container.by_etype('Mess').container_adapter(vreg)
+    vreg.register(config.Container.container_adapter())

@@ -14,7 +14,4 @@ class MenagerieClone(ContainerClone):
 def registration_callback(vreg):
     vreg.register_all(globals().values(), __name__)
 
-    circus = config.Container.by_etype('Circus')
-    circus.container_adapter(vreg)
-    menagerie = config.Container.by_etype('Menagerie')
-    menagerie.container_adapter(vreg)
+    vreg.register(config.Container.container_adapter())
