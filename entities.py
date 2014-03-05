@@ -164,7 +164,6 @@ class ContainerClone(EntityAdapter):
         self.info('started cloning %s (toplevel=%s)', self.entity.e_schema, toplevel)
         cloned_etypes = []
         subcontainers = self.config.subcontainers
-        internal_rtypes = self.config.rtypes
         clonable_etypes = self.config.etypes
 
         for etype in self.clonable_etypes():
@@ -191,6 +190,8 @@ class ContainerClone(EntityAdapter):
 
         # let's flush all collected relations
         self.info('linking (%d relations)', len(relations))
+        internal_rtypes = set(rdef.rtype.type
+                              for rdef in self.config.inner_rdefs)
         for rtype, eids in relations.iteritems():
             self.info('%s linking %s (%s elements)' %
                       ('internal' if rtype in internal_rtypes else 'external',

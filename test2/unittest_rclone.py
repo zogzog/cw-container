@@ -33,10 +33,8 @@ class TwoContainersTC(CubicWebTC):
                               ('subproject_of', 'Project', 'Project')]),
                          set([rdefrepr(rdef) for rdef in project.rdefs]))
 
-        self.assertEqual((frozenset(['documents', 'implements', 'concerns', 'version_of',
-                                     'subproject_of', 'requirement']),
-                          frozenset(['Card', 'Patch', 'Ticket', 'Version', 'Folder','Project'])),
-                         (project.rtypes, project.etypes))
+        self.assertEqual(frozenset(['Card', 'Patch', 'Ticket', 'Version', 'Folder','Project']),
+                         project.etypes)
 
 
     def test_order(self):

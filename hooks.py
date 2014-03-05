@@ -1,4 +1,4 @@
-# copyright 2011-2013 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
+# copyright 2011-2014 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
 # contact http://www.logilab.fr -- mailto:contact@logilab.fr
 #
 # This program is free software: you can redistribute it and/or modify it under
@@ -20,13 +20,44 @@ from logilab.common.deprecation import class_deprecated
 from logilab.common.registry import Predicate
 
 from cubicweb import ValidationError
-from cubicweb.server.hook import Hook, DataOperationMixIn, Operation, match_rtype
+from cubicweb.server.hook import Hook, DataOperationMixIn, Operation
 
 from cubes.container.utils import parent_rschemas
 from cubes.container.config import Container
 
+
 def eid_etype(session, eid):
     return session.describe(eid)[0]
+
+
+class match_rdefs(Predicate):
+    """A selector to match relation definitions provided as yams relation
+    definition objects.
+    """
+
+    def __init__(self, *rdefs):
+        self.expected = defaultdict(set)
+        for rdef in rdefs:
+            self.expected[rdef.rtype.type].add((rdef.subject.type,
+                                                rdef.object.type))
+
+    def __str__(self):
+        expanded = []
+        for rtype, from_to in self.expected.iteritems():
+            for efrom, eto in from_to:
+                expanded.append('%s-%s-%s' % (rtype, efrom, eto))
+        return '%s(%s)' % (self.__class__.__name__, ','.join(sorted(expanded)))
+
+    def __call__(self, cls, req, *args, **kwargs):
+        rtype = kwargs.get('rtype')
+        if rtype not in self.expected:
+            return 0
+        subjetype = eid_etype(req, kwargs['eidfrom'])
+        objetype = eid_etype(req, kwargs['eidto'])
+        if (subjetype, objetype) in self.expected[rtype]:
+            return 1
+        return 0
+
 
 def entity_and_parent(session, eidfrom, rtype, eidto, etypefrom, etypeto):
     """ given a triple (eidfrom, rtype, eidto)

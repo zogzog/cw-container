@@ -8,8 +8,6 @@ from yams.buildobjs import RelationType, RelationDefinition
 
 from cubicweb import schema as cw_schema
 from cubicweb.predicates import is_instance
-from cubicweb.server.hook import match_rtype
-
 from cubes.container import utils
 
 
@@ -139,18 +137,18 @@ class Container(object):
         """Return a concrete subclass of the SetContainerRelation hook
         with selector set for *all* the containers
         """
-        from cubes.container.hooks import SetContainerRelation
+        from cubes.container.hooks import SetContainerRelation, match_rdefs
         cetypes = []
-        rtypes = set()
+        rdefs = set()
         parentrdefs = defaultdict(set)
         for container in _CONTAINER_ETYPE_MAP.itervalues():
             cetypes.append(container.cetype)
-            rtypes |=  container.rtypes
+            rdefs |=  container.rdefs
             for rtype, from_to in container._container_parent_rdefs.iteritems():
                 parentrdefs[rtype] |= from_to
         prefix = ''.join(cetypes)
         hook = type(prefix + 'ContainerHook', (SetContainerRelation,), {})
-        hook.__select__ = match_rtype(*rtypes)
+        hook.__select__ = match_rdefs(*rdefs)
         hook._container_parent_rdefs = parentrdefs
         return hook
 
@@ -219,21 +217,6 @@ class Container(object):
             etypes.add(rdef.subject.type)
             etypes.add(rdef.object.type)
         return frozenset(etypes)
-
-    @cachedproperty
-    def rtypes(self):
-        """Return the set of all the structural rtypes included in the
-        container (barring the <container_rtype>, container_etype and
-        container_parent)
-
-        NOTE: this is an imprecise set (e.g. some
-        rtypes maye have rdefs actually completely out of the
-        container) and you should ALWAYS prefer using `.rdefs`
-        """
-        rtypes = set()
-        for rdef in self.rdefs:
-            rtypes.add(rdef.rtype.type)
-        return frozenset(rtypes)
 
     @cachedproperty
     def ordered_etypes(self):
