@@ -25,7 +25,7 @@ from logilab.common.deprecation import class_deprecated
 
 from rql import parse
 
-from cubicweb import Binary
+from cubicweb import Binary, neg_role
 from cubicweb.server.ssplanner import READ_ONLY_RTYPES
 from cubicweb.server.utils import eschema_eid
 
@@ -34,7 +34,9 @@ from cubicweb.entities import AnyEntity
 from cubicweb.view import EntityAdapter
 
 from cubes.container import config
+
 from cubes.container.utils import (parent_rschemas,
+                                   parent_rdefs,
                                    needs_container_parent,
                                    _insertmany,
                                    _add_rqlst_restriction,
@@ -73,10 +75,15 @@ def container_etypes(vreg):
          'by config.Container.all()')
     return config.Container.all_etypes()
 
-
 @cached
 def first_parent_rtype_role(eschema):
+    warn('[container 2.4] first_parent_rtype_role is replaced '
+         'by first_parent_rdef')
     return list(parent_rschemas(eschema))[0]
+
+@cached
+def first_parent_rdef(eschema):
+    return parent_rdefs(eschema).next()
 
 class ContainerProtocol(EntityAdapter):
     __regid__ = 'Container'
@@ -112,11 +119,13 @@ class ContainerProtocol(EntityAdapter):
             parent = self.entity.container_parent
             return parent[0] if parent else None
         try:
-            rtype, role = first_parent_rtype_role(self.entity.e_schema)
-        except IndexError:
+            rdef = first_parent_rdef(self.entity.e_schema)
+            rtype, role = rdef.rtype.type, neg_role(rdef.composite)
+        except StopIteration:
             # that was likely a non-container entity
-            # this can happen since this adapter is selectable
-            # for any entity type
+            # this is unlikely to happen but we don't want to crash
+            # because of this
+            self.warning('ContainerProtocol.parent crashed on %s', self.entity)
             return None
         parent = self.entity.related(rtype=rtype, role=role, entities=True)
         if parent:

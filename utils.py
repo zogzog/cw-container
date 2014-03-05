@@ -96,14 +96,13 @@ def _composite_rschemas(eschema):
             output.append( (rschema, role, crole) )
     return output
 
-# still used
 def parent_eschemas(eschema):
     for rschema, role, crole in _composite_rschemas(eschema):
         if role != crole:
             for eschema in rschema.targets(role=role):
                 yield eschema
 
-# still used, but should die
+@deprecated('[container 2.4] use parent_rdefs instead')
 def parent_rschemas(eschema):
     for rschema, role, crole in _composite_rschemas(eschema):
         if role != crole:
@@ -117,11 +116,17 @@ def parent_erschemas(eschema):
                 yield rschema, role, eschema
 
 def parent_rdefs(eschema):
+    """Yield all the rdefs leading to a composite (or `parent`)
+    eschema. We must take care of etypes that are composed of
+    themselves.
+    """
     for rdef in iterrdefs(eschema, meta=False, final=False):
         if rdef.composite:
             composite_eschema = composite(rdef)
             if composite_eschema == eschema:
-                continue
+                component_eschema = component(rdef)
+                if component_eschema != eschema:
+                    continue
             yield rdef
 
 # still used, but should die
