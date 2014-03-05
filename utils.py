@@ -76,6 +76,7 @@ def iterrdefs(eschema, meta=True, final=True, skiprtypes=(), skipetypes=()):
                 if getattr(rdef, role) == eschema:
                     yield rdef
 
+@deprecated('[container 2.4] there are better ways')
 def composite_role(eschema, rschema):
     """ testing compositeness is a bit awkward with the standard
     yams API (due to potentially multirole relation definitions) """
@@ -84,7 +85,7 @@ def composite_role(eschema, rschema):
     except KeyError:
         return eschema.rdef(rschema, 'object', takefirst=True).composite
 
-@cached
+@deprecated('[container 2.4] there are better ways')
 def _composite_rschemas(eschema):
     output = []
     for rschema, _types, role in eschema.relation_definitions():
@@ -95,17 +96,20 @@ def _composite_rschemas(eschema):
             output.append( (rschema, role, crole) )
     return output
 
+# still used
 def parent_eschemas(eschema):
     for rschema, role, crole in _composite_rschemas(eschema):
         if role != crole:
             for eschema in rschema.targets(role=role):
                 yield eschema
 
+# still used, but should die
 def parent_rschemas(eschema):
     for rschema, role, crole in _composite_rschemas(eschema):
         if role != crole:
             yield rschema, role
 
+@deprecated('[container 2.4] there are better ways')
 def parent_erschemas(eschema):
     for rschema, role, crole in _composite_rschemas(eschema):
         if role != crole:
@@ -120,6 +124,7 @@ def parent_rdefs(eschema):
                 continue
             yield rdef
 
+# still used, but should die
 def children_rschemas(eschema):
     for rschema, role, crole in _composite_rschemas(eschema):
         if role == crole:
@@ -129,6 +134,7 @@ def children_rschemas(eschema):
 def needs_container_parent(eschema):
     return len(list(parent_rschemas(eschema))) > 1
 
+@deprecated('[container 2.4] you should switch to the config.Container object')
 def define_container(schema, cetype, crtype, rtype_permissions=None,
                      skiprtypes=(), skipetypes=(), subcontainers=()):
     """Handle container definition in schema
@@ -141,16 +147,6 @@ def define_container(schema, cetype, crtype, rtype_permissions=None,
       being defined by construction of the container structure (see
       `container_static_structure`).
     """
-    # prepare bw compat
-    from cubes.container.config import Container
-    if Container.by_etype(cetype) is None:
-        warn('[container 2.4] utils.define_container is deprecated, '
-             'use config.Container instead',
-             DeprecationWarning)
-        # and register it right away, which will allow the adapters
-        # & hooks code to work using only the new config api
-        Container(cetype, crtype, skiprtypes, skipetypes,
-                  subcontainers=subcontainers)
     _rtypes, etypes = container_static_structure(schema, cetype, crtype,
                                                  skiprtypes=skiprtypes,
                                                  skipetypes=skipetypes,
@@ -183,6 +179,7 @@ def define_container(schema, cetype, crtype, rtype_permissions=None,
                                                        cardinality='?*'))
         define_container_parent_rdefs(schema, etype)
 
+@deprecated('[container 2.4] you should switch to the config.Container object')
 def define_container_parent_rdefs(schema, etype,
                                   needs_container_parent=needs_container_parent):
     eschema = schema[etype]
@@ -195,6 +192,7 @@ def define_container_parent_rdefs(schema, etype,
                                                            cardinality='?*'))
 
 
+@deprecated('[container 2.4] you should switch to the config.Container object')
 def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
                                subcontainers=()):
     """Return the sets of entity types and relation types that define the
@@ -254,6 +252,7 @@ def set_container_parent_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skip
                     select_rtypes.add(rschema.type)
     return select_rtypes
 
+@deprecated('[container 2.4] you should switch to the config.Container object')
 def container_parent_rdefs(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
                            subcontainers=()):
     """ etypes having several upward paths to the container have a dedicated container_parent
@@ -282,6 +281,7 @@ def container_parent_rdefs(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
     return dict(select_rdefs)
 
 
+@deprecated('[container 2.4] you should switch to the config.Container object')
 def set_container_relation_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
                                        subcontainers=()):
     """computes the rtype set needed for etypes having just one upward
@@ -292,6 +292,7 @@ def set_container_relation_rtypes_hook(schema, cetype, crtype, skiprtypes=(), sk
     return rtypes
 
 
+@deprecated('[container 2.4] you should switch to the config.Container object')
 def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
                             subcontainers=()):
     """Return all entity types and relation types that are part of the container.
@@ -320,6 +321,7 @@ def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=()
     return frozenset(rtypes), frozenset(etypes)
 
 
+@deprecated('[container 2.4] you should switch to the config.Container object')
 def border_rtypes(schema, etypes, inner_rtypes):
     """ compute the set of rtypes that go from/to an etype in a container
     to/from an etype outside
@@ -337,6 +339,7 @@ def border_rtypes(schema, etypes, inner_rtypes):
     return border_crossing
 
 
+@deprecated('[container 2.4] you should switch to the config.Container object')
 def needed_etypes(schema, etype, cetype, crtype, computed_rtypes=()):
     """ finds all container etypes this one depends on to be built
     start from all subject + object relations """
@@ -392,6 +395,7 @@ def linearize(etype_map, all_etypes):
     return [etype for etype in sorted_etypes
             if etype in all_etypes]
 
+@deprecated('[container 2.4] you should switch to the config.Container object')
 def ordered_container_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
                              subcontainers=()):
     """ return list of etypes of a container by dependency order
@@ -407,6 +411,7 @@ def ordered_container_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=(
         total_order += order
     return total_order + etype_map.keys()
 
+@deprecated('[container 2.4] you should switch to the config.Container object')
 def container_etype_orders(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
                            subcontainers=()):
     """ computes linearizations and cycles of etypes within a container """
