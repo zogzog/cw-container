@@ -99,11 +99,13 @@ class ContainerProtocol(EntityAdapter):
         except AttributeError:
             # that was definitely not a container entity
             return None
+
         if ccwetype:
             crtype = config.Container.by_etype(ccwetype[0].name).crtype
-            container = getattr(self.entity, crtype, None)
+            container = self.entity.related(rtype=crtype, role='subject', entities=True)
             if container:
                 return container[0]
+
         # container relation is still unset, let's ask the parent
         parent = self.parent
         if parent:
