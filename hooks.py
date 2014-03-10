@@ -99,6 +99,35 @@ class SetContainerRelation(Hook):
             _set_container_parent(self._cw, self.rtype, eid, peid)
 
 
+class SetChildContainerRelation(Hook):
+    """Handle pre-existing subgraphs of the container being attached to the
+    container so that children of these subgraphs have the container relation
+    set."""
+    __regid__ = 'container.set_child_container_relation'
+    __abstract__ = True
+    events = ('after_add_relation',)
+    category = 'container'
+    # __select__ = match_rtype(container.container_rtype)
+
+    def __call__(self):
+        container = self._cw.entity_from_eid(self.eidto)
+        peid = self.eidfrom
+        etypefrom = eid_etype(self._cw, peid)
+        eschema = self._cw.vreg.schema[etypefrom]
+        for rschema, targets, role in eschema.relation_definitions():
+            if rschema in container.container_config.skiprtypes:
+                continue
+            rdef = eschema.rdef(rschema, role, takefirst=True)
+            if rdef.composite == role:
+                if role == 'subject':
+                    rql = 'Any C WHERE X %s C, X eid %%(x)s' % rschema
+                else:
+                    rql = 'Any C WHERE C %s X, X eid %%(x)s' % rschema
+                for eid, in self._cw.execute(rql, {'x': peid}):
+                    AddContainerRelationOp.get_instance(self._cw).add_data(
+                        (eid, peid))
+
+
 class SetContainerParent(Hook):
     __metaclass__ = class_deprecated
     __deprecation_warning__ = ('[2.2.0] SetContainerParent is deprecated, '
@@ -142,8 +171,10 @@ class AddContainerRelationOp(DataOperationMixIn, Operation):
             cprotocol = parent.cw_adapt_to('Container')
             container = cprotocol.related_container
             if container is None:
-                self.critical('container entity could not be reached from %s, '
-                              'you may have ordering issues', parent)
+                # A subgraph of the container can exist without a container.
+                self.warning('Cannot find container related to parent entity %d; '
+                             'probably because it is part of a subgraph not yet '
+                             'related to its container.' % eid)
                 continue
             container_rtype_rel[container.container_config.rtype].append((eid, container.eid))
             container_etype_rel.append((eid, self._container_cwetype_eid(container, cwetype_eid_map)))

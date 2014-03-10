@@ -56,7 +56,7 @@ class ContainerConfiguration(object):
     """Configuration object to turn an entity type into a container.
 
     Main methods are `define_container`, to be called in `post_build_callback`
-    of `schema.py`, `build_container_hook` and `build_container_protocol` to
+    of `schema.py`, `build_container_hooks` and `build_container_protocol` to
     be respectively called in `registration_callback` of `hooks.py` and
     `entities.py`.
 
@@ -181,20 +181,26 @@ class ContainerConfiguration(object):
                                skipetypes=self.skipetypes,
                                subcontainers=self.subcontainers)
 
-    def build_container_hook(self, schema):
+    def build_container_hooks(self, schema):
         """Return the container hook with selector set"""
         # Local import because this is a dynamically loaded module.
-        from cubes.container.hooks import SetContainerRelation
+        from cubes.container import hooks
         parent_rdefs = utils.container_parent_rdefs(
             schema, self.etype, self.rtype, skiprtypes=self.skiprtypes,
             skipetypes=self.skipetypes, subcontainers=self.subcontainers)
         rtypes = utils.set_container_relation_rtypes_hook(
             schema, self.etype, self.rtype, skiprtypes=self.skiprtypes,
             skipetypes=self.skipetypes, subcontainers=self.subcontainers)
-        return type(self.etype + 'SetContainerRelation',
-                    (SetContainerRelation, ),
-                    {'_container_parent_rdefs': parent_rdefs,
-                     '__select__': Hook.__select__ & match_rtype(*rtypes)})
+        container_rel_hook = type(
+            self.etype + 'SetContainerRelation',
+            (hooks.SetContainerRelation, ),
+            {'_container_parent_rdefs': parent_rdefs,
+             '__select__': Hook.__select__ & match_rtype(*rtypes)})
+        child_container_rel_hook = type(
+            self.etype + 'SetChildContainerRelation',
+            (hooks.SetChildContainerRelation, ),
+            {'__select__': Hook.__select__ & match_rtype(self.rtype)})
+        return container_rel_hook, child_container_rel_hook
 
     def build_container_protocol(self, schema):
         """Return a subclass of the ContainerProtocol with selector set"""

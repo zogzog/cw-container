@@ -23,8 +23,13 @@ class CircusTC(CubicWebTC):
         req = self.request()
         bozo = req.create_entity('Clown', name=u'Bozo')
         req.create_entity('Joke', content=u'funny', reverse_jokes=bozo)
-        req.create_entity('ClownCabal', members=bozo)
+        cabal = req.create_entity('ClownCabal', members=bozo)
         self.commit()
+        circus = req.create_entity('Circus', cabals=cabal)
+        self.commit()
+        self.assertEqual(circus.eid, cabal.circus[0].eid)
+        bozo.cw_clear_all_caches()
+        self.assertEqual(circus.eid, bozo.circus[0].eid)
 
     def test_composite_subjrel_from_subcontainer_is_cloned(self):
         s = self.session

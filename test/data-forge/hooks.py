@@ -6,7 +6,8 @@ from config import PROJECT_CONTAINER
 
 def registration_callback(vreg):
     schema = vreg.schema
-    vreg.register(PROJECT_CONTAINER.build_container_hook(schema))
+    for hookcls in PROJECT_CONTAINER.build_container_hooks(schema):
+        vreg.register(hookcls)
     # security setup: need to check relations using relation to container in
     # their perms on commit
     for rschema, _ in chain(PROJECT_CONTAINER.structural_relations_to_container(schema),
