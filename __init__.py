@@ -21,6 +21,8 @@ provides "generic container" services
 """
 from collections import deque
 
+from cubicweb import neg_role
+
 from cubicweb import schema
 from cubicweb.predicates import EntityPredicate, is_instance
 from cubicweb.server.hook import Hook, match_rtype
@@ -104,8 +106,10 @@ class ContainerConfiguration(object):
         return set(rtypes), set(etypes)
 
     def inner_relations(self, schema):
-        """Yield all non-structural relations between entity types which are
-        part of the container.
+        """Yield rschema for all non-structural relations between entity types
+        which are part of the container.
+
+        `rschema` is the relation schema.
         """
         rtypes, etypes = self.structure(schema)
         rtypes.add(self.rtype) # ensure container relation isn't yielded
@@ -117,6 +121,52 @@ class ContainerConfiguration(object):
                     yield rschema
                     break
 
+    def border_relations(self, schema):
+        """Yield (rschema, role) for relations where some extremity is outside
+        the container graph and the other inside.
+
+        `rschema` is the relation schema, `role` is the role of the entity
+        inside the container in the relation.
+        """
+        rtypes, etypes = self.structure(schema)
+        skiprtypes = rtypes.union(self.inner_relations(schema))
+        skiprtypes = skiprtypes.union(self.skiprtypes)
+        for etype in etypes:
+            eschema = schema[etype]
+            for rschema, _, role in eschema.relation_definitions():
+                if rschema.meta or rschema.final or rschema in skiprtypes:
+                    continue
+                yield rschema, role
+
+    def structural_relations_to_container(self, schema):
+        """Yield (rschema, role) for relations in the container graph directly
+        leading to the root.
+
+        `rschema` is the relation schema, `role` is the role of the root
+        (a.k.a container) in the relation.
+        """
+        for rtype in self.structure(schema)[0]:
+            rschema = schema.rschema(rtype)
+            for role in ('subject', 'object'):
+                if rschema.targets(role=role)[0].type == self.etype:
+                    yield rschema, neg_role(role)
+                    break
+
+    def structural_relations_to_parent(self, schema):
+        """Yield (rschema, role) for relations in the container graph but not
+        directly leading to the root.
+
+        `rschema` is the relation schema, `role` is the role of the parent in
+        the relation.
+        """
+        for rtype in self.structure(schema)[0]:
+            rschema = schema.rschema(rtype)
+            for role in ('subject', 'object'):
+                if rschema.targets(role=role)[0].type == self.etype:
+                    break
+            else:
+                role = rschema.rdefs.itervalues().next().composite
+                yield rschema, role
 
     # container setup methods ##################################################
 

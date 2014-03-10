@@ -234,12 +234,11 @@ def border_rtypes(schema, etypes, inner_rtypes):
     """ compute the set of rtypes that go from/to an etype in a container
     to/from an etype outside
     """
-    META = cw_schema.META_RTYPES
     border_crossing = set()
     for etype in etypes:
         eschema = schema[etype]
         for rschema, _teschemas, _role in eschema.relation_definitions():
-            if rschema.meta or rschema.final or rschema.type in META:
+            if rschema.meta or rschema.final:
                 continue
             if rschema.type in inner_rtypes:
                 continue
