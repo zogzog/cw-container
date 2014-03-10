@@ -5,7 +5,7 @@ from cubicweb.devtools.testlib import CubicWebTC
 
 from cubes.container.testutils import userlogin, new_version, new_ticket, new_patch
 
-class SecurityTC(CubicWebTC):
+class ContainerWalkTC(CubicWebTC):
     appid = 'data-forge'
 
     def setup_database(self):
@@ -18,16 +18,16 @@ class SecurityTC(CubicWebTC):
         writer.cw_set(canread=proj, canwrite=proj)
 
     def test_base(self):
-        with self.login('writer') as cnx:
+        with self.login('writer'):
             req = self.request()
             projeid = req.execute('Project P').get_entity(0, 0)
             afile = req.create_entity('File', data=Binary('foo'))
             ver = new_version(req, projeid)
             tick = new_ticket(req, projeid, ver)
             patch = new_patch(req, tick, afile)
-            cnx.commit()
+            self.commit()
 
-        with self.login('reader') as cnx:
+        with self.login('reader'):
             req = self.request()
             projeid = req.execute('Project P').get_entity(0, 0)
             afile = req.create_entity('File', data=Binary('foo'))
@@ -35,17 +35,21 @@ class SecurityTC(CubicWebTC):
             tick = new_ticket(req, projeid, ver)
             patch = new_patch(req, tick, afile)
             with self.assertRaises(Unauthorized):
-                cnx.commit()
-            cnx.rollback()
+                self.commit()
+            self.rollback()
             req = self.request()
             ver = new_version(req, projeid, u'0.3.0')
             with self.assertRaises(Unauthorized):
-                cnx.commit()
+                self.commit()
 
-        with self.login('user') as cnx:
+        with self.login('user'):
             req = self.request()
             self.assertEqual(0, req.execute('Project P').rowcount)
             self.assertEqual(0, req.execute('Any P,E WHERE E project P').rowcount)
+
+
+class SecurityTC(ContainerWalkTC):
+    appid = 'data-forge2'
 
 
 if __name__ == '__main__':

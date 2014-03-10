@@ -6,6 +6,7 @@ from cubes.container import utils
 
 
 class CircusTC(CubicWebTC):
+    appid = 'data-circus'
 
     def test_static_structure(self):
         schema = self.vreg.schema

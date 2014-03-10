@@ -9,6 +9,7 @@ from cubes.container.testutils import (userlogin, new_version, new_ticket,
 
 
 class TwoContainersTC(CubicWebTC):
+    appid = 'data-forge2'
 
     def test_needs_container_parent(self):
         needs_cp = set(eschema.type
@@ -117,8 +118,10 @@ def parent_titles(parent):
         parents.append(parent.dc_title())
     return parents
 
+
 class CloneTC(CubicWebTC):
     userlogin = userlogin
+    appid = 'data-forge2'
 
     def setup_database(self):
         req = self.request()
