@@ -29,6 +29,7 @@ from rql.nodes import Comparison, VariableRef, make_relation
 from cubicweb import neg_role, schema as cw_schema
 from cubicweb.appobject import Predicate
 
+
 logger = logging.getLogger()
 
 class yet_unset(Predicate):
@@ -137,7 +138,7 @@ def define_container_parent_rdefs(schema, etype,
                 schema.add_relation_def(RelationDefinition(etype, 'container_parent', petype,
                                                            cardinality='?*'))
 
-
+@deprecated('[container 2.4] use ContainerConfiguration.structure')
 def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
                                subcontainers=()):
     """Return the sets of entity types and relation types that define the
@@ -147,33 +148,11 @@ def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes
     composite relations, possibly skipping specified entity types and/or
     relation types.
     """
-    skiprtypes = set(skiprtypes).union((crtype, 'container_etype', 'container_parent'))
-    skipetypes = set(skipetypes)
-    subcontainers = set(subcontainers)
-    etypes = set()
-    rtypes = set()
-    candidates = deque([schema[cetype]])
-    while candidates:
-        eschema = candidates.pop()
-        if eschema.type in subcontainers:
-            etypes.add(eschema.type)
-            # however we stop right here as the subcontainer is responsible for
-            # his own stuff
-            continue
-        for rschema, teschemas, role in eschema.relation_definitions():
-            if rschema.meta or rschema in skiprtypes:
-                continue
-            if not composite_role(eschema, rschema) == role:
-                continue
-            if skipetypes.intersection(teschemas):
-                continue
-            rtypes.add(rschema.type)
-            for teschema in teschemas:
-                etype = teschema.type
-                if etype not in etypes and etype not in skipetypes:
-                    candidates.append(teschema)
-                    etypes.add(etype)
-    return frozenset(rtypes), frozenset(etypes)
+    from cubes.container import ContainerConfiguration
+    cfg = ContainerConfiguration(cetype, crtype,
+                                 skiprtypes=skiprtypes, skipetypes=skipetypes,
+                                 subcontainers=subcontainers)
+    return cfg.structure(schema)
 
 
 @deprecated('[container 2.1] the container_parent hook is merged into another; '
@@ -235,6 +214,7 @@ def set_container_relation_rtypes_hook(schema, cetype, crtype, skiprtypes=(), sk
     return rtypes
 
 
+@deprecated('[container 2.4] use ContainerConfiguration.structure and/or .inner_rtypes ')
 def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
                             subcontainers=()):
     """Return all entity types and relation types that are part of the container.
@@ -242,25 +222,12 @@ def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=()
     It extends ``container_static_structure`` with non structural relation types
     between entity types belonging to the defining structure of the container.
     """
-    skiprtypes = set(skiprtypes).union((crtype,'container_etype', 'container_parent'))
-    rtypes, etypes = container_static_structure(schema, cetype, crtype,
-                                                skiprtypes, skipetypes, subcontainers)
-    rtypes = set(rtypes)
-    for etype in etypes:
-        eschema = schema[etype]
-        for rschema, _teschemas, role in eschema.relation_definitions():
-            if rschema.meta:
-                continue
-            rtype = rschema.type
-            if rtype in rtypes or rtype in skiprtypes:
-                continue
-            reletypes = set(eschema.type
-                            for eschema in rschema.targets(role=role)
-                            if eschema.type in etypes)
-            if not reletypes:
-                continue
-            rtypes.add(rtype)
-    return frozenset(rtypes), frozenset(etypes)
+    from cubes.container import ContainerConfiguration
+    cfg = ContainerConfiguration(cetype, crtype,
+                                 skiprtypes=skiprtypes, skipetypes=skipetypes,
+                                 subcontainers=subcontainers)
+    rtypes, etypes = cfg.structure(schema)
+    return rtypes.union(cfg.inner_relations(schema)), etypes
 
 
 def border_rtypes(schema, etypes, inner_rtypes):

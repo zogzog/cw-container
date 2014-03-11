@@ -1,7 +1,7 @@
 from logilab.common.testlib import unittest_main
 from cubicweb.devtools.testlib import CubicWebTC
 
-from cubes.container import utils
+from cubes.container import ContainerConfiguration, utils
 
 class SchemaContainerTC(CubicWebTC):
 
@@ -11,41 +11,40 @@ class SchemaContainerTC(CubicWebTC):
             self.assertFalse(utils.needs_container_parent(schema[etype]))
         self.assertTrue(utils.needs_container_parent(schema['Bottom']))
 
-    def test_static_structure(self):
-        schema = self.vreg.schema
-        diamond = self.vreg['etypes'].etype_class('Diamond')
-        mess = self.vreg['etypes'].etype_class('Mess')
-        self.assertEqual((frozenset(['top_from_left', 'top_by_right', 'top_from_right', 'top_by_left',
-                                     'to_left', 'to_right', 'has_near_top']),
-                          frozenset(['NearTop', 'Left', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'])),
-                         utils.container_static_structure(schema, 'Diamond', 'diamond',
-                                                          skiprtypes=diamond.container_skiprtypes,
-                                                          skipetypes=diamond.container_skipetypes))
-
-        self.assertEqual((frozenset(['to_left', 'top_by_left']),
-                          frozenset(['Bottom', 'IAmAnAttributeCarryingRelation'])),
-                         utils.container_static_structure(schema, 'Left', 'diamond',
-                                                          skipetypes=diamond.container_skipetypes))
-
-        self.assertEqual((frozenset(['to_mess']), frozenset(['Bottom'])),
-                         utils.container_static_structure(schema, 'Mess', 'in_mess',
-                                                          mess.container_skiprtypes))
-
-    def test_etypes_rtypes(self):
-        schema = self.vreg.schema
-        diamond = self.vreg['etypes'].etype_class('Diamond')
-        mess = self.vreg['etypes'].etype_class('Mess')
-        self.assertEqual((frozenset(['to_inner_left', 'top_from_left', 'top_by_right',
-                                     'top_from_right', 'top_by_left', 'loop_in_place',
+    def test_static_structure_diamond(self):
+        cfg = ContainerConfiguration('Diamond', 'diamond',
+                                     skipetypes=('EtypeNotInContainers',))
+        self.assertEqual((frozenset(['top_from_left', 'top_by_right',
+                                     'top_from_right', 'top_by_left',
                                      'to_left', 'to_right', 'has_near_top']),
                           frozenset(['NearTop', 'Left', 'Right', 'Bottom',
                                      'IAmAnAttributeCarryingRelation'])),
-                         utils.container_rtypes_etypes(schema, 'Diamond', 'diamond',
-                                                       skiprtypes=diamond.container_skiprtypes,
-                                                       skipetypes=diamond.container_skipetypes))
+                         cfg.structure(self.vreg.schema))
+
+
+    def test_static_structure_left(self):
+        cfg = ContainerConfiguration('Left', 'diamond',
+                                     skipetypes=('EtypeNotInContainers',))
+        self.assertEqual((frozenset(['to_left', 'top_by_left']),
+                          frozenset(['Bottom', 'IAmAnAttributeCarryingRelation'])),
+                         cfg.structure(self.vreg.schema))
+
+    def test_static_structure_mess(self):
+        cfg = ContainerConfiguration('Mess', 'in_mess',
+                                     skiprtypes=('local_group', 'wf_info_for'))
         self.assertEqual((frozenset(['to_mess']), frozenset(['Bottom'])),
-                         utils.container_rtypes_etypes(schema, 'Mess', 'in_mess',
-                                                       mess.container_skiprtypes))
+                         cfg.structure(self.vreg.schema))
+
+    def test_inner_relations_diamond(self):
+        cfg = ContainerConfiguration('Diamond', 'diamond',
+                                     skipetypes=('EtypeNotInContainers',))
+        self.assertEqual(frozenset(['loop_in_place', 'to_inner_left']),
+                         set(cfg.inner_relations(self.vreg.schema)))
+
+    def test_inner_relations_mess(self):
+        cfg = ContainerConfiguration('Mess', 'in_mess',
+                                     skiprtypes=('local_group', 'wf_info_for'))
+        self.assertEqual(set(), set(cfg.inner_relations(self.vreg.schema)))
 
     def test_order(self):
         schema = self.vreg.schema

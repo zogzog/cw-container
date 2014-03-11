@@ -19,6 +19,7 @@
 
 provides "generic container" services
 """
+from collections import deque
 
 from cubicweb import schema
 from cubicweb.predicates import EntityPredicate, is_instance
@@ -67,6 +68,58 @@ class ContainerConfiguration(object):
         self.subcontainers = frozenset(subcontainers)
         self.compulsory_hooks_categories = compulsory_hooks_categories
 
+    def structure(self, schema):
+        """Return the sets of relation types and entity types that define the
+        structure of the container.
+
+        The skeleton (or structure) of the container is determined by following
+        composite relations, possibly skipping specified entity types and/or
+        relation types.
+        """
+        etypes = set()
+        rtypes = set()
+        skiprtypes = self.skiprtypes.union((self.rtype, 'container_etype',
+                                            'container_parent'))
+        candidates = deque([schema[self.etype]])
+        while candidates:
+            eschema = candidates.pop()
+            if eschema.type in self.subcontainers:
+                etypes.add(eschema.type)
+                # however we stop right here as the subcontainer is responsible
+                # for his own stuff
+                continue
+            for rschema, teschemas, role in eschema.relation_definitions():
+                if rschema.meta or rschema in skiprtypes:
+                    continue
+                if not rschema.rdefs.itervalues().next().composite == role:
+                    continue
+                if self.skipetypes.intersection(teschemas):
+                    continue
+                rtypes.add(rschema.type)
+                for teschema in teschemas:
+                    etype = teschema.type
+                    if etype not in etypes and etype not in self.skipetypes:
+                        candidates.append(teschema)
+                        etypes.add(etype)
+        return set(rtypes), set(etypes)
+
+    def inner_relations(self, schema):
+        """Yield all non-structural relations between entity types which are
+        part of the container.
+        """
+        rtypes, etypes = self.structure(schema)
+        rtypes.add(self.rtype) # ensure container relation isn't yielded
+        for rschema in schema.relations():
+            if rschema.meta or rschema.final or rschema.type in rtypes:
+                continue
+            for subjtype, objtype in rschema.rdefs:
+                if subjtype in etypes and objtype in etypes:
+                    yield rschema
+                    break
+
+
+    # container setup methods ##################################################
+
     def define_container(self, schema):
         """Add schema definition for the container configuration"""
         utils.define_container(schema, self.etype, self.rtype,
@@ -93,13 +146,11 @@ class ContainerConfiguration(object):
         """Return a subclass of the ContainerProtocol with selector set"""
         # Local import because this is a dynamically loaded module.
         from cubes.container.entities import ContainerProtocol
+        etypes = self.structure(schema)[1]
         # Do not include heads of subcontainers (which are part of the current
         # container) for selection of the current container protocol as these
         # subcontainers will have their own protocol.
-        skipetypes = self.skipetypes.union(self.subcontainers)
-        _, etypes = utils.container_static_structure(
-            schema, self.etype, self.rtype, skiprtypes=self.skiprtypes,
-            skipetypes=skipetypes, subcontainers=self.subcontainers)
+        etypes = etypes - self.subcontainers
         return type(self.etype + 'ContainerProtocol', (ContainerProtocol, ),
                     {'__select__': is_instance(self.etype, *etypes) & is_in_container(self),
                      'container_rtype': self.rtype})

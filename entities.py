@@ -36,7 +36,6 @@ from cubicweb.view import EntityAdapter
 from cubes.container import ContainerConfiguration
 from cubes.container.utils import (yet_unset,
                                    ordered_container_etypes,
-                                   container_rtypes_etypes,
                                    parent_rschemas,
                                    needs_container_parent,
                                    _insertmany,
@@ -485,10 +484,10 @@ class ContainerClone(EntityAdapter):
         return relations
 
     def container_rtypes_etypes(self):
-        config = self.entity.container_config
-        return container_rtypes_etypes(self._cw.vreg.schema,
-                                       self.entity.cw_etype, config.rtype,
-                                       skiprtypes=config.skiprtypes)
+        schema = self._cw.vreg.schema
+        cfg = self.entity.container_config
+        rtypes, etypes = cfg.structure(schema)
+        return rtypes.union(cfg.inner_relations(schema)), etypes
 
     @cachedproperty
     def _specially_handled_rtypes(self):
