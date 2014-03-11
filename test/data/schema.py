@@ -68,7 +68,6 @@ class linked_to_mess(RelationDefinition):
 
 
 def post_build_callback(schema):
-    utils.define_container(schema, 'Diamond', 'diamond')
-    utils.define_container(schema, 'Mess', 'in_mess')
-
-
+    from config import DIAMOND_CONTAINER, MESS_CONTAINER
+    DIAMOND_CONTAINER.define_container(schema)
+    MESS_CONTAINER.define_container(schema)

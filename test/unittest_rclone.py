@@ -3,7 +3,7 @@ from logilab.common.testlib import unittest_main
 from cubicweb import Binary, ValidationError
 from cubicweb.devtools.testlib import CubicWebTC
 
-from cubes.container import utils
+from cubes.container import utils, _needs_container_parent
 from cubes.container.testutils import (userlogin, new_version, new_ticket,
                                        new_patch, new_card)
 
@@ -14,100 +14,53 @@ class TwoContainersTC(CubicWebTC):
     def test_needs_container_parent(self):
         needs_cp = set(eschema.type
                        for eschema in self.schema.entities()
-                       if utils.needs_container_parent(eschema))
+                       if _needs_container_parent(eschema))
         self.assertEqual(['CWAttribute', 'CWRelation', 'CWSourceSchemaConfig',
                           'Card', 'Folder', 'RQLExpression'],
                          sorted(needs_cp))
 
     # Project
-    def test_project_static_structure(self):
-        schema = self.vreg.schema
-        project = self.vreg['etypes'].etype_class('Project')
+    def test_project_structure(self):
+        from config import PROJECT_CONTAINER
         self.assertEqual((frozenset(['documents', 'implements', 'concerns', 'version_of',
                                      'subproject_of', 'requirement']),
                           frozenset(['Card', 'Patch', 'Ticket', 'Version', 'Folder','Project'])),
-                         utils.container_static_structure(schema, 'Project', 'project',
-                                                          skiprtypes=project.container_skiprtypes,
-                                                          skipetypes=project.container_skipetypes,
-                                                          subcontainers=project.container_subcontainers))
+                         PROJECT_CONTAINER.structure(self.vreg.schema))
 
 
-    def test_project_etypes_rtypes(self):
-        schema = self.vreg.schema
-        project = self.vreg['etypes'].etype_class('Project')
+    def test_project_inner(self):
+        from config import PROJECT_CONTAINER
         # NOTE: this contains 'parent' and 'element', which is WRONG
         # However, short of fully specifying the subcontainer (not just the top entity type)
         # we cannot do much against that. We really need some support viz Yams
         # (e.g. http://www.logilab.org/ticket/100723)
-        self.assertEqual((frozenset(['implements', 'documents', 'parent', 'done_in_version',
-                                     'element', 'requirement',
-                                     'concerns', 'version_of', 'subproject_of']),
-                          frozenset(['Card', 'Folder', 'Patch', 'Ticket', 'Version', 'Project'])),
-                         utils.container_rtypes_etypes(schema, 'Project', 'project',
-                                                       skiprtypes=project.container_skiprtypes,
-                                                       skipetypes=project.container_skipetypes,
-                                                       subcontainers=project.container_subcontainers))
+        self.assertEqual(set(['parent', 'done_in_version', 'element']),
+                         set(PROJECT_CONTAINER.inner_relations(self.vreg.schema)))
 
 
     def test_project_hooks(self):
-        schema = self.vreg.schema
-        project = self.vreg['etypes'].etype_class('Project')
-        self.assertEqual(set(['documents', 'requirement']),
-                         utils.set_container_parent_rtypes_hook(schema, 'Project', 'project',
-                                                                  skiprtypes=project.container_skiprtypes,
-                                                                  skipetypes=project.container_skipetypes,
-                                                                  subcontainers=project.container_subcontainers))
+        from config import PROJECT_CONTAINER
         self.assertEqual({'documents': set([('Folder', 'Project')]),
                           'requirement': set([('Ticket', 'Card')])},
-                         utils.container_parent_rdefs(schema, 'Project', 'project',
-                                                      skiprtypes=project.container_skiprtypes,
-                                                      skipetypes=project.container_skipetypes,
-                                                      subcontainers=project.container_subcontainers))
-        self.assertEqual(set(['implements', 'concerns', 'version_of', 'subproject_of',
-                              'requirement', 'documents']),
-                         utils.set_container_relation_rtypes_hook(schema, 'Project', 'project',
-                                                                  skiprtypes=project.container_skiprtypes,
-                                                                  skipetypes=project.container_skipetypes,
-                                                                  subcontainers=project.container_subcontainers))
+                         PROJECT_CONTAINER._container_parent_rdefs(self.vreg.schema))
 
     # Folder
     def test_folder_static_structure(self):
-        schema = self.vreg.schema
-        folder = self.vreg['etypes'].etype_class('Folder')
+        from config import FOLDER_CONTAINER
         self.assertEqual((frozenset(['parent', 'element']),
                           frozenset(['Card', 'Folder', 'File'])),
-                         utils.container_static_structure(schema, 'Folder', 'folder_root',
-                                                          skiprtypes=folder.container_skiprtypes,
-                                                          skipetypes=folder.container_skipetypes))
+                         FOLDER_CONTAINER.structure(self.vreg.schema))
 
-    def test_folder_etypes_rtypes(self):
-        schema = self.vreg.schema
-        folder = self.vreg['etypes'].etype_class('Folder')
-        self.assertEqual((frozenset(['parent', 'element']),
-                          frozenset(['Card', 'Folder', 'File'])),
-                         utils.container_rtypes_etypes(schema, 'Folder', 'folder_root',
-                                                       skiprtypes=folder.container_skiprtypes,
-                                                       skipetypes=folder.container_skipetypes))
+    def test_folder_inner(self):
+        from config import FOLDER_CONTAINER
+        self.assertEqual(set([]),
+                         set(FOLDER_CONTAINER.inner_relations(self.vreg.schema)))
 
     def test_folder_hooks(self):
-        schema = self.vreg.schema
-        folder = self.vreg['etypes'].etype_class('Folder')
-        self.assertEqual(set(['parent', 'element']),
-                         utils.set_container_parent_rtypes_hook(schema, 'Folder', 'folder_root',
-                                                                  skiprtypes=folder.container_skiprtypes,
-                                                                  skipetypes=folder.container_skipetypes,
-                                                                  subcontainers=folder.container_subcontainers))
+        from config import FOLDER_CONTAINER
         self.assertEqual({'parent': set([('Folder', 'Folder')]),
                           'element': set([('Folder', 'Card')])},
-                         utils.container_parent_rdefs(schema, 'Folder', 'folder_root',
-                                                      skiprtypes=folder.container_skiprtypes,
-                                                      skipetypes=folder.container_skipetypes,
-                                                      subcontainers=folder.container_subcontainers))
-        self.assertEqual(set(('parent', 'element')),
-                         utils.set_container_relation_rtypes_hook(schema, 'Folder', 'folder_root',
-                                                                  skiprtypes=folder.container_skiprtypes,
-                                                                  skipetypes=folder.container_skipetypes,
-                                                                  subcontainers=folder.container_subcontainers))
+                         FOLDER_CONTAINER._container_parent_rdefs(self.vreg.schema))
 
 def parent_titles(parent):
     parents = []

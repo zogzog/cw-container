@@ -3,6 +3,8 @@ from cubicweb.schema import RRQLExpression, ERQLExpression
 
 from cubes.container import utils
 from cubes.container.secutils import PERM, PERMS, setup_container_rtypes_security
+from config import PROJECT_CONTAINER, FOLDER_CONTAINER
+
 
 class Project(EntityType):
     name = String(required=True)
@@ -143,6 +145,6 @@ class requirement(RelationDefinition):
 
 
 def post_build_callback(schema):
-    utils.define_container(schema, 'Project', 'project', subcontainers=('Folder',))
-    utils.define_container(schema, 'Folder', 'folder_root')
+    PROJECT_CONTAINER.define_container(schema)
+    FOLDER_CONTAINER.define_container(schema)
     setup_security(schema)

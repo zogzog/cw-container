@@ -1,35 +1,34 @@
-from cubicweb.selectors import is_instance
+from cubicweb.entities import AnyEntity
+
+from cubicweb.predicates import is_instance
 
 from cubes.container import utils
 from cubes.container.entities import (Container, ContainerProtocol,
                                       ContainerClone, MultiParentProtocol)
 
-class Diamond(Container):
+from config import DIAMOND_CONTAINER, MESS_CONTAINER
+
+
+class Diamond(AnyEntity):
     __regid__ = 'Diamond'
-    container_rtype = 'diamond'
-    container_skipetypes = ('EtypeNotInContainers',)
+    container_config = DIAMOND_CONTAINER
 
 
 class DiamondClone(ContainerClone):
-    rtypes_to_skip = ()
-    etypes_to_skip = ()
+    __select__ = is_instance('Diamond')
 
 
-class Mess(Container):
+class Mess(AnyEntity):
     __regid__ = 'Mess'
-    container_rtype = 'in_mess'
-    container_skiprtypes = ('local_group', 'wf_info_for')
+    container_config = MESS_CONTAINER
+
+
+class MessClone(ContainerClone):
+    __select__ = is_instance('Mess')
+
+
 
 def registration_callback(vreg):
-    vreg.register(Diamond)
-    vreg.register(DiamondClone)
-    vreg.register(Mess)
-    _rtypes, etypes_d = utils.container_static_structure(vreg.schema, 'Diamond', Diamond.container_rtype)
-    _rtypes, etypes_m = utils.container_static_structure(vreg.schema, 'Mess', Mess.container_rtype)
-    # let's add CWUser for tests
-    protocol = type('CProtocol', (ContainerProtocol, ),
-                    {'__select__': is_instance('CWUser', 'Diamond', 'Mess', *etypes_d.union(etypes_m))})
-    vreg.register(protocol)
-    mprotocol = type('MProtocol', (MultiParentProtocol, ),
-                     {'__select__': is_instance('IAmAnAttributeCarryingRelation')})
-    vreg.register(mprotocol)
+    vreg.register_all(globals().values(), __name__)
+    vreg.register(DIAMOND_CONTAINER.build_container_protocol(vreg.schema))
+    vreg.register(MESS_CONTAINER.build_container_protocol(vreg.schema))

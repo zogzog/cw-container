@@ -1,21 +1,22 @@
-from cubicweb.selectors import is_instance
+from cubicweb.predicates import is_instance
+from cubicweb.entities import AnyEntity
 
-from cubes.container import utils
-from cubes.container.entities import Container, ContainerProtocol, ContainerClone
+from cubes.container.entities import ContainerClone
 
-class Project(Container):
+from config import PROJECT_CONTAINER, FOLDER_CONTAINER
+
+class Project(AnyEntity):
     __regid__ = 'Project'
-    container_rtype = 'project'
-    container_subcontainers = ('Folder',)
+    container_config = PROJECT_CONTAINER
+
+
+class Folder(AnyEntity):
+    __regid__ = 'Folder'
+    container_config = FOLDER_CONTAINER
 
 
 class ProjectClone(ContainerClone):
     __select__ = is_instance('Project')
-
-
-class Folder(Container):
-    __regid__ = 'Folder'
-    container_rtype = 'folder_root'
 
 
 class FolderClone(ContainerClone):
@@ -24,10 +25,5 @@ class FolderClone(ContainerClone):
 
 def registration_callback(vreg):
     vreg.register_all(globals().values(), __name__)
-    _rtypes, proj_etypes = utils.container_static_structure(vreg.schema, 'Project',
-                                                            Project.container_rtype,
-                                                            subcontainers=Project.container_subcontainers)
-    _rtypes, fold_etypes = utils.container_static_structure(vreg.schema, 'Folder', Folder.container_rtype)
-    protocol = type('CProtocol', (ContainerProtocol, ),
-                    {'__select__': is_instance('Project', *(proj_etypes | fold_etypes))})
-    vreg.register(protocol)
+    vreg.register(PROJECT_CONTAINER.build_container_protocol(vreg.schema))
+    vreg.register(FOLDER_CONTAINER.build_container_protocol(vreg.schema))

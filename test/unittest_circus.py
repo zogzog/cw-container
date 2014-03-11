@@ -9,14 +9,13 @@ class CircusTC(CubicWebTC):
     appid = 'data-circus'
 
     def test_static_structure(self):
+        from config import CIRCUS_CONTAINER, MENAGERIE_CONTAINER
         schema = self.vreg.schema
         diamond = self.vreg['etypes'].etype_class('Circus')
-        rtypes, etypes = utils.container_static_structure(
-            schema, 'Circus', 'circus', subcontainers=('Menagerie',))
+        rtypes, etypes = CIRCUS_CONTAINER.structure(schema)
         self.assertSetEqual(set(('Clown', 'ClownCabal', 'Joke', 'Menagerie')), etypes)
         self.assertSetEqual(set(('clowns', 'cabals', 'jokes', 'members', 'in_circus')), rtypes)
-        rtypes, etypes = utils.container_static_structure(
-            schema, 'Menagerie', 'zoo')
+        rtypes, etypes = MENAGERIE_CONTAINER.structure(schema)
         self.assertEqual(set(['animals']), rtypes)
         self.assertEqual(set(['Animal']), etypes)
 

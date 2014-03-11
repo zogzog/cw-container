@@ -1,39 +1,12 @@
-from cubicweb.server.hook import Hook, match_rtype
-from cubes.container import hooks, utils
+from itertools import chain
 
-class SetProjectContainerRelation(hooks.SetContainerRelation):
-    pass
+from cubicweb.server import ON_COMMIT_ADD_RELATIONS
 
-class SetFolderContainerRelation(hooks.SetContainerRelation):
-    pass
-
+from config import PROJECT_CONTAINER, FOLDER_CONTAINER
 
 def registration_callback(vreg):
     schema = vreg.schema
-    projeclass = vreg['etypes'].etype_class('Project')
-
-    # Project definition
-    rdefs = utils.container_parent_rdefs(schema, 'Project',
-                                         projeclass.container_rtype,
-                                         projeclass.container_skiprtypes,
-                                         projeclass.container_skipetypes,
-                                         projeclass.container_subcontainers)
-    SetProjectContainerRelation._container_parent_rdefs = rdefs
-    rtypes = utils.set_container_relation_rtypes_hook(schema, 'Project',
-                                                      projeclass.container_rtype,
-                                                      projeclass.container_skiprtypes,
-                                                      projeclass.container_skipetypes,
-                                                      projeclass.container_subcontainers)
-    SetProjectContainerRelation.__select__ = Hook.__select__ & match_rtype(*rtypes)
-
-    # Folder definition
-    foldeclass = vreg['etypes'].etype_class('Folder')
-    rdefs = utils.container_parent_rdefs(schema, 'Folder',
-                                         foldeclass.container_rtype)
-    SetFolderContainerRelation._container_parent_rdefs = rdefs
-    rtypes = utils.set_container_relation_rtypes_hook(schema, 'Folder',
-                                                      foldeclass.container_rtype)
-    SetFolderContainerRelation.__select__ = (Hook.__select__ & match_rtype(*rtypes))
-
-    vreg.register(SetProjectContainerRelation)
-    vreg.register(SetFolderContainerRelation)
+    for hookcls in PROJECT_CONTAINER.build_container_hooks(schema):
+        vreg.register(hookcls)
+    for hookcls in FOLDER_CONTAINER.build_container_hooks(schema):
+        vreg.register(hookcls)
