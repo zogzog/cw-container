@@ -61,11 +61,11 @@ created only when there exists several possible parents. When there
 exists only one, schema reflection is used to find the actual parent.
 
 This is also automatically set by a hook triggered on any container
-constituent rtype.
+structural rtype.
 
 While several composite relations can be allowed between an entity
 and container entities, at most one is allowed to be valued at
-a given time for normal entities.
+a given time for *normal* entities.
 
 However there exist use cases for entities that are simultaneously
 engaged in composite relations with several other entities. The most
@@ -82,7 +82,7 @@ Outward links
 .............
 
 Non composite relations from contained entities to non contained
-entities are boundary relations.
+entities are border relations.
 
 
 Operations
@@ -153,7 +153,7 @@ These are the usual steps involved in a container definition:
   implement custom behaviour.
 
   Indeed the `MultiParentProtocol` will be called from the
-  `SetContainerParent` hook when such an entity already has one parent
+  `SetContainerRelation` hook when such an entity already has one parent
   set.
 
 * container configuration in hooks: `test/data/hooks.py`

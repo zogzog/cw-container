@@ -17,6 +17,7 @@ class ContainerLessTC(CubicWebTC):
         adapter = u.cw_adapt_to('Container')
         self.assertIsNone(adapter)
 
+
 class ContainerEntitiesTC(CubicWebTC):
 
     def setup_database(self):

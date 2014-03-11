@@ -55,6 +55,7 @@ class PERM(str):
 # mapping from PERM to permissions objects
 PERMS = {}
 
+_PROCESSED_PERMISSION_RDEFS = set()
 
 def setup_container_rtypes_security(schema,
                                     container_etypeclass,
@@ -66,11 +67,16 @@ def setup_container_rtypes_security(schema,
     cetype = container_etypeclass.__regid__
     skiprtypes = frozenset(container_etypeclass.container_skiprtypes)
     skipetypes = frozenset(container_etypeclass.container_skipetypes)
+    subcontainers = container_etypeclass.container_subcontainers
     rtypes, etypes = utils.container_rtypes_etypes(schema,
                                                    cetype,
                                                    container_etypeclass.container_rtype,
                                                    skiprtypes=skiprtypes,
-                                                   skipetypes=skipetypes)
+                                                   skipetypes=skipetypes,
+                                                   subcontainers=subcontainers)
+
+    # we palliate for the non-reflexivity of the container relation
+    etypesplus = etypes | set([cetype])
 
     def rdefs_roles_to_container(rschema):
         """ computes a mapping of (subjet, object) to 'S' or 'O' role name
@@ -78,19 +84,36 @@ def setup_container_rtypes_security(schema,
         """
         rdefs_roles = {}
         for (subj, obj), rdef in rschema.rdefs.iteritems():
-            composite_role = rdef.composite
-            if composite_role is None:
+            if rdef.composite is None:
                 # if both the subj/obj are in the container, we
                 # default to the subject (it does not really matter)
                 if subj.type in etypes:
                     rdefs_roles[(subj.type, obj.type)] = 'S'
                 elif obj.type in etypes:
                     rdefs_roles[(subj.type, obj.type)] = 'O'
-            else:
-                # structural relations:
-                # we must choose the side nearest to the container root
-                # 'subject' => 'S', 'object' => 'O'
-                rdefs_roles[(subj.type, obj.type)] = composite_role[:1].upper()
+
+                continue
+
+            # structural relations:
+            # we must choose the side nearest to the container root
+            # 'subject' => 'S', 'object' => 'O'
+            # Both subj/obj must be in etypes
+            if subj not in etypesplus and obj not in etypesplus:
+                continue
+
+            composite = subj if rdef.composite == 'subject' else obj
+            # filter out subcontainer
+            # any relation who defined a subcontainer as a composite
+            # is not ours and its handling will be delegated
+            if composite in subcontainers:
+                continue
+
+            # any relation that points to an etype which is not ours
+            # (including ourselves) will be handled by someone else
+            if composite not in etypesplus:
+                continue
+
+            rdefs_roles[(subj.type, obj.type)] = rdef.composite[:1].upper()
         return rdefs_roles
 
     def set_rdefs_perms(rschema, rdefs_roles, perms):
@@ -100,10 +123,13 @@ def setup_container_rtypes_security(schema,
         assert callable(perms)
         for (subj, obj), role in rdefs_roles.iteritems():
             rdef = rschema.rdefs[(subj, obj)]
+            if rdef in _PROCESSED_PERMISSION_RDEFS:
+                continue
             if isinstance(rdef.permissions, PERM):
                 rdef.permissions = PERMS[rdef.permissions]
             else:
                 rdef.permissions = perms(role)
+            _PROCESSED_PERMISSION_RDEFS.add(rdef)
 
     # 1. internal rtypes
     for rtype in rtypes:
@@ -126,4 +152,3 @@ def setup_container_rtypes_security(schema,
         rschema = schema[rtype]
         rdefs_roles = rdefs_roles_to_container(rschema)
         set_rdefs_perms(rschema, rdefs_roles, border_rtypes_perms)
-

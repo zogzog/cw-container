@@ -125,3 +125,4 @@ hooks responsible of maintaining the `container` relation at edition time.
         schema = vreg.schema
         for hookcls in PROJECT_CONTAINER.build_container_hooks(schema):
             vreg.register(hookcls)
+

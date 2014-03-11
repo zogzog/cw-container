@@ -17,7 +17,7 @@
 """cubicweb-container entity's classes"""
 from datetime import datetime
 from collections import defaultdict
-from itertools import izip
+from itertools import izip, chain
 from warnings import warn
 
 from logilab.common.decorators import cached, cachedproperty
@@ -216,8 +216,9 @@ class ContainerClone(EntityAdapter):
         # let's flush all collected relations
         self.info('linking (%d relations)', len(relations))
         for rtype, eids in relations.iteritems():
-            self.info('%s linking %s' %
-                      ('internal' if rtype in internal_rtypes else 'external', rtype))
+            self.info('%s linking %s (%s elements)' %
+                      ('internal' if rtype in internal_rtypes else 'external',
+                       rtype, len(eids)))
             subj_obj = []
             for subj, obj in eids:
                 subj = orig_to_clone[subj]
@@ -297,7 +298,7 @@ class ContainerClone(EntityAdapter):
         # a dict from rtype to rql variable
         already_used_rtypes = dict(_iter_mainvar_relations(rqlst))
         # running without metadata hooks: we must handle some rtypes here
-        # we also will loose: is_instance_of, created_by, owned_by
+        # we also will loose: is_instance_of, cwuri, has_text, eid, is, identity
         no_copy_meta = self._no_copy_meta
         # keep an ordered-list of selected rtypes
         fetched_rtypes = []
@@ -340,6 +341,10 @@ class ContainerClone(EntityAdapter):
                     or rtype in self.rtypes_to_skip):
                 yield rtype
 
+    @cachedproperty
+    def _ordered_etypes(self):
+        return list(self.clonable_etypes())
+
     def clonable_etypes(self):
         cfg = self.entity.container_config
         for etype in cfg._ordered_container_etypes(self._cw.vreg.schema):
@@ -377,25 +382,27 @@ class ContainerClone(EntityAdapter):
             self.handle_special_relations((rtype, orig_to_clone[orig], linked)
                                           for rtype, orig, linked in deferred_relations)
 
-    def _reserve_eids(self, qty):
+    def _fast_reserve_eids(self, qty):
         """ not fast enough (yet) """
         source = self._cw.repo.sources_by_uri['system']
-        for _x in range(qty):
-            yield source.create_eid(self._cw)
+        if qty == 1:
+            return (source.create_eid(self._cw),)
+        return source.create_eid(self._cw, count=qty)
+
+    def preprocess_attributes(self, etype, oldeid, attributes):
+        pass
 
     def _fast_create_entities(self, etype, entities, orig_to_clone):
         eschema = self._cw.vreg.schema[etype]
         etypeid = eschema_eid(self._cw, eschema)
         ancestorseid = [etypeid] + [eschema_eid(self._cw, aschema)
                                     for aschema in eschema.ancestors()]
-        eids = self._reserve_eids(len(entities))
         metadata = []
         isrelation = []
         isinstanceof = []
         now = datetime.utcnow()
-        for attributes, neweid in izip(entities, eids):
-            oldeid = attributes['eid']
-            orig_to_clone[oldeid] = attributes['eid'] = neweid
+        for attributes in entities:
+            neweid = attributes['eid']
             metadata.append({'type': etype, 'eid': neweid,
                              'source': 'system', 'asource': 'system',
                              'mtime': now})
@@ -410,31 +417,120 @@ class ContainerClone(EntityAdapter):
         _insertmany(self._cw, 'is_relation', isrelation)
         _insertmany(self._cw, 'is_instance_of_relation', isinstanceof)
 
+    def _crosses_border(self, etype, rtype):
+        """ Tells whether the (etype, rtype, *) relation
+        has ALL its targets outside of the container """
+        if rtype == 'container_parent':
+            # it is technically possible that it crosses the border
+            # but a container_parent, by design, is always an inner
+            # container relation
+            return False
+        schema = self._cw.vreg.schema
+        etypes = set(self._ordered_etypes)
+        etypes.add(self.entity.cw_etype)
+        return all(target not in etypes
+                   for target in schema[rtype].targets(etype))
+
+    def _already_cloned(self, etype, rtype):
+        """ Tells whether all targets in the (etype, rtype, TARGET)
+        relation can have been already cloned """
+        # a shortcut for the container relation
+        if rtype == self.entity.container_config.rtype:
+            return True
+        schema = self._cw.vreg.schema
+        ordered_etypes = self._ordered_etypes
+        try:
+            return all(ordered_etypes.index(etype) > ordered_etypes.index(target)
+                       for target in schema[rtype].targets(etype))
+        except ValueError:
+            # some target is not clonable
+            return False
+
     def _etype_create_clones(self, etype, orig_to_clone, candidates_rset,
                              relations, deferred_relations,
                              fetched_rtypes, inlined_rtypes):
-        clonable_rtypes = set(self.clonable_rtypes(etype))
         entities = []
-        for row in candidates_rset.rows:
-            candidate_eid = row[0]
-            attributes = {'eid': candidate_eid, 'cwuri': u''}
+        neweids = self._fast_reserve_eids(len(candidates_rset))
+
+        # detect inlined rtypes that may be already cloned
+        inlined_rtypes_already_cloned = set()
+        # detect inlined rtypes that have at least one
+        # out-of-container target
+        inlined_rtypes_crossing_border = set()
+
+        for rtype in fetched_rtypes:
+            if rtype in inlined_rtypes:
+                if self._crosses_border(etype, rtype):
+                    inlined_rtypes_crossing_border.add(rtype)
+                elif self._already_cloned(etype, rtype):
+                    inlined_rtypes_already_cloned.add(rtype)
+
+        # Unfortunately, the above classification still can miss
+        # opportunities, because the static analysis lacks relevant
+        # information.
+        # Hence we peek the first rset row to determine if an inlined
+        # relation has been cloned, and if by chance it is valued
+        # and appears to have a clone, we just avoided to send an inlined
+        # relation to .add_relations (which performs horribly).
+        iterrows = iter(candidates_rset.rows)
+        firstrow = iterrows.next()
+        for rtype, val in zip(fetched_rtypes, firstrow[1:]):
+            if rtype in inlined_rtypes:
+                if rtype in inlined_rtypes_crossing_border:
+                    continue
+                if val in orig_to_clone:
+                    if rtype not in inlined_rtypes_crossing_border:
+                        inlined_rtypes_already_cloned.add(rtype)
+
+        # Let's gather some real-life info
+        self.info('Optimized inlined rtypes for %s', etype)
+        self.info('crossing border (no need to wait for a clone): %s',
+                  sorted(inlined_rtypes_crossing_border))
+        self.info('already cloned: %s',
+                  sorted(inlined_rtypes_already_cloned))
+        self.info('unoptimisable: %s', sorted(inlined_rtypes -
+                                              (inlined_rtypes_already_cloned |
+                                               inlined_rtypes_crossing_border)))
+
+        for row, neweid in izip(chain([firstrow], iterrows), neweids):
+            oldeid = row[0]
+            attributes = {'eid': neweid, 'cwuri': u''}
             for rtype, val in zip(fetched_rtypes, row[1:]):
-                # even if val is None, we take it
+
                 if rtype in inlined_rtypes:
+                    # We handle these carefully to ensure the following invariant:
+                    # either an rtype is handled in attributes or in relation
+                    # but this is not a value-dependant decision
+                    # (because insertmany is a bit rigid).
+                    # Hence, even if val is None, we take it
                     if rtype in self._specially_handled_rtypes:
-                        deferred_relations.append((rtype, candidate_eid, val))
-                    elif val in orig_to_clone:
-                        attributes[rtype] = orig_to_clone[val]
-                    elif rtype not in clonable_rtypes:
-                        if rtype not in self.entity.container_config.skiprtypes:
-                            attributes[rtype] = val
-                    else:
-                        # this will be costly
-                        relations[rtype].append((candidate_eid, val))
-                else: # standard attribute
-                    if isinstance(val, Binary):
-                        val = buffer(val.getvalue())
-                    attributes[rtype] = val
+                        deferred_relations.append((rtype, oldeid, val))
+                        continue
+
+                    if rtype in inlined_rtypes_already_cloned:
+                        # there can be Nones here
+                        if val is not None:
+                            assert val in orig_to_clone
+                        attributes[rtype] = orig_to_clone.get(val)
+                        continue
+
+                    if rtype in inlined_rtypes_crossing_border:
+                        # feed it right away
+                        attributes[rtype] = val
+                        continue
+
+                    # deferred to relations (or nothing if None)
+                    if val is not None:
+                        relations[rtype].append((oldeid, val))
+                    continue
+
+                # standard attribute
+                if isinstance(val, Binary):
+                    val = buffer(val.getvalue())
+                attributes[rtype] = val
+
+            self.preprocess_attributes(etype, oldeid, attributes)
+            orig_to_clone[oldeid] = neweid
             entities.append(attributes)
         self._fast_create_entities(etype, entities, orig_to_clone)
 
