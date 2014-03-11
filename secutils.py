@@ -44,9 +44,10 @@ class PERM(str):
                                  __permissions__=PERM('BABAR_RULE'))
     """
 
-    def __init__(self, *args, **kwargs):
-        super(PERM, self).__init__(*args, **kwargs)
+    def __new__(cls, string):
+        self = str.__new__(cls, string)
         assert self in PERMS, '%s does not appear in %s' % (self, PERMS.keys())
+        return self
 
     def copy(self):
         return self
