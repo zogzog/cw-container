@@ -80,6 +80,7 @@ def first_parent_rtype_role(eschema):
 
 class ContainerProtocol(EntityAdapter):
     __regid__ = 'Container'
+    __abstract__ = True
 
     @property
     @deprecated('[container 2.4] Use ContainerConfiguration')
