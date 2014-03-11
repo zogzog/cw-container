@@ -19,18 +19,69 @@
 
 provides "generic container" services
 """
-from collections import deque
 
-from cubicweb import neg_role
+import logging
+from collections import deque, defaultdict
 
-from cubicweb import schema
+from logilab.common.decorators import cached
+from yams.buildobjs import RelationType, RelationDefinition
+
+from cubicweb import neg_role, schema as cw_schema
 from cubicweb.predicates import EntityPredicate, is_instance
-from cubicweb.server.hook import Hook, match_rtype
 
-from cubes.container import utils
+LOGGER = logging.getLogger('cubes.container')
+cw_schema.META_RTYPES.update(('container_etype', 'container_parent'))
 
 
-schema.META_RTYPES.update(('container_etype', 'container_parent'))
+@cached
+def _composite_rschemas(eschema):
+    output = []
+    for rschema, _types, role in eschema.relation_definitions():
+        if rschema.meta or rschema.final:
+            continue
+        crole = eschema.rdef(rschema, role, takefirst=True).composite
+        if crole:
+            output.append( (rschema, role, crole) )
+    return output
+
+@cached
+def _needs_container_parent(eschema):
+    return len(list(parent_rschemas(eschema))) > 1
+
+def _define_container_parent_rdefs(schema, etype,
+                                   needs_container_parent=_needs_container_parent):
+    eschema = schema[etype]
+    cparent_rschema = schema['container_parent']
+    if needs_container_parent(eschema):
+        for peschema in parent_eschemas(eschema):
+            petype = peschema.type
+            if (etype, petype) not in cparent_rschema.rdefs:
+                rdef = RelationDefinition(etype, 'container_parent', petype,
+                                          cardinality='?*')
+                schema.add_relation_def(rdef)
+
+def parent_eschemas(eschema):
+    for rschema, role, crole in _composite_rschemas(eschema):
+        if role != crole:
+            for eschema in rschema.targets(role=role):
+                yield eschema
+
+def parent_rschemas(eschema):
+    for rschema, role, crole in _composite_rschemas(eschema):
+        if role != crole:
+            yield rschema, role
+
+def parent_erschemas(eschema):
+    for rschema, role, crole in _composite_rschemas(eschema):
+        if role != crole:
+            for eschema in rschema.targets(role=role):
+                yield rschema, role, eschema
+
+def children_rschemas(eschema):
+    for rschema, role, crole in _composite_rschemas(eschema):
+        if role == crole:
+            yield rschema
+
 
 class is_in_container(EntityPredicate):
     """Selector adding bonus points if the entity adapted to `ContainerProtocol`
@@ -72,6 +123,7 @@ class ContainerConfiguration(object):
         self.skiprtypes = frozenset(skiprtypes)
         self.skipetypes = frozenset(skipetypes)
         self.subcontainers = frozenset(subcontainers)
+        cw_schema.META_RTYPES.add(self.rtype)
 
     def structure(self, schema):
         """Return the sets of relation types and entity types that define the
@@ -173,23 +225,58 @@ class ContainerConfiguration(object):
 
     # container setup methods ##################################################
 
-    def define_container(self, schema):
-        """Add schema definition for the container configuration"""
-        utils.define_container(schema, self.etype, self.rtype,
-                               skiprtypes=self.skiprtypes,
-                               skipetypes=self.skipetypes,
-                               subcontainers=self.subcontainers)
+    def define_container(self, schema, rtype_permissions=None):
+        """Add schema definition for the container configuration
+
+        * insert the container relation type `crtype` in schema (possibly with
+          `rtype_permissions`) if not already present.
+
+        * insert all relation definitions `crtype` between the container entity
+          type and entities belonging to the container, the latter being defined
+          by construction of the container structure (see
+          `container_static_structure`).
+        """
+        _rtypes, etypes = self.structure(schema)
+        cetype = self.etype
+        crtype = self.rtype
+        if not crtype in schema:
+            # ease pluggability of container in existing applications
+            schema.add_relation_type(RelationType(crtype, inlined=True))
+        else:
+            LOGGER.warning('%r is already defined in the schema - you probably want '
+                           'to let it to the container cube' % crtype)
+        if rtype_permissions is None:
+            rtype_permissions = {'read': ('managers', 'users'),
+                                 'add': ('managers', 'users'),
+                                 'delete': ('managers', 'users')}
+            schema.warning('setting standard lenient permissions on %s relation', crtype)
+        crschema = schema[crtype]
+        cetype_rschema = schema['container_etype']
+        for etype in etypes:
+            if (etype, cetype) not in crschema.rdefs:
+                # checking this will help adding containers to existing applications
+                # and reusing the container rtype
+                rdef = RelationDefinition(etype, crtype, cetype, cardinality='?*',
+                                          __permissions__=rtype_permissions)
+                schema.add_relation_def(rdef)
+            else:
+                LOGGER.warning('%r - %r - %r rdef is already defined in the schema '
+                               '- you probably want to let it to the container cube',
+                               etype, crtype, cetype)
+            if (etype, 'CWEType') not in cetype_rschema.rdefs:
+                rdef = RelationDefinition(etype, 'container_etype', 'CWEType',
+                                          cardinality='?*')
+                schema.add_relation_def(rdef)
+            _define_container_parent_rdefs(schema, etype)
 
     def build_container_hooks(self, schema):
         """Return the container hook with selector set"""
+        # Local import because cw.server may not be installed
+        from cubicweb.server.hook import Hook, match_rtype
         # Local import because this is a dynamically loaded module.
         from cubes.container import hooks
-        parent_rdefs = utils.container_parent_rdefs(
-            schema, self.etype, self.rtype, skiprtypes=self.skiprtypes,
-            skipetypes=self.skipetypes, subcontainers=self.subcontainers)
-        rtypes = utils.set_container_relation_rtypes_hook(
-            schema, self.etype, self.rtype, skiprtypes=self.skiprtypes,
-            skipetypes=self.skipetypes, subcontainers=self.subcontainers)
+        parent_rdefs = self._container_parent_rdefs(schema)
+        rtypes = self.structure(schema)[0]
         container_rel_hook = type(
             self.etype + 'SetContainerRelation',
             (hooks.SetContainerRelation, ),
@@ -219,3 +306,111 @@ class ContainerConfiguration(object):
     def etypes_to_sync(self, schema):
         """Return the entity types to be synchronized in migration."""
         return self.structure(schema)[1].union([self.etype])
+
+    # internals ################################################################
+
+    def _container_parent_rdefs(self, schema):
+        """etypes having several upward paths to the container have a dedicated
+        container_parent rtype to speed up the parent computation
+        """
+        rtypes, etypes = self.structure(schema)
+        select_rdefs = defaultdict(set)
+        for etype in etypes:
+            eschema = schema[etype]
+            if not _needs_container_parent(eschema):
+                continue
+            for rschema, role, teschema in parent_erschemas(eschema):
+                if rschema.type in rtypes:
+                    if role == 'subject':
+                        frometype, toetype = etype, teschema.type
+                    else:
+                        frometype, toetype = teschema.type, etype
+                    select_rdefs[rschema.type].add( (frometype, toetype) )
+        return dict(select_rdefs)
+
+    def _ordered_container_etypes(self, schema):
+        """Return list of etypes of a container by dependency order this is
+        provided for simplicity and backward compatibility reasons etypes that
+        are parts of a cycle are undiscriminately added at the end
+        """
+        orders, etype_map = self._container_etype_orders(schema)
+        total_order = []
+        for order in orders:
+            total_order += order
+        return total_order + etype_map.keys()
+
+
+    def _container_etype_orders(self, schema):
+        """ computes linearizations and cycles of etypes within a container """
+        etypes = self.structure(schema)[1]
+        orders = []
+        etype_map = dict((etype, _needed_etypes(schema, etype, self.etype,
+                                                self.rtype, self.skiprtypes))
+                         for etype in etypes)
+        maplen = len(etype_map)
+        while etype_map:
+            neworder = _linearize(etype_map, etypes)
+            if neworder:
+                orders.append(neworder)
+            if maplen == len(etype_map):
+                break
+            maplen = len(etype_map)
+        return orders, etype_map
+
+
+# more internals ###############################################################
+
+def _needed_etypes(schema, etype, cetype, crtype, computed_rtypes=()):
+    """ finds all container etypes this one depends on to be built
+    start from all subject + object relations """
+    etypes = defaultdict(list)
+    skipetypes = set((cetype,))
+    # these should include rtypes
+    # that create cycles but actually are false dependencies
+    skiprtypes = set(computed_rtypes).union((crtype, 'container_etype', 'container_parent'))
+    skiprtypes.add(crtype)
+    eschema = schema[etype]
+    adjacent_rtypes = [(rschema.type, role)
+                       for role in ('subject', 'object')
+                       for rschema in getattr(eschema, '%s_relations' % role)()
+                       if not (rschema.meta or rschema.final or rschema.type in skiprtypes)]
+    children_rtypes = [r.type for r in children_rschemas(eschema)]
+    parent_etypes = set(parent_eschemas(eschema))
+    for rtype, role in adjacent_rtypes:
+        if rtype in children_rtypes:
+            continue
+        rdef = eschema.rdef(rtype, role)
+        target = getattr(rdef, neg_role(role))
+        if target.type in skipetypes:
+            continue
+        if target.type not in parent_etypes:
+            if rdef.cardinality[0 if role == 'subject' else 1] in '?*':
+                continue
+        etypes[target.type].append((rdef, role))
+    return etypes
+
+def _linearize(etype_map, all_etypes):
+    # Kahn 1962
+    sorted_etypes = []
+    independent = set()
+    for etype, deps in etype_map.items():
+        if not deps:
+            independent.add(etype)
+            del etype_map[etype]
+        for depetype in deps:
+            if depetype not in all_etypes:
+                # out of container dependencies must be added
+                # to complete the graph
+                etype_map[depetype] = dict()
+    while independent:
+        indep_etype = min(independent) # get next in ascii order
+        independent.remove(indep_etype)
+        sorted_etypes.append(indep_etype)
+        for etype, incoming in etype_map.items():
+            if indep_etype in incoming:
+                incoming.pop(indep_etype)
+            if not incoming:
+                independent.add(etype)
+                etype_map.pop(etype)
+    return [etype for etype in sorted_etypes
+            if etype in all_etypes]

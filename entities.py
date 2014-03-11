@@ -33,13 +33,14 @@ from cubicweb.schema import VIRTUAL_RTYPES
 from cubicweb.entities import AnyEntity
 from cubicweb.view import EntityAdapter
 
-from cubes.container import ContainerConfiguration
-from cubes.container.utils import (ordered_container_etypes,
-                                   parent_rschemas,
-                                   needs_container_parent,
-                                   _insertmany,
+from cubes.container import (ContainerConfiguration,
+                             parent_rschemas,
+                             _needs_container_parent,
+                             )
+from cubes.container.utils import (_insertmany,
                                    _add_rqlst_restriction,
-                                   _iter_mainvar_relations)
+                                   _iter_mainvar_relations,
+                                   )
 
 
 class Container(AnyEntity):
@@ -47,7 +48,7 @@ class Container(AnyEntity):
     __deprecation_warning__ = '[container 2.4] Use ContainerConfiguration'
     __abstract__ = True
 
-    # container API
+    # Deprecated container API (replaced by container_config)
     container_rtype = None
     container_skiprtypes = ()
     container_skipetypes = ()
@@ -94,7 +95,7 @@ class ContainerProtocol(EntityAdapter):
             return None
         if ccwetype:
             etypes = self._cw.vreg['etypes']
-            return etypes.etype_class(ccwetype[0].name).container_rtype
+            return etypes.etype_class(ccwetype[0].name).container_config.rtype
 
     @property
     def related_container(self):
@@ -117,7 +118,7 @@ class ContainerProtocol(EntityAdapter):
 
     @property
     def parent(self):
-        if needs_container_parent(self.entity.e_schema):
+        if _needs_container_parent(self.entity.e_schema):
             parent = self.entity.container_parent
             return parent[0] if parent else None
         try:
@@ -340,14 +341,10 @@ class ContainerClone(EntityAdapter):
                 yield rtype
 
     def clonable_etypes(self):
-        for etype in ordered_container_etypes(
-                self._cw.vreg.schema,
-                self.entity.__regid__,
-                self.entity.container_config.rtype,
-                self.rtypes_to_skip,
-                self.etypes_to_skip,
-                self.entity.container_config.subcontainers):
-            yield etype
+        cfg = self.entity.container_config
+        for etype in cfg._ordered_container_etypes(self._cw.vreg.schema):
+            if etype not in self.etypes_to_skip:
+                yield etype
 
     def _etype_clone(self, etype, orig_to_clone):
         # 1/ fetch all <etype> entities in current container
