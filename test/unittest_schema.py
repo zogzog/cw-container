@@ -1,7 +1,9 @@
 from logilab.common.testlib import unittest_main
 from cubicweb.devtools.testlib import CubicWebTC
 
-from cubes.container import ContainerConfiguration, utils, _needs_container_parent
+from cubes.container import (ContainerConfiguration, utils,
+                             _needs_container_parent, testutils)
+
 
 class SchemaContainerTC(CubicWebTC):
 
@@ -68,6 +70,39 @@ class SchemaContainerTC(CubicWebTC):
         self.assertEqual(set(['to_mess']),
                          utils.set_container_parent_rtypes_hook(schema, 'Mess', 'in_mess',
                                                                 cfg.skiprtypes))
+
+    def test_etypes_rtypes_not_in_container(self):
+        # Entity types and relation types defined in CW and present in any
+        # schema.
+        cw_ignore_rtypes = ('bookmarked_by', 'primary_email', 'use_email',
+                            'prefered_form')
+        cw_ignore_etypes = ('EmailAddress', 'CWGroup', 'Bookmark', 'CWUser')
+        diamond_cfg = ContainerConfiguration(
+            'Diamond', 'diamond', skipetypes=('EtypeNotInContainers',))
+        rtypes, etypes = testutils.rtypes_etypes_not_in_container(
+            self.vreg.schema, diamond_cfg)
+        self.set_description('diamond: rtypes not in container')
+        yield self.assertCountEqual, rtypes, cw_ignore_rtypes + (
+            'watcher', 'composite_but_not_in_diamond',
+            'linked_to_mess', 'to_mess', 'local_group')
+        self.set_description('diamond: etypes not in container')
+        yield self.assertCountEqual, etypes, cw_ignore_etypes + (
+            'Diamond', 'Mess', 'EtypeNotInContainers')
+        mess_cfg = ContainerConfiguration(
+            'Mess', 'in_mess', skiprtypes=('local_group', 'wf_info_for'))
+        rtypes, etypes = testutils.rtypes_etypes_not_in_container(
+            self.vreg.schema, mess_cfg)
+        self.set_description('mess: rtypes not in container')
+        yield self.assertCountEqual, rtypes, cw_ignore_rtypes + (
+            'to_left', 'to_inner_left', 'top_by_right', 'watcher',
+            'composite_but_not_in_diamond', 'top_by_left', 'loop_in_place',
+            'has_near_top', 'to_right', 'local_group', 'top_from_left',
+            'top_from_right', 'linked_to_mess')
+        self.set_description('mess: etypes not in container')
+        yield self.assertCountEqual, etypes, cw_ignore_etypes + (
+            'Mess', 'EtypeNotInContainers',
+            'Diamond', 'NearTop', 'Right', 'Left',
+            'IAmAnAttributeCarryingRelation')
 
     def test_order_diamond(self):
         cloner = self.request().create_entity('Diamond').cw_adapt_to('Container.clone')
