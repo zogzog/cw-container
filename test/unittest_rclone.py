@@ -230,7 +230,7 @@ class CloneTC(CubicWebTC):
         self.assertEqual(['Card', 'Folder', 'Patch', 'Project', 'Ticket', 'Version'],
                          sorted(cloner.clonable_etypes()))
 
-        with self.session.deny_all_hooks_but(*clone.compulsory_hooks_categories):
+        with self.session.deny_all_hooks_but(*cloner.compulsory_hooks_categories):
             cloner.clone(original=babar.eid)
             self.commit()
 

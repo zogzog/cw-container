@@ -52,7 +52,7 @@ class Container(AnyEntity):
     container_skiprtypes = ()
     container_skipetypes = ()
     container_subcontainers = ()
-    compulsory_hooks_categories = ()
+    compulsory_hooks_categories = () # moved to ContainerClone
 
     @classmethod
     def __initialize__(cls, schema):
@@ -61,8 +61,7 @@ class Container(AnyEntity):
             cls.__regid__, cls.container_rtype,
             skiprtypes=cls.container_skiprtypes,
             skipetypes=cls.container_skipetypes,
-            subcontainers=cls.container_subcontainers,
-            compulsory_hooks_categories=cls.compulsory_hooks_categories)
+            subcontainers=cls.container_subcontainers)
 
 
 @cached
@@ -142,6 +141,19 @@ class ContainerClone(EntityAdapter):
     __regid__ = 'Container.clone'
     rtypes_to_skip = set()
     etypes_to_skip = set()
+
+    # backward compat property, should be overrided by class attribute when
+    # necessary
+    @property
+    def compulsory_hooks_categories(self):
+        try:
+            categories = self.entity.compulsory_hooks_categories
+            warn('[container 2.4] compulsory_hooks_categories moved to '
+                 'ContainerClone adapter',
+                 DeprecationWarning)
+            return categories
+        except AttributeError:
+            return ()
 
     # These two unimplemented properties are bw compat
     # to drive users from entity.clone_(e/r)types_to_skip

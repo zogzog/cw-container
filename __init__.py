@@ -66,13 +66,12 @@ class ContainerConfiguration(object):
     """
 
     def __init__(self, etype, rtype, skiprtypes=(), skipetypes=(),
-                 subcontainers=(), compulsory_hooks_categories=()):
+                 subcontainers=()):
         self.etype = etype
         self.rtype = rtype
         self.skiprtypes = frozenset(skiprtypes)
         self.skipetypes = frozenset(skipetypes)
         self.subcontainers = frozenset(subcontainers)
-        self.compulsory_hooks_categories = compulsory_hooks_categories
 
     def structure(self, schema):
         """Return the sets of relation types and entity types that define the
