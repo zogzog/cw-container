@@ -1,4 +1,4 @@
-# copyright 2013 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
+# copyright 2013-2014 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
 # contact http://www.logilab.fr -- mailto:contact@logilab.fr
 #
 # This program is free software: you can redistribute it and/or modify it under

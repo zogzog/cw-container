@@ -14,24 +14,12 @@
 # You should have received a copy of the GNU Lesser General Public License along
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from collections import deque, defaultdict
-from warnings import warn
-import logging
-
-from logilab.common.decorators import cached
 from logilab.common.deprecation import deprecated
 
-from rql import parse
 from rql.nodes import Comparison, VariableRef, make_relation
 
-from cubicweb import neg_role, schema as cw_schema
-from cubicweb.appobject import Predicate
-
 from cubes.container import ContainerConfiguration, _needs_container_parent, \
-    _composite_rschemas, parent_eschemas, parent_rschemas, parent_erschemas, \
-    children_rschemas
-
-logger = logging.getLogger()
+    parent_eschemas, parent_rschemas, parent_erschemas, children_rschemas
 
 
 def composite_role(eschema, rschema):
@@ -144,7 +132,6 @@ def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=()
     It extends ``container_static_structure`` with non structural relation types
     between entity types belonging to the defining structure of the container.
     """
-    from cubes.container import ContainerConfiguration
     cfg = ContainerConfiguration(cetype, crtype,
                                  skiprtypes=skiprtypes, skipetypes=skipetypes,
                                  subcontainers=subcontainers)

@@ -1,4 +1,4 @@
-# copyright 2011-2013 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
+# copyright 2011-2014 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
 # contact http://www.logilab.fr -- mailto:contact@logilab.fr
 #
 # This program is free software: you can redistribute it and/or modify it under
@@ -13,14 +13,14 @@
 #
 # You should have received a copy of the GNU Lesser General Public License along
 # with this program. If not, see <http://www.gnu.org/licenses/>.
-
 """cubicweb-container specific hooks and operations"""
+
 from collections import defaultdict
+
 from logilab.common.deprecation import class_deprecated
-from logilab.common.registry import Predicate
 
 from cubicweb import ValidationError
-from cubicweb.server.hook import Hook, DataOperationMixIn, Operation, match_rtype
+from cubicweb.server.hook import Hook, DataOperationMixIn, Operation
 
 from cubes.container.utils import parent_rschemas
 

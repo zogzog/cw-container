@@ -243,19 +243,20 @@ class ContainerConfiguration(object):
             # ease pluggability of container in existing applications
             schema.add_relation_type(RelationType(crtype, inlined=True))
         else:
-            LOGGER.warning('%r is already defined in the schema - you probably want '
-                           'to let it to the container cube' % crtype)
+            LOGGER.warning('%r is already defined in the schema - you probably '
+                           'want to let it to the container cube', crtype)
         if rtype_permissions is None:
             rtype_permissions = {'read': ('managers', 'users'),
                                  'add': ('managers', 'users'),
                                  'delete': ('managers', 'users')}
-            schema.warning('setting standard lenient permissions on %s relation', crtype)
+            LOGGER.warning('setting standard lenient permissions on %s relation',
+                           crtype)
         crschema = schema[crtype]
         cetype_rschema = schema['container_etype']
         for etype in etypes:
             if (etype, cetype) not in crschema.rdefs:
-                # checking this will help adding containers to existing applications
-                # and reusing the container rtype
+                # checking this will help adding containers to existing
+                # applications and reusing the container rtype
                 rdef = RelationDefinition(etype, crtype, cetype, cardinality='?*',
                                           __permissions__=rtype_permissions)
                 schema.add_relation_def(rdef)
@@ -297,8 +298,9 @@ class ContainerConfiguration(object):
         # container) for selection of the current container protocol as these
         # subcontainers will have their own protocol.
         etypes = etypes - self.subcontainers
+        selector= is_instance(self.etype, *etypes) & is_in_container(self)
         return type(self.etype + 'ContainerProtocol', (ContainerProtocol, ),
-                    {'__select__': is_instance(self.etype, *etypes) & is_in_container(self),
+                    {'__select__': selector,
                      'container_rtype': self.rtype})
 
     # migration helpers ########################################################
