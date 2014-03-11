@@ -25,7 +25,7 @@ from logilab.common.deprecation import class_deprecated, deprecated
 
 from rql import parse
 
-from cubicweb import Binary
+from cubicweb import Binary, neg_role
 from cubicweb.server.ssplanner import READ_ONLY_RTYPES
 from cubicweb.server.utils import eschema_eid
 
@@ -34,7 +34,7 @@ from cubicweb.entities import AnyEntity
 from cubicweb.view import EntityAdapter
 
 from cubes.container import (ContainerConfiguration,
-                             parent_rschemas,
+                             parent_rschemas, children_rschemas, parent_eschemas,
                              _needs_container_parent,
                              )
 from cubes.container.utils import (_insertmany,
@@ -347,7 +347,7 @@ class ContainerClone(EntityAdapter):
 
     def clonable_etypes(self):
         cfg = self.entity.container_config
-        for etype in cfg._ordered_container_etypes(self._cw.vreg.schema):
+        for etype in self._ordered_container_etypes():
             if etype not in self.etypes_to_skip:
                 yield etype
 
@@ -605,6 +605,36 @@ class ContainerClone(EntityAdapter):
     def handle_special_relations(self, deferred_relations):
         pass
 
+    def _ordered_container_etypes(self):
+        """Return list of etypes of a container by dependency order this is
+        provided for simplicity and backward compatibility reasons etypes that
+        are parts of a cycle are undiscriminately added at the end
+        """
+        orders, etype_map = self._container_etype_orders()
+        total_order = []
+        for order in orders:
+            total_order += order
+        return total_order + etype_map.keys()
+
+    def _container_etype_orders(self):
+        """ computes linearizations and cycles of etypes within a container """
+        cfg = self.entity.container_config
+        schema = self._cw.vreg.schema
+        etypes = cfg.structure(schema)[1]
+        orders = []
+        etype_map = dict((etype, _needed_etypes(schema, etype, cfg.etype,
+                                                cfg.rtype, cfg.skiprtypes))
+                         for etype in etypes)
+        maplen = len(etype_map)
+        while etype_map:
+            neworder = _linearize(etype_map, etypes)
+            if neworder:
+                orders.append(neworder)
+            if maplen == len(etype_map):
+                break
+            maplen = len(etype_map)
+        return orders, etype_map
+
 
 
 class MultiParentProtocol(EntityAdapter):
@@ -614,3 +644,60 @@ class MultiParentProtocol(EntityAdapter):
     def possible_parent(self, rtype, eid):
         pass
 
+
+# more internals ###############################################################
+
+def _needed_etypes(schema, etype, cetype, crtype, computed_rtypes=()):
+    """ finds all container etypes this one depends on to be built
+    start from all subject + object relations """
+    etypes = defaultdict(list)
+    skipetypes = set((cetype,))
+    # these should include rtypes
+    # that create cycles but actually are false dependencies
+    skiprtypes = set(computed_rtypes).union((crtype, 'container_etype', 'container_parent'))
+    skiprtypes.add(crtype)
+    eschema = schema[etype]
+    adjacent_rtypes = [(rschema.type, role)
+                       for role in ('subject', 'object')
+                       for rschema in getattr(eschema, '%s_relations' % role)()
+                       if not (rschema.meta or rschema.final or rschema.type in skiprtypes)]
+    children_rtypes = [r.type for r in children_rschemas(eschema)]
+    parent_etypes = set(parent_eschemas(eschema))
+    for rtype, role in adjacent_rtypes:
+        if rtype in children_rtypes:
+            continue
+        rdef = eschema.rdef(rtype, role)
+        target = getattr(rdef, neg_role(role))
+        if target.type in skipetypes:
+            continue
+        if target.type not in parent_etypes:
+            if rdef.cardinality[0 if role == 'subject' else 1] in '?*':
+                continue
+        etypes[target.type].append((rdef, role))
+    return etypes
+
+def _linearize(etype_map, all_etypes):
+    # Kahn 1962
+    sorted_etypes = []
+    independent = set()
+    for etype, deps in etype_map.items():
+        if not deps:
+            independent.add(etype)
+            del etype_map[etype]
+        for depetype in deps:
+            if depetype not in all_etypes:
+                # out of container dependencies must be added
+                # to complete the graph
+                etype_map[depetype] = dict()
+    while independent:
+        indep_etype = min(independent) # get next in ascii order
+        independent.remove(indep_etype)
+        sorted_etypes.append(indep_etype)
+        for etype, incoming in etype_map.items():
+            if indep_etype in incoming:
+                incoming.pop(indep_etype)
+            if not incoming:
+                independent.add(etype)
+                etype_map.pop(etype)
+    return [etype for etype in sorted_etypes
+            if etype in all_etypes]

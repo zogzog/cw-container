@@ -46,18 +46,6 @@ class SchemaContainerTC(CubicWebTC):
                                      skiprtypes=('local_group', 'wf_info_for'))
         self.assertEqual(set(), set(cfg.inner_relations(self.vreg.schema)))
 
-    def test_order_diamond(self):
-        cfg = ContainerConfiguration('Diamond', 'diamond',
-                                     skipetypes=('EtypeNotInContainers',))
-        self.assertEqual(['Left', 'NearTop', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'],
-                         cfg._ordered_container_etypes(self.vreg.schema))
-
-    def test_order_mess(self):
-        cfg = ContainerConfiguration('Mess', 'in_mess',
-                                     skiprtypes=('local_group', 'wf_info_for'))
-        self.assertEqual(['Bottom'],
-                         cfg._ordered_container_etypes(self.vreg.schema))
-
     def test_rtypes_for_hooks_diamond(self):
         cfg = ContainerConfiguration('Diamond', 'diamond',
                                      skipetypes=('EtypeNotInContainers',))
@@ -80,6 +68,16 @@ class SchemaContainerTC(CubicWebTC):
         self.assertEqual(set(['to_mess']),
                          utils.set_container_parent_rtypes_hook(schema, 'Mess', 'in_mess',
                                                                 cfg.skiprtypes))
+
+    def test_order_diamond(self):
+        cloner = self.request().create_entity('Diamond').cw_adapt_to('Container.clone')
+        self.assertEqual(['Left', 'NearTop', 'Right', 'Bottom', 'IAmAnAttributeCarryingRelation'],
+                         cloner._ordered_container_etypes())
+
+    def test_order_mess(self):
+        cloner = self.request().create_entity('Mess').cw_adapt_to('Container.clone')
+        self.assertEqual(['Bottom'],
+                         cloner._ordered_container_etypes())
 
 if __name__ == '__main__':
     unittest_main()
