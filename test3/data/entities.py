@@ -1,28 +1,20 @@
 from cubicweb.predicates import is_instance
+from cubicweb.entities import AnyEntity
 
 from cubes.container import utils
-from cubes.container.entities import Container, ContainerProtocol, ContainerClone
+from cubes.container.entities import ContainerClone
+
+from config import CIRCUS_CONTAINER, MENAGERIE_CONTAINER
 
 
-class Circus(Container):
+class Circus(AnyEntity):
     __regid__ = 'Circus'
-    container_rtype = 'circus'
-    container_subcontainers = ('Menagerie',)
+    container_config = CIRCUS_CONTAINER
 
 
-class CProtocol(ContainerProtocol):
-    """Circus protocol"""
-    __select__ = is_instance('Circus')
-
-
-class Menagerie(Container):
+class Menagerie(AnyEntity):
     __regid__ = 'Menagerie'
-    container_rtype = 'zoo'
-
-
-class MProtocol(ContainerProtocol):
-    """Menagerie protocol"""
-    __select__ = is_instance('Menagerie')
+    container_config = MENAGERIE_CONTAINER
 
 
 class CircusClone(ContainerClone):
@@ -35,7 +27,5 @@ class MenagerieClone(ContainerClone):
 
 def registration_callback(vreg):
     vreg.register_all(globals().values(), __name__)
-    _, etypes = utils.container_static_structure(vreg.schema, 'Circus', 'circus')
-    etypes = set(etypes)
-    etypes.remove('Menagerie')
-    CProtocol.__select__ = is_instance('Circus', *etypes)
+    vreg.register(CIRCUS_CONTAINER.build_container_protocol(vreg.schema))
+    vreg.register(MENAGERIE_CONTAINER.build_container_protocol(vreg.schema))

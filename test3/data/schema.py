@@ -1,6 +1,6 @@
 from yams.buildobjs import EntityType, SubjectRelation, String
 
-from cubes.container import utils
+from config import CIRCUS_CONTAINER, MENAGERIE_CONTAINER
 
 
 class Circus(EntityType):
@@ -21,7 +21,6 @@ class Joke(EntityType):
     content = String()
 
 
-
 class Menagerie(EntityType):
     animals = SubjectRelation('Animal', composite='subject', cardinality='*?')
     in_circus = SubjectRelation('Circus', composite='object', cardinality='?*')
@@ -31,7 +30,6 @@ class Animal(EntityType):
     name = String()
 
 
-
 def post_build_callback(schema):
-    utils.define_container(schema, 'Circus', 'circus', subcontainers=('Menagerie',))
-    utils.define_container(schema, 'Menagerie', 'zoo')
+    CIRCUS_CONTAINER.define_container(schema)
+    MENAGERIE_CONTAINER.define_container(schema)

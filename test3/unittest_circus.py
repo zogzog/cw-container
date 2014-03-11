@@ -36,7 +36,8 @@ class CircusTC(CubicWebTC):
         clone = s.create_entity('Circus')
         cloner = clone.cw_adapt_to('Container.clone')
 
-        with s.deny_all_hooks_but(*clone.compulsory_hooks_categories):
+        with s.deny_all_hooks_but(
+                *clone.container_config.compulsory_hooks_categories):
             cloner.clone(original=c.eid)
             self.commit()
 
