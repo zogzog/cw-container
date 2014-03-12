@@ -63,3 +63,18 @@ def _create_eid(self, count, eids=None):
         return eids[0]
 
 
+try:
+    from cubicweb.devtools.testlib import CubicWebTC
+except ImportError:
+    # devtools may not be installed.
+    pass
+else:
+    # Monkey patch set_cnx as it is a method called after repo initialization.
+    orig_set_cnx = CubicWebTC.set_cnx
+
+    @monkeypatch(CubicWebTC, methodname='set_cnx')
+    @classmethod
+    def set_cnx(cls, cnx):
+        orig_set_cnx(cnx)
+        patched_create_eid = cls.repo.system_source._create_eid_sqlite
+        cls.repo.system_source.create_eid = patched_create_eid
