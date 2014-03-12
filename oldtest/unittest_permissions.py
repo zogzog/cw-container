@@ -1,11 +1,10 @@
 from logilab.common.testlib import unittest_main
 
-from cubicweb import Binary, ValidationError
 from cubicweb.devtools.testlib import CubicWebTC
 
-from cubes.container.testutils import userlogin, new_version, new_ticket, new_patch
 
 class SecurityTC(CubicWebTC):
+    appid = 'data-forge3'
 
     def test_shared_rtypes_permissions(self):
         ticket_documented_by_rdef = self.schema['documented_by'].rdef('Ticket', 'File')
@@ -25,7 +24,6 @@ class SecurityTC(CubicWebTC):
                          'version_managers')
         self.assertEqual(project_documented_by_rdef.permissions['delete'][1],
                          'project_managers')
-
 
 if __name__ == '__main__':
     unittest_main()

@@ -14,7 +14,8 @@
 # You should have received a copy of the GNU Lesser General Public License along
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 
-# Create two groups, for testing purposes
+# Create three groups, for testing purposes
 
+create_entity('CWGroup', name=u'project_managers')
 create_entity('CWGroup', name=u'version_managers')
 create_entity('CWGroup', name=u'ticket_managers')
