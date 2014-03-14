@@ -25,5 +25,5 @@ class FolderClone(ContainerClone):
 
 def registration_callback(vreg):
     vreg.register_all(globals().values(), __name__)
-    vreg.register(PROJECT_CONTAINER.build_container_protocol(vreg.schema))
-    vreg.register(FOLDER_CONTAINER.build_container_protocol(vreg.schema))
+    PROJECT_CONTAINER.register_container_protocol(vreg)
+    FOLDER_CONTAINER.register_container_protocol(vreg)

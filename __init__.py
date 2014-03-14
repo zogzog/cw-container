@@ -107,7 +107,7 @@ class ContainerConfiguration(object):
     """Configuration object to turn an entity type into a container.
 
     Main methods are `define_container`, to be called in `post_build_callback`
-    of `schema.py`, `build_container_hooks` and `build_container_protocol` to
+    of `schema.py`, `register_container_hooks` and `register_container_protocol` to
     be respectively called in `registration_callback` of `hooks.py` and
     `entities.py`.
 
@@ -287,7 +287,12 @@ class ContainerConfiguration(object):
             self._check_spurious_rdefs(schema, rtype, alletypes)
 
     def build_container_hooks(self, schema):
-        """Return the container hook with selector set"""
+        """Return the container hook with selector set.
+
+        Use this method if you want to subclass generated hooks or control
+        registration, else prefer :method:`register_container_hooks` which
+        handle potential migration subtleties.
+        """
         # Local import because cw.server may not be installed
         from cubicweb.server.hook import Hook, match_rtype
         # Local import because this is a dynamically loaded module.
@@ -305,8 +310,30 @@ class ContainerConfiguration(object):
             {'__select__': Hook.__select__ & match_rtype(self.rtype)})
         return container_rel_hook, child_container_rel_hook
 
+    def register_container_hooks(self, vreg):
+        """Generate and register hooks to maintain container's internal
+        relations.
+
+        During migration, return True if everything went fine, else False in
+        case where e.g. the container entity type isn't in the schema yet. If
+        not migrating, this would raise an error.
+
+        You will gain finer control by using :method:`build_container_hooks`
+        but will have to handle potential migration issues by yourself.
+        """
+        if not self.etype in vreg.schema and vreg.config.repairing:
+            return False
+        for hookcls in self.build_container_hooks(vreg.schema):
+            vreg.register(hookcls)
+        return True
+
     def build_container_protocol(self, schema):
-        """Return a subclass of the ContainerProtocol with selector set"""
+        """Return a subclass of the ContainerProtocol with selector set.
+
+        Use this method if you want to subclass generated hooks or control
+        registration, else prefer :method:`register_container_protocol` which
+        handle potential migration subtilities.
+        """
         # Local import because this is a dynamically loaded module.
         from cubes.container.entities import ContainerProtocol
         etypes = self.structure(schema)[1]
@@ -318,6 +345,22 @@ class ContainerConfiguration(object):
         return type(self.etype + 'ContainerProtocol', (ContainerProtocol, ),
                     {'__select__': selector,
                      'container_rtype': self.rtype})
+
+    def register_container_protocol(self, vreg):
+        """Generate and register hooks to maintain container's internal
+        relations.
+
+        During migration, return True if everything went fine, else False in
+        case where e.g. the container entity type isn't in the schema yet. If
+        not migrating, this would raise an error.
+
+        You will gain finer control by using :method:`build_container_protocol`
+        but will have to handle potential migration issues by yourself.
+        """
+        if not self.etype in vreg.schema and vreg.config.repairing:
+            return False
+        vreg.register(self.build_container_protocol(vreg.schema))
+        return True
 
     # migration helpers ########################################################
 

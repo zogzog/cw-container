@@ -30,5 +30,5 @@ class MessClone(ContainerClone):
 
 def registration_callback(vreg):
     vreg.register_all(globals().values(), __name__)
-    vreg.register(DIAMOND_CONTAINER.build_container_protocol(vreg.schema))
-    vreg.register(MESS_CONTAINER.build_container_protocol(vreg.schema))
+    DIAMOND_CONTAINER.register_container_protocol(vreg)
+    MESS_CONTAINER.register_container_protocol(vreg)
