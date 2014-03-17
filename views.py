@@ -40,7 +40,7 @@ def setup_container_ui(vreg):
     # for all containers, put the <container> rtype in META
     cetypes = entities.container_etypes(vreg)
     is_container.etypes = cetypes
-    schema.META_RTYPES.update(vreg['etypes'].etype_class(etype).container_rtype
+    schema.META_RTYPES.update(vreg['etypes'].etype_class(etype).container_config.rtype
                               for etype in cetypes)
 
 def registration_callback(vreg):
