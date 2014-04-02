@@ -41,6 +41,18 @@ class CircusTC(ContainerMixinTC, CubicWebTC):
         bozo.cw_clear_all_caches()
         self.assertEqual(circus.eid, bozo.circus[0].eid)
 
+    def test_clown_in_two_cabals(self):
+        req = self.request()
+        bozo = req.create_entity('Clown', name=u'Bozo')
+        cabal = req.create_entity('ClownCabal', members=bozo)
+        self.commit()
+        bozo.cw_clear_all_caches()
+        self.assertEqual(bozo.container_parent[0].eid, cabal.eid)
+        othercabal = req.create_entity('ClownCabal', members=bozo)
+        self.commit()
+        bozo.cw_clear_all_caches()
+        self.assertEqual(bozo.container_parent[0].eid, othercabal.eid)
+
     def test_composite_subjrel_from_subcontainer_is_cloned(self):
         s = self.session
         c = s.create_entity('Circus')

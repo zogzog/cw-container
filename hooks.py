@@ -68,7 +68,8 @@ def _set_container_parent(session, rtype, eid, peid):
         container = icontainer.related_container
         parent = session.entity_from_eid(peid)
         parent_container = parent.cw_adapt_to('Container').related_container
-        if container.eid != parent_container.eid or old_rtype != rtype:
+        if (container is not None and parent_container is not None and
+                (container.eid != parent_container.eid or old_rtype != rtype)):
             session.warning('%s is already in container %s, cannot go into %s '
                          ' (rtype from: %s, rtype to: %s)',
                          target, parent_container, container, old_rtype, rtype)
