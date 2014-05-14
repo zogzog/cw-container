@@ -186,12 +186,15 @@ class ContainerConfiguration(object):
         rtypes, etypes = self.structure(schema)
         skiprtypes = rtypes.union(self.inner_relations(schema))
         skiprtypes = skiprtypes.union(self.skiprtypes)
+        border_rels = set()
         for etype in etypes:
             eschema = schema[etype]
             for rschema, _, role in eschema.relation_definitions():
                 if rschema.meta or rschema.final or rschema in skiprtypes:
                     continue
-                yield rschema, role
+                if (rschema, role) not in border_rels:
+                    border_rels.add((rschema, role))
+                    yield rschema, role
 
     def structural_relations_to_container(self, schema):
         """Yield (rschema, role) for relations in the container graph directly
