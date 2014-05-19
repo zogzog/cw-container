@@ -125,13 +125,17 @@ class ContainerConfiguration(object):
         self.subcontainers = frozenset(subcontainers)
         cw_schema.META_RTYPES.add(self.rtype)
 
-    def structure(self, schema):
+    def structure(self, schema, strict=False):
         """Return the sets of relation types and entity types that define the
         structure of the container.
 
         The skeleton (or structure) of the container is determined by following
         composite relations, possibly skipping specified entity types and/or
         relation types.
+
+        When `strict` is True, entity types which entities can live without
+        their container (because of cardinality of structural relations) are
+        skipped from graph walkthrough and not returned.
         """
         etypes = set()
         rtypes = set()
@@ -148,16 +152,26 @@ class ContainerConfiguration(object):
             for rschema, teschemas, role in eschema.relation_definitions():
                 if rschema.meta or rschema in skiprtypes:
                     continue
-                if not rschema.rdefs.itervalues().next().composite == role:
+                # Consider first rdef, assuming they're all consistent (which
+                # is normally checked by `_find_spurious_rdefs` call in
+                # `define_container`).
+                rdef = next(rschema.rdefs.itervalues())
+                if rdef.composite != role:
                     continue
                 if self.skipetypes.intersection(teschemas):
                     continue
                 rtypes.add(rschema.type)
                 for teschema in teschemas:
                     etype = teschema.type
-                    if etype not in etypes and etype not in self.skipetypes:
-                        candidates.append(teschema)
-                        etypes.add(etype)
+                    if etype in etypes.union(self.skipetypes):
+                        continue
+                    if strict:
+                        rdef = eschema.rdef(rschema.type, role=role,
+                                            targettype=etype)
+                        if rdef.role_cardinality(neg_role(role)) not in '1+':
+                            continue
+                    candidates.append(teschema)
+                    etypes.add(etype)
         return set(rtypes), set(etypes)
 
     def inner_relations(self, schema):

@@ -13,8 +13,12 @@ class CircusTC(CubicWebTC):
         schema = self.vreg.schema
         diamond = self.vreg['etypes'].etype_class('Circus')
         rtypes, etypes = CIRCUS_CONTAINER.structure(schema)
-        self.assertSetEqual(set(('Clown', 'ClownCabal', 'Joke', 'Menagerie')), etypes)
-        self.assertSetEqual(set(('clowns', 'cabals', 'jokes', 'members', 'in_circus')), rtypes)
+        self.assertEqual(set(('Clown', 'ClownCabal', 'Joke', 'Menagerie',
+                              'Costume')), etypes)
+        self.assertEqual(set(('clowns', 'cabals', 'jokes', 'members',
+                              'in_circus', 'costume', 'costumes')), rtypes)
+        strict_etypes = CIRCUS_CONTAINER.structure(self.schema, strict=True)[1]
+        self.assertEqual(strict_etypes, set(['Costume']))
         rtypes, etypes = MENAGERIE_CONTAINER.structure(schema)
         self.assertEqual(set(['animals']), rtypes)
         self.assertEqual(set(['Animal']), etypes)

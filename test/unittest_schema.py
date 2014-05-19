@@ -22,7 +22,8 @@ class SchemaContainerTC(CubicWebTC):
                           frozenset(['NearTop', 'Left', 'Right', 'Bottom',
                                      'IAmAnAttributeCarryingRelation'])),
                          cfg.structure(self.vreg.schema))
-
+        strict_etypes = cfg.structure(self.vreg.schema, strict=True)[1]
+        self.assertEqual(strict_etypes, set(['Right']))
 
     def test_static_structure_left(self):
         cfg = ContainerConfiguration('Left', 'diamond',
@@ -30,12 +31,16 @@ class SchemaContainerTC(CubicWebTC):
         self.assertEqual((frozenset(['to_left', 'top_by_left']),
                           frozenset(['Bottom', 'IAmAnAttributeCarryingRelation'])),
                          cfg.structure(self.vreg.schema))
+        strict_etypes = cfg.structure(self.vreg.schema, strict=True)[1]
+        self.assertEqual(strict_etypes, set())
 
     def test_static_structure_mess(self):
         cfg = ContainerConfiguration('Mess', 'in_mess',
                                      skiprtypes=('local_group', 'wf_info_for'))
         self.assertEqual((frozenset(['to_mess']), frozenset(['Bottom'])),
                          cfg.structure(self.vreg.schema))
+        strict_etypes = cfg.structure(self.schema, strict=True)[1]
+        self.assertEqual(strict_etypes, set())
 
     def test_inner_relations_diamond(self):
         cfg = ContainerConfiguration('Diamond', 'diamond',

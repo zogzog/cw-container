@@ -6,11 +6,12 @@ from config import CIRCUS_CONTAINER, MENAGERIE_CONTAINER
 class Circus(EntityType):
     clowns = SubjectRelation('Clown', cardinality='*?', composite='subject')
     cabals = SubjectRelation('ClownCabal', cardinality='*?', composite='subject')
-
+    costumes = SubjectRelation('Costume', cardinality='*+', composite='subject')
 
 class Clown(EntityType):
     name = String()
     jokes = SubjectRelation('Joke', cardinality='*1', composite='subject')
+    costume = SubjectRelation('Costume', cardinality='*?', composite='subject')
 
 
 class ClownCabal(EntityType):
@@ -19,6 +20,10 @@ class ClownCabal(EntityType):
 
 class Joke(EntityType):
     content = String()
+
+
+class Costume(EntityType):
+    """Colorful"""
 
 
 class Menagerie(EntityType):
