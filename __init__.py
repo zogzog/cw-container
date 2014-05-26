@@ -239,7 +239,7 @@ class ContainerConfiguration(object):
           by construction of the container structure (see
           `container_static_structure`).
         """
-        _rtypes, etypes = self.structure(schema)
+        rtypes, etypes = self.structure(schema)
         cetype = self.etype
         crtype = self.rtype
         if not crtype in schema:
@@ -268,6 +268,9 @@ class ContainerConfiguration(object):
                                           cardinality='?*')
                 schema.add_relation_def(rdef)
             _define_container_parent_rdefs(schema, etype)
+        alletypes = etypes.union([self.etype])
+        for rtype in rtypes:
+            self._check_spurious_rdefs(schema, rtype, alletypes)
 
     def build_container_hooks(self, schema):
         """Return the container hook with selector set"""
@@ -328,3 +331,36 @@ class ContainerConfiguration(object):
                         frometype, toetype = teschema.type, etype
                     select_rdefs[rschema.type].add( (frometype, toetype) )
         return dict(select_rdefs)
+
+    @staticmethod
+    def _check_spurious_rdefs(schema, rtype, etypes):
+        """Check problematic relation definitions corresponding to a given
+        relation type.
+
+        `rtype` is the relation type to check, `etypes` is the set of entity
+        types defining the container structure.
+        """
+        inconsistents, noncomposite = set(), set()
+        composites = defaultdict(list)
+        for rdef in schema[rtype].rdefs.values():
+            if rdef.subject not in etypes or rdef.object not in etypes:
+                inconsistents.add(rdef)
+            if not rdef.composite:
+                noncomposite.add(rdef)
+            else:
+                # Keep `composite` declarations to make sure they're all
+                # consistent.
+                composites[rdef.composite].append(rdef)
+        if inconsistents:
+            LOGGER.warning('rtype %s has rdefs (%s) not part of the '
+                           'container structure' %
+                           (rtype, ', '.join(map(str, inconsistents))))
+        if noncomposite:
+            LOGGER.warning('rtype %s has rdefs (%s) which are not composite' %
+                           (rtype, ', '.join(map(str, noncomposite))))
+        if 'subject' in composites and 'object' in composites:
+            LOGGER.warning('rtype %s has rdefs with inconsistent composite '
+                           'declarations (subject: %s; object: %s)' %
+                           (rtype,
+                            ', '.join(map(str, composites['subject'])),
+                            ', '.join(map(str, composites['object']))))
