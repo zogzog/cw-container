@@ -24,7 +24,7 @@ import logging
 from collections import deque, defaultdict
 
 from logilab.common.decorators import cached
-from yams.buildobjs import RelationType, RelationDefinition
+from yams.buildobjs import DEFAULT_RELPERMS, RelationType, RelationDefinition
 
 from cubicweb import neg_role, schema as cw_schema
 from cubicweb.predicates import EntityPredicate, is_instance
@@ -249,11 +249,7 @@ class ContainerConfiguration(object):
             LOGGER.warning('%r is already defined in the schema - you probably '
                            'want to let it to the container cube', crtype)
         if rtype_permissions is None:
-            rtype_permissions = {'read': ('managers', 'users'),
-                                 'add': ('managers', 'users'),
-                                 'delete': ('managers', 'users')}
-            LOGGER.warning('setting standard lenient permissions on %s relation',
-                           crtype)
+            rtype_permissions = DEFAULT_RELPERMS.copy()
         crschema = schema[crtype]
         cetype_rschema = schema['container_etype']
         for etype in etypes:
