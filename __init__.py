@@ -103,6 +103,17 @@ class is_in_container(EntityPredicate):
         return 1
 
 
+# Map of container entity type to corresponding container configuration.
+CONTAINERS = {}
+
+def register_container(etype, config):
+    """Register a container configuration for `etype`"""
+    if etype in CONTAINERS:
+        raise ValueError('a container configuration for `%s` entity type '
+                         'is already registered' % etype)
+    CONTAINERS[etype] = config
+
+
 class ContainerConfiguration(object):
     """Configuration object to turn an entity type into a container.
 
@@ -124,6 +135,7 @@ class ContainerConfiguration(object):
         self.skipetypes = frozenset(skipetypes)
         self.subcontainers = frozenset(subcontainers)
         cw_schema.META_RTYPES.add(self.rtype)
+        register_container(etype, self)
 
     def structure(self, schema, strict=False):
         """Return the sets of relation types and entity types that define the

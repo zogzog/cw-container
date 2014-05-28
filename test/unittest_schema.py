@@ -2,10 +2,12 @@ from logilab.common.testlib import unittest_main
 from cubicweb.devtools.testlib import CubicWebTC
 
 from cubes.container import (ContainerConfiguration, utils,
-                             _needs_container_parent, testutils)
+                             _needs_container_parent, CONTAINERS)
+from cubes.container.testutils import (ContainerMixinTC,
+                                       rtypes_etypes_not_in_container)
 
 
-class SchemaContainerTC(CubicWebTC):
+class SchemaContainerTC(ContainerMixinTC, CubicWebTC):
 
     def test_needs_container_parent(self):
         schema = self.vreg.schema
@@ -14,8 +16,8 @@ class SchemaContainerTC(CubicWebTC):
         self.assertTrue(_needs_container_parent(schema['Bottom']))
 
     def test_static_structure_diamond(self):
-        cfg = ContainerConfiguration('Diamond', 'diamond',
-                                     skipetypes=('EtypeNotInContainers',))
+        cfg = self.replace_config('Diamond', 'diamond',
+                                  skipetypes=('EtypeNotInContainers',))
         self.assertEqual((frozenset(['top_from_left', 'top_by_right',
                                      'top_from_right', 'top_by_left',
                                      'to_left', 'to_right', 'has_near_top']),
@@ -35,27 +37,27 @@ class SchemaContainerTC(CubicWebTC):
         self.assertEqual(strict_etypes, set())
 
     def test_static_structure_mess(self):
-        cfg = ContainerConfiguration('Mess', 'in_mess',
-                                     skiprtypes=('local_group', 'wf_info_for'))
+        cfg = self.replace_config('Mess', 'in_mess',
+                                  skiprtypes=('local_group', 'wf_info_for'))
         self.assertEqual((frozenset(['to_mess']), frozenset(['Bottom'])),
                          cfg.structure(self.vreg.schema))
         strict_etypes = cfg.structure(self.schema, strict=True)[1]
         self.assertEqual(strict_etypes, set())
 
     def test_inner_relations_diamond(self):
-        cfg = ContainerConfiguration('Diamond', 'diamond',
-                                     skipetypes=('EtypeNotInContainers',))
+        cfg = self.replace_config('Diamond', 'diamond',
+                                  skipetypes=('EtypeNotInContainers',))
         self.assertEqual(frozenset(['loop_in_place', 'to_inner_left']),
                          set(cfg.inner_relations(self.vreg.schema)))
 
     def test_inner_relations_mess(self):
-        cfg = ContainerConfiguration('Mess', 'in_mess',
-                                     skiprtypes=('local_group', 'wf_info_for'))
+        cfg = self.replace_config('Mess', 'in_mess',
+                                  skiprtypes=('local_group', 'wf_info_for'))
         self.assertEqual(set(), set(cfg.inner_relations(self.vreg.schema)))
 
     def test_rtypes_for_hooks_diamond(self):
-        cfg = ContainerConfiguration('Diamond', 'diamond',
-                                     skipetypes=('EtypeNotInContainers',))
+        cfg = self.replace_config('Diamond', 'diamond',
+                                  skipetypes=('EtypeNotInContainers',))
         schema = self.vreg.schema
         self.assertEqual({'top_by_right': set([('Bottom', 'Right')]),
                           'to_left': set([('IAmAnAttributeCarryingRelation', 'Left')]),
@@ -67,8 +69,8 @@ class SchemaContainerTC(CubicWebTC):
                                                                 cfg.skiprtypes))
 
     def test_rtypes_for_hooks_mess(self):
-        cfg = ContainerConfiguration('Mess', 'in_mess',
-                                     skiprtypes=('local_group', 'wf_info_for'))
+        cfg = self.replace_config('Mess', 'in_mess',
+                                  skiprtypes=('local_group', 'wf_info_for'))
         schema = self.vreg.schema
         self.assertEqual({'to_mess': set([('Bottom', 'Mess')])},
                          cfg._container_parent_rdefs(schema))
@@ -82,9 +84,9 @@ class SchemaContainerTC(CubicWebTC):
         cw_ignore_rtypes = ('bookmarked_by', 'primary_email', 'use_email',
                             'prefered_form')
         cw_ignore_etypes = ('EmailAddress', 'CWGroup', 'Bookmark', 'CWUser')
-        diamond_cfg = ContainerConfiguration(
+        diamond_cfg = self.replace_config(
             'Diamond', 'diamond', skipetypes=('EtypeNotInContainers',))
-        rtypes, etypes = testutils.rtypes_etypes_not_in_container(
+        rtypes, etypes = rtypes_etypes_not_in_container(
             self.vreg.schema, diamond_cfg)
         self.set_description('diamond: rtypes not in container')
         yield self.assertCountEqual, rtypes, cw_ignore_rtypes + (
@@ -93,9 +95,9 @@ class SchemaContainerTC(CubicWebTC):
         self.set_description('diamond: etypes not in container')
         yield self.assertCountEqual, etypes, cw_ignore_etypes + (
             'Diamond', 'Mess', 'EtypeNotInContainers')
-        mess_cfg = ContainerConfiguration(
+        mess_cfg = self.replace_config(
             'Mess', 'in_mess', skiprtypes=('local_group', 'wf_info_for'))
-        rtypes, etypes = testutils.rtypes_etypes_not_in_container(
+        rtypes, etypes = rtypes_etypes_not_in_container(
             self.vreg.schema, mess_cfg)
         self.set_description('mess: rtypes not in container')
         yield self.assertCountEqual, rtypes, cw_ignore_rtypes + (

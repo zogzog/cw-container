@@ -2,7 +2,10 @@ from logilab.common.testlib import unittest_main
 from cubicweb import ValidationError
 from cubicweb.devtools.testlib import CubicWebTC
 
-class ContainerLessTC(CubicWebTC):
+from cubes.container.testutils import ContainerMixinTC
+
+
+class ContainerLessTC(ContainerMixinTC, CubicWebTC):
 
     def test_free_from_container(self):
         l = self.request().create_entity('Left')
@@ -18,7 +21,7 @@ class ContainerLessTC(CubicWebTC):
         self.assertIsNone(adapter)
 
 
-class ContainerEntitiesTC(CubicWebTC):
+class ContainerEntitiesTC(ContainerMixinTC, CubicWebTC):
 
     def setup_database(self):
         req = self.request()

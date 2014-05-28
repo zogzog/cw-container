@@ -18,8 +18,9 @@ from logilab.common.deprecation import deprecated
 
 from rql.nodes import Comparison, VariableRef, make_relation
 
-from cubes.container import ContainerConfiguration, _needs_container_parent, \
-    parent_eschemas, parent_rschemas, parent_erschemas, children_rschemas
+from cubes.container import (ContainerConfiguration, _needs_container_parent,
+                             parent_eschemas, parent_rschemas,
+                             parent_erschemas, children_rschemas, CONTAINERS)
 
 
 def composite_role(eschema, rschema):
@@ -34,6 +35,16 @@ def composite_role(eschema, rschema):
 def needs_container_parent(eschema):
     return _needs_container_parent(eschema)
 
+def _get_config(cetype, *args, **kwargs):
+    """Retrieve or build a container configuration avoiding registration
+    duplicates. Mostly useful for *deprecated* functions which do not use a
+    ContainerConfiguration directly but would build one.
+    """
+    if cetype in CONTAINERS:
+        return CONTAINERS[cetype]
+    else:
+        return ContainerConfiguration(etype, *args, **kwargs)
+
 @deprecated('[container 2.4] use ContainerConfiguration')
 def define_container(schema, cetype, crtype, rtype_permissions=None,
                      skiprtypes=(), skipetypes=(), subcontainers=()):
@@ -47,9 +58,9 @@ def define_container(schema, cetype, crtype, rtype_permissions=None,
       being defined by construction of the container structure (see
       `container_static_structure`).
     """
-    cfg = ContainerConfiguration(cetype, crtype,
-                                 skiprtypes=skiprtypes, skipetypes=skipetypes,
-                                 subcontainers=subcontainers)
+    cfg = _get_config(cetype, crtype,
+                      skiprtypes=skiprtypes, skipetypes=skipetypes,
+                      subcontainers=subcontainers)
     cfg.define_container(schema, rtype_permissions)
 
 @deprecated('[container 2.4] use ContainerConfiguration')
@@ -68,9 +79,9 @@ def container_static_structure(schema, cetype, crtype, skiprtypes=(), skipetypes
     composite relations, possibly skipping specified entity types and/or
     relation types.
     """
-    cfg = ContainerConfiguration(cetype, crtype,
-                                 skiprtypes=skiprtypes, skipetypes=skipetypes,
-                                 subcontainers=subcontainers)
+    cfg = _get_config(cetype, crtype,
+                      skiprtypes=skiprtypes, skipetypes=skipetypes,
+                      subcontainers=subcontainers)
     return cfg.structure(schema)
 
 @deprecated('[container 2.1] the container_parent hook is merged into another; '
@@ -81,9 +92,9 @@ def set_container_parent_rtypes_hook(schema, cetype, crtype, skiprtypes=(), skip
     rtype to speed up the parent computation
     this function computes the rtype set needed for the SetContainerParent hook selector
     """
-    cfg = ContainerConfiguration(cetype, crtype,
-                                 skiprtypes=skiprtypes, skipetypes=skipetypes,
-                                 subcontainers=subcontainers)
+    cfg = _get_config(cetype, crtype,
+                      skiprtypes=skiprtypes, skipetypes=skipetypes,
+                      subcontainers=subcontainers)
     rtypes, etypes = cfg.structure(schema)
     select_rtypes = set()
     for etype in etypes:
@@ -106,9 +117,9 @@ def container_parent_rdefs(schema, cetype, crtype, skiprtypes=(), skipetypes=(),
       rdefs_select = container_parent_hook_selector(...)
       SetContainerRelation._container_parent_rdefs = rdefs_select
     """
-    cfg = ContainerConfiguration(cetype, crtype,
-                                 skiprtypes=skiprtypes, skipetypes=skipetypes,
-                                 subcontainers=subcontainers)
+    cfg = _get_config(cetype, crtype,
+                      skiprtypes=skiprtypes, skipetypes=skipetypes,
+                      subcontainers=subcontainers)
     return cfg._container_parent_rdefs(schema)
 
 
@@ -118,9 +129,9 @@ def set_container_relation_rtypes_hook(schema, cetype, crtype, skiprtypes=(), sk
     """computes the rtype set needed for etypes having just one upward
     path to the container, to be given to the SetContainerRealtion hook
     """
-    cfg = ContainerConfiguration(cetype, crtype,
-                                 skiprtypes=skiprtypes, skipetypes=skipetypes,
-                                 subcontainers=subcontainers)
+    cfg = _get_config(cetype, crtype,
+                      skiprtypes=skiprtypes, skipetypes=skipetypes,
+                      subcontainers=subcontainers)
     return cfg.structure(schema)[0]
 
 
@@ -132,9 +143,9 @@ def container_rtypes_etypes(schema, cetype, crtype, skiprtypes=(), skipetypes=()
     It extends ``container_static_structure`` with non structural relation types
     between entity types belonging to the defining structure of the container.
     """
-    cfg = ContainerConfiguration(cetype, crtype,
-                                 skiprtypes=skiprtypes, skipetypes=skipetypes,
-                                 subcontainers=subcontainers)
+    cfg = _get_config(cetype, crtype,
+                      skiprtypes=skiprtypes, skipetypes=skipetypes,
+                      subcontainers=subcontainers)
     rtypes, etypes = cfg.structure(schema)
     return rtypes.union(cfg.inner_relations(schema)), etypes
 

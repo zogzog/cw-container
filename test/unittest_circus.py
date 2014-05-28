@@ -2,11 +2,17 @@ from logilab.common.testlib import unittest_main
 
 from cubicweb.devtools.testlib import CubicWebTC
 
-from cubes.container import utils
+from cubes.container import CONTAINERS
+from cubes.container.testutils import ContainerMixinTC
 
 
-class CircusTC(CubicWebTC):
+class CircusTC(ContainerMixinTC, CubicWebTC):
     appid = 'data-circus'
+
+    def test_register(self):
+        from config import CIRCUS_CONTAINER, MENAGERIE_CONTAINER
+        self.assertEqual(CONTAINERS, {'Circus': CIRCUS_CONTAINER,
+                                      'Menagerie': MENAGERIE_CONTAINER})
 
     def test_static_structure(self):
         from config import CIRCUS_CONTAINER, MENAGERIE_CONTAINER

@@ -5,10 +5,10 @@ from cubicweb.devtools.testlib import CubicWebTC
 
 from cubes.container import _needs_container_parent
 from cubes.container.testutils import (userlogin, new_version, new_ticket,
-                                       new_patch, new_card)
+                                       new_patch, new_card, ContainerMixinTC)
 
 
-class TwoContainersTC(CubicWebTC):
+class TwoContainersTC(ContainerMixinTC, CubicWebTC):
     appid = 'data-forge2'
 
     def test_needs_container_parent(self):
@@ -72,7 +72,7 @@ def parent_titles(parent):
     return parents
 
 
-class CloneTC(CubicWebTC):
+class CloneTC(ContainerMixinTC, CubicWebTC):
     userlogin = userlogin
     appid = 'data-forge2'
 

@@ -2,6 +2,23 @@ from contextlib import contextmanager
 
 from cubicweb.schema import (META_RTYPES, WORKFLOW_DEF_RTYPES, SYSTEM_RTYPES,
                              SCHEMA_TYPES, WORKFLOW_TYPES, INTERNAL_TYPES)
+from cubes.container import CONTAINERS, ContainerConfiguration
+
+
+class ContainerMixinTC(object):
+    """Test mixin for cubes using container, to avoid registration clashes"""
+
+    @classmethod
+    def tearDownClass(cls):
+        CONTAINERS.clear()
+        super(ContainerMixinTC, cls).tearDownClass()
+
+    @staticmethod
+    def replace_config(etype, *args, **kwargs):
+        """Replace an already registered container configuration"""
+        del CONTAINERS[etype]
+        return ContainerConfiguration(etype, *args, **kwargs)
+
 
 @contextmanager
 def userlogin(self, *args):

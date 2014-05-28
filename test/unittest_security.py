@@ -3,9 +3,11 @@ from logilab.common.testlib import unittest_main
 from cubicweb import Binary, ValidationError, Unauthorized
 from cubicweb.devtools.testlib import CubicWebTC
 
-from cubes.container.testutils import userlogin, new_version, new_ticket, new_patch
+from cubes.container.testutils import (userlogin, new_version, new_ticket,
+                                       new_patch, ContainerMixinTC)
 
-class ContainerWalkTC(CubicWebTC):
+
+class ContainerWalkTC(ContainerMixinTC, CubicWebTC):
     appid = 'data-forge'
 
     def setup_database(self):
