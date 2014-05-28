@@ -3,7 +3,7 @@ from logilab.common.testlib import unittest_main
 from cubicweb import Binary, ValidationError
 from cubicweb.devtools.testlib import CubicWebTC
 
-from cubes.container import utils, _needs_container_parent
+from cubes.container import _needs_container_parent
 from cubes.container.testutils import (userlogin, new_version, new_ticket,
                                        new_patch, new_card)
 
