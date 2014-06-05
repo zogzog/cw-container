@@ -229,3 +229,8 @@ class CloneTC(CubicWebTC):
         # are actually copied as well:
         self.assertNotEqual(frozenset(doc.eid for doc in folder.element),
                             frozenset(doc.eid for doc in cloned_folder.element))
+
+
+if __name__ == '__main__':
+    unittest_main()
+
