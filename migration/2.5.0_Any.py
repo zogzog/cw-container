@@ -1,7 +1,7 @@
-
-for rschema in schema.relations():
-  for etype in rschema.subjects() + rschema.objects():
-    if schema[etype].has_relation('container_etype', 'subject'):
-      sync_schema_props_perms(rschema.type, syncprops=False, commit=False)
-      break
+container_configs = set()
+for etype in schema.entities():
+    etypecls = session.vreg['etypes'].etype_class(etype.type)
+    if hasattr(etypecls, 'container_config'):
+        cfg = etypecls.container_config
+        sync_schema_props_perms(cfg.rtype, syncprops=False, commit=False)
 commit()
