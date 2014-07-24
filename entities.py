@@ -26,6 +26,7 @@ from logilab.common.deprecation import class_deprecated
 from rql import parse
 
 from cubicweb import Binary, neg_role, onevent
+from cubicweb.__pkginfo__ import numversion
 from cubicweb.server.ssplanner import READ_ONLY_RTYPES
 from cubicweb.server.utils import eschema_eid
 
@@ -373,12 +374,22 @@ class ContainerClone(EntityAdapter):
             self.handle_special_relations((rtype, orig_to_clone[orig], linked)
                                           for rtype, orig, linked in deferred_relations)
 
-    def _fast_reserve_eids(self, qty):
-        """ not fast enough (yet) """
-        source = self._cw.repo.sources_by_uri['system']
-        if qty == 1:
-            return (source.create_eid(self._cw),)
-        return source.create_eid(self._cw, count=qty)
+    if numversion[:2] < (3, 19):
+        def _fast_reserve_eids(self, qty):
+            """ not fast enough (yet) """
+            source = self._cw.repo.sources_by_uri['system']
+            if qty == 1:
+                return (source.create_eid(self._cw),)
+            return source.create_eid(self._cw, count=qty)
+    else:
+        def _fast_reserve_eids(self, qty):
+            source = self._cw.repo.system_source
+            if qty == 1:
+                yield source.create_eid(self._cw)
+            lasteid = source.create_eid(self._cw, count=qty)
+            start = lasteid - qty + 1
+            for eid in xrange(start, lasteid + 1):
+                yield eid
 
     def preprocess_attributes(self, etype, oldeid, attributes):
         pass
@@ -392,11 +403,14 @@ class ContainerClone(EntityAdapter):
         isrelation = []
         isinstanceof = []
         now = datetime.utcnow()
+        # bw compat
+        notcw319 = numversion[:2] < (3, 19)
         for attributes in entities:
             neweid = attributes['eid']
-            metadata.append({'type': etype, 'eid': neweid,
-                             'source': 'system', 'asource': 'system',
-                             'mtime': now})
+            meta = {'type': etype, 'eid': neweid, 'asource': 'system'}
+            if notcw319:
+                meta.update({'mtime': now, 'source': 'system'})
+            metadata.append(meta)
             isrelation.append({'eid_from': neweid, 'eid_to': etypeid})
             for ancestor in ancestorseid:
                 isinstanceof.append({'eid_from': neweid, 'eid_to': ancestor})
@@ -441,7 +455,6 @@ class ContainerClone(EntityAdapter):
                              relations, deferred_relations,
                              fetched_rtypes, inlined_rtypes):
         entities = []
-        neweids = self._fast_reserve_eids(len(candidates_rset))
 
         # detect inlined rtypes that may be already cloned
         inlined_rtypes_already_cloned = set()
@@ -483,7 +496,8 @@ class ContainerClone(EntityAdapter):
                                               (inlined_rtypes_already_cloned |
                                                inlined_rtypes_crossing_border)))
 
-        for row, neweid in izip(chain([firstrow], iterrows), neweids):
+        for row, neweid in izip(chain([firstrow], iterrows),
+                                self._fast_reserve_eids(len(candidates_rset))):
             oldeid = row[0]
             attributes = {'eid': neweid, 'cwuri': u''}
             for rtype, val in zip(fetched_rtypes, row[1:]):
