@@ -192,6 +192,7 @@ class CloneTC(CubicWebTC):
         babar_contents = [('Card', u"Let's start a spec ..."),
                           ('Folder', u'Babar documentation'),
                           ('Patch', u'some code'),
+                          ('Project', u'Babar'),
                           ('Project', u'Celeste'),
                           ('Ticket', u'think about it'),
                           ('Version', u'0.1.0')]
@@ -224,6 +225,7 @@ class CloneTC(CubicWebTC):
         celeste_eids = set(x.eid for x in celeste.reverse_project)
 
         clone = session.create_entity('Project', name=u'Babar clone')
+        self.commit()
         cloner = clone.cw_adapt_to('Container.clone')
         self.assertEqual(['Card', 'Folder', 'Patch', 'Project', 'Ticket', 'Version'],
                          sorted(cloner.clonable_etypes()))
@@ -233,7 +235,14 @@ class CloneTC(CubicWebTC):
             self.commit()
 
         clone.cw_clear_all_caches()
-        self.assertEqual(babar_contents,
+        babar_clone_contents = [('Card', u"Let's start a spec ..."),
+                                ('Folder', u'Babar documentation'),
+                                ('Patch', u'some code'),
+                                ('Project', u'Babar clone'),
+                                ('Project', u'Celeste'),
+                                ('Ticket', u'think about it'),
+                                ('Version', u'0.1.0')]
+        self.assertEqual(babar_clone_contents,
                          sorted([(e.__regid__, e.dc_title())
                                  for e in clone.reverse_project]))
 

@@ -39,17 +39,19 @@ class ContainerEntitiesTC(ContainerTC):
 
     def test_is_clone_of_relation(self):
         """This triggers a clone through setting the cloning relation"""
+        self.assertEqual([u'Bottom -> Left -> Diamond (Top)',
+                          u'Bottom -> Right -> Diamond (Top)',
+                          u'Diamond (Top)',
+                          u'Left -> Diamond (Top)',
+                          u'Right -> Diamond (Top)'],
+                         sorted([x.dc_title() for x in self.d.reverse_diamond]))
         newd = self.session.create_entity('Diamond', name=u'TopClone')
         newd.cw_set(is_clone_of=self.d)
         self.commit()
         newd = self.session.entity_from_eid(newd.eid)
-        self.assertEqual([u'Bottom -> Left -> Diamond (Top)',
-                          u'Bottom -> Right -> Diamond (Top)',
-                          u'Left -> Diamond (Top)',
-                          u'Right -> Diamond (Top)'],
-                         sorted([x.dc_title() for x in self.d.reverse_diamond]))
         self.assertEqual([u'Bottom -> Left -> Diamond (TopClone)',
                           u'Bottom -> Right -> Diamond (TopClone)',
+                          u'Diamond (TopClone)',
                           u'Left -> Diamond (TopClone)',
                           u'Right -> Diamond (TopClone)'],
                          sorted([x.dc_title() for x in newd.reverse_diamond]))
@@ -70,7 +72,7 @@ class ContainerEntitiesTC(ContainerTC):
 
     def test_container_rtype_hook(self):
         session = self.session
-        self.assertEqual(4, len(session.execute('Any X,Y WHERE X diamond Y')))
+        self.assertEqual(5, len(session.execute('Any X,Y WHERE X diamond Y')))
         l = session.entity_from_eid(self.l.eid)
         self.assertEqual(self.d.eid, l.cw_adapt_to('Container').related_container.eid)
         self.assertEqual('Diamond', l.container_etype[0].name)

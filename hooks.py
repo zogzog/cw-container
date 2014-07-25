@@ -122,6 +122,34 @@ class SetContainerRelation(Hook):
             _set_container_parent(self._cw, self.rtype, eid, peid)
 
 
+class NewContainer(Hook):
+    __regid__ = 'container.new_container_etype_entity'
+    __abstract__ = True
+    events = ('after_add_entity',)
+    category = 'container'
+
+    def __call__(self):
+        NewContainerOp.get_instance(self._cw).add_data(self.entity.eid)
+
+
+class NewContainerOp(DataOperationMixIn, Operation):
+    containercls = list
+
+    def precommit_event(self):
+        session = self.session
+        for ceid in self.get_data():
+            container = session.entity_from_eid(ceid)
+            adapter = container.cw_adapt_to('Container')
+            parent = adapter.parent
+            if parent is None:
+                # top-level container, loop on itself
+                target = container
+            else:
+                target = parent.cw_adapt_to('Container').related_container
+            cconf = Container.by_etype(target.cw_etype)
+            container.cw_set(**{cconf.crtype:target})
+
+
 class SetContainerParent(Hook):
     __metaclass__ = class_deprecated
     __deprecation_warning__ = ('[2.2.0] SetContainerParent is deprecated, '
@@ -176,7 +204,6 @@ class AddContainerRelationOp(DataOperationMixIn, Operation):
         if container_etype_rel:
             session.add_relations([('container_etype', container_etype_rel)])
 
-
 # clone using <clone_relation> Hook & Operation
 
 class CloneContainer(Hook):
@@ -222,6 +249,6 @@ def registration_callback(vreg):
 
     @onevent('after-registry-reload')
     def register_hooks():
-        hook = Container.container_hook()
-        if hook.__regid__ not in vreg[hook.__registry__]:
-            vreg.register(hook)
+        for hook in Container.container_hooks():
+            if hook.__regid__ not in vreg[hook.__registry__]:
+                vreg.register(hook)

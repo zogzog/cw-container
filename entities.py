@@ -144,6 +144,7 @@ class ContainerClone(EntityAdapter):
     __regid__ = 'Container.clone'
     rtypes_to_skip = set()
     etypes_to_skip = set()
+    nesting = 0
 
     @cachedproperty
     def config(self):
@@ -161,29 +162,38 @@ class ContainerClone(EntityAdapter):
         raise NotImplementedError
     # /bw compat
 
+    # When debugging, uncommenting this may help quite a bit
+    # def info(self, msg, *args):
+    #     print ('.' * self.nesting) + msg % args
+
     def clone(self, original=None):
         """ entry point
 
         At the end, self.entity is the fully cloned container.
         """
         self.orig_container_eid = self._origin_eid(original)
-
         orig_to_clone = {self.orig_container_eid: self.entity.eid}
         relations = defaultdict(list)
-        self._clone(orig_to_clone, relations)
+        self._clone(orig_to_clone, relations, 0)
 
-    def _clone(self, orig_to_clone, relations, toplevel=True):
-        self.info('started cloning %s (toplevel=%s)', self.entity.e_schema, toplevel)
+    def _clone(self, orig_to_clone, relations, nesting):
+        self.nesting = nesting
+        toplevel = not nesting
+        self.info('started cloning into %s (toplevel=%s)', self.entity.dc_title(), toplevel)
+        if not toplevel:
+            self.nesting += 1
+        self.info('%s -> %s', self.orig_container_eid, self.entity.eid)
         cloned_etypes = []
         subcontainers = self.config.subcontainers
         clonable_etypes = self.config.etypes
 
-        for etype in self.clonable_etypes():
+        clonable_etypes = list(self.clonable_etypes())
+        for etype in clonable_etypes:
             cloned_etypes.append(etype)
             for rtype, from_to in self._etype_clone(etype, orig_to_clone).iteritems():
                 relations[rtype].extend(from_to)
 
-        uncloned_etypes = set(cloned_etypes) - clonable_etypes
+        uncloned_etypes = set(cloned_etypes) - set(clonable_etypes)
         if uncloned_etypes:
             self.info('etypes %s were not cloned', uncloned_etypes)
 
@@ -199,7 +209,6 @@ class ContainerClone(EntityAdapter):
         for rtype, from_to in self._container_relink(orig_to_clone).iteritems():
             relations[rtype].extend(from_to)
 
-
         # let's flush all collected relations
         self.info('linking (%d relations)', len(relations))
         internal_rtypes = set(rdef.rtype.type
@@ -211,6 +220,10 @@ class ContainerClone(EntityAdapter):
             subj_obj = []
             for subj, obj in eids:
                 subj = orig_to_clone[subj]
+                if subj == self.entity.eid:
+                    # we didn't filter this properly before getting there, because
+                    # right now it's a bit tricky ...
+                    continue
                 if obj in orig_to_clone:
                     # internal relinking, else it is a link
                     # between internal and external nodes
@@ -219,17 +232,24 @@ class ContainerClone(EntityAdapter):
             self._cw.add_relations([(rtype, subj_obj)])
 
     def _delegate_clone_to_subcontainer(self, cetype, orig_to_clone, relations):
+        print
         self.info('delegated cloning for %s', cetype)
-        query = self._complete_rql(cetype)
+        # get entities of type cetype except the original
+        query = self._complete_rql(cetype) + ', NOT X eid %s' % self.orig_container_eid
         candidates_rset = self._cw.execute(query, self._queryargs())
         for candidate in candidates_rset.entities():
             # fetch the container clone
+            # NOTE: at this point a top-level clone has no <crtype> set yet
+            #       but this subcontainer has been cloned and its relations
+            #       prepared
             cclone = self._cw.entity_from_eid(orig_to_clone[candidate.eid])
+            # we must compare eids until at least cubicweb 3.18
+            assert getattr(cclone, self.config.crtype)[0].eid == self.entity.eid
             cloner = cclone.cw_adapt_to('Container.clone')
             cloner.orig_container_eid = cloner._origin_eid(candidate.eid)
             # the orig-clone mapping and relations will be augmented
             # by the delegated clone
-            cloner._clone(orig_to_clone, relations, toplevel=False)
+            cloner._clone(orig_to_clone, relations, nesting=self.nesting+1)
             cloner._container_relink(orig_to_clone)
 
     @cachedproperty
@@ -276,12 +296,12 @@ class ContainerClone(EntityAdapter):
         # (see cw#3267139)
         return set(('cwuri',)) | READ_ONLY_RTYPES | VIRTUAL_RTYPES
 
-    def _etype_fetch_rqlst(self, etype):
+    def _etype_fetch_rqlst(self, etype, completefragment=''):
         """ returns an rqlst ready to be executed, plus a sequence of
         all attributes or inlined rtypes that will be fetched by the rql,
         plus a set of the inlined rtypes
         """
-        base_rql = self._complete_rql(etype)
+        base_rql = self._complete_rql(etype) + completefragment
         # modify base_rql to fetch all attributes / inlined rtypes
         rqlst = parse(base_rql).children[0]
         # a dict from rtype to rql variable
@@ -344,8 +364,13 @@ class ContainerClone(EntityAdapter):
                 yield etype
 
     def _etype_clone(self, etype, orig_to_clone):
+        # 0/ guard against cloning again the container itself
+        guard = ''
+        if etype == self.entity.cw_etype:
+            eids = (str(x) for x in (self.orig_container_eid, self.entity.eid))
+            guard = ', NOT X eid IN (%s)' % ','.join(eids)
         # 1/ fetch all <etype> entities in current container
-        query, fetched_rtypes, inlined_rtypes = self._etype_fetch_rqlst(etype)
+        query, fetched_rtypes, inlined_rtypes = self._etype_fetch_rqlst(etype, guard)
         candidates_rset = self._cw.execute(query, self._queryargs())
         if not candidates_rset:
             self.info('nothing to be cloned for %s', etype)
@@ -455,7 +480,6 @@ class ContainerClone(EntityAdapter):
                              relations, deferred_relations,
                              fetched_rtypes, inlined_rtypes):
         entities = []
-
         # detect inlined rtypes that may be already cloned
         inlined_rtypes_already_cloned = set()
         # detect inlined rtypes that have at least one

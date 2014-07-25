@@ -8,7 +8,10 @@ from yams.buildobjs import RelationType, RelationDefinition
 
 from cubicweb import schema as cw_schema
 from cubicweb.predicates import is_instance
+from cubicweb.server import ON_COMMIT_ADD_RELATIONS
+
 from cubes.container import utils
+from cubes.container.secutils import PERM, PERMS
 
 
 logger = logging.getLogger('cubes.container')
@@ -60,6 +63,8 @@ class Container(object):
     @staticmethod
     def all_etypes():
         return set(_CONTAINER_ETYPE_MAP.keys())
+
+    # setup methods
 
     def define_container(self, schema):
         """ Produce the necessary schema relations of a container:
@@ -133,11 +138,12 @@ class Container(object):
         return adapter
 
     @classmethod
-    def container_hook(cls):
-        """Return a concrete subclass of the SetContainerRelation hook
-        with selector set for *all* the containers
+    def container_hooks(cls):
+        """Return concrete subclasses of the SetContainerRelation hook with
+        selector set for *all* the containers and the NewContainer
+        hook with selector set for each container type.
         """
-        from cubes.container.hooks import SetContainerRelation, match_rdefs
+        from cubes.container.hooks import SetContainerRelation, NewContainer, match_rdefs
         cetypes = []
         rdefs = set()
         parentrdefs = defaultdict(set)
@@ -147,11 +153,118 @@ class Container(object):
             for rtype, from_to in container._container_parent_rdefs.iteritems():
                 parentrdefs[rtype] |= from_to
         prefix = ''.join(cetypes)
-        hook = type(prefix + 'ContainerHook', (SetContainerRelation,), {})
-        hook.__select__ = match_rdefs(*rdefs)
-        hook.__registry__ = 'after_add_relation_hooks'
-        hook._container_parent_rdefs = parentrdefs
-        return hook
+        setrelationhook = type(prefix + 'ContainerRelationHook',
+                               (SetContainerRelation,),
+                               {'__select__': match_rdefs(*rdefs),
+                                '__registry__': 'after_add_relation_hooks',
+                                '_container_parent_rdefs': parentrdefs})
+        newcontainerhook = type(prefix + 'NewContainer',
+                                (NewContainer,),
+                                {'__select__': is_instance(*cetypes),
+                                 '__registry__': 'after_add_entity_hooks'})
+        return (setrelationhook, newcontainerhook)
+
+    def setup_rdefs_security(self, inner_rdefs_perms, border_rdefs_perms=None):
+        """Automatically decorate the inner rdefs and border rdefs with the
+        given permission rules.
+
+        Either inner_rdefs_perms or border_rdefs_perms can be:
+
+        * a plain dictionary (to feed immediately to rdef.__permissions__),
+
+        * a function taking a string valued to 'S' or 'O' indicating
+          the direction of the container, for use in RRQLExpressions,
+          and returning a permissions dict.
+
+        For those rdefs that have been statically decorated with a
+        PERM tag, the matching permission dict will be fetched from
+        the PERMS dictionary, e.g.::
+
+          PERMS['allowed-if-open-state'] = {
+              'read':   ('managers', 'users'),
+              'add':    ('managers', RRQLExpression('X in_state S, S name "open"')),
+              'delete': ('managers', RRQLExpression('X in_state S, S name "open"'))
+          }
+
+          class done_in_version(RelationDefinition):
+              __permissions__ = PERM('allowed-if-open-state')
+
+        """
+        processed_permission_rdefs = set()
+
+        def role_to_container(rdef, rdef_role):
+            """ computes a mapping of (subjet, object) to 'S' or 'O' role name
+            giving the direction of the container root
+            """
+            if rdef.composite is None:
+                # if both the subj/obj are in the container, we
+                # default to the subject (it does not really matter)
+                if rdef.subject.type in self.etypes:
+                    rdef_role[rdef] = 'S'
+                elif rdef.object.type in self.etypes:
+                    rdef_role[rdef] = 'O'
+
+                return
+            # structural relations:
+            # we must choose the side nearest to the container root
+            # 'subject' => 'S', 'object' => 'O'
+            # Both subj/obj must be in etypes
+            # This should be true here
+            assert rdef.subject in self.etypes or rdef.object in self.etypes
+
+            composite = utils.composite(rdef)
+            # filter out subcontainer
+            # any relation who defined a subcontainer as a composite
+            # is not ours and its handling will be delegated
+            # ... but take care of recursive containers
+            if composite in self.subcontainers and composite != self.cetype:
+                return
+
+            # any relation that points to an etype which is not ours
+            # will be handled by someone else
+            if composite not in self.etypes:
+                return
+
+            rdef_role[rdef] = rdef.composite[:1].upper()
+
+        def set_rdefs_perms(rdefs_roles, perms, processed):
+            """ for all collected rdefs, set the permissions
+            * using the specially tagged PERM object
+            * using the perms('S' or 'O') callable
+            * using a plain normal permission dict
+            """
+            assert callable(perms) or isinstance(perms, dict)
+            for rdef, role in rdefs_roles.iteritems():
+                if rdef in processed:
+                    continue
+                if isinstance(rdef.permissions, PERM):
+                    rdef.permissions = PERMS[rdef.permissions]
+                elif isinstance(perms, dict):
+                    rdef.permissions = perms
+                else:
+                    rdef.permissions = perms(role)
+                assert not callable(rdef.permissions), rdef.permissions
+                processed.add(rdef)
+
+        # 1. internal rtypes
+        rdef_role = {}
+        for rdef in self.rdefs:
+            ON_COMMIT_ADD_RELATIONS.add(rdef.rtype.type)
+            role_to_container(rdef, rdef_role)
+        set_rdefs_perms(rdef_role, inner_rdefs_perms, processed_permission_rdefs)
+
+        # 2. border crossing rtypes
+        if border_rdefs_perms is None:
+            # maybe this cannot be automated this way
+            return
+        rdef_role = {}
+        for rdef in sorted(self.border_rdefs):
+            ON_COMMIT_ADD_RELATIONS.add(rdef.rtype.type)
+            role_to_container(rdef, rdef_role)
+        set_rdefs_perms(rdef_role, border_rdefs_perms, processed_permission_rdefs)
+
+    # /setup
+    # container accessors
 
     @cachedproperty
     def rdefs(self):
@@ -209,6 +322,22 @@ class Container(object):
         return frozenset(rdefs)
 
     @cachedproperty
+    def border_rdefs(self):
+        """ compute the set of rtypes that go from/to an etype in a container
+        to/from an etype outside """
+        inner_rdefs = self.inner_rdefs
+        border_crossing = set()
+        for etype in self.etypes:
+            eschema = self._schema[etype]
+            for rdef in utils.iterrdefs(eschema, meta=False, final=False,
+                                        skiprtypes=self.skiprtypes,
+                                        skipetypes=self.skipetypes):
+                if rdef in inner_rdefs:
+                    continue
+                border_crossing.add(rdef)
+        return border_crossing
+
+    @cachedproperty
     def etypes(self):
         """Return the set of all the etypes belonging to the container
         (including the container etype itself)
@@ -233,7 +362,9 @@ class Container(object):
             total_order += order
         return total_order + etype_map.keys()
 
+    # /accessors
     # /API
+
     # private methods
 
     @cachedproperty

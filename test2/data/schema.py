@@ -2,7 +2,7 @@ from yams.buildobjs import EntityType, RelationDefinition, String, SubjectRelati
 from cubicweb.schema import RRQLExpression, ERQLExpression
 
 from cubes.container import utils, config
-from cubes.container.secutils import PERM, PERMS, setup_container_rtypes_security
+from cubes.container.secutils import PERM, PERMS
 
 class Project(EntityType):
     name = String(required=True)
@@ -16,12 +16,20 @@ class Project(EntityType):
                                     inlined=True, cardinality='?*')
 
 
+PERMS['project-meta-perms'] = {
+    'read':   ('managers', 'users', 'guests'),
+    'add':    ('managers', RRQLExpression('O owned_by S')),
+    'delete': ('managers', RRQLExpression('O owned_by S'))
+}
+
 # a standard read-write permission scheme
 class canread(RelationDefinition):
+    __permissions__ = PERM('project-meta-perms')
     subject = 'CWUser'
     object = 'Project'
 
 class canwrite(RelationDefinition):
+    __permissions__ = PERM('project-meta-perms')
     subject = 'CWUser'
     object = 'Project'
 
@@ -76,35 +84,6 @@ class File(EntityType):
     """ does NOT belong to Project """
     data = Bytes()
 
-def setup_security(schema):
-    def container_rtypes_perms(role_to_container):
-        # role_to_container is either 'S' or 'O'
-        return {
-            'read':   ('managers', 'users', 'guests'),
-            'add':    ('managers', RRQLExpression('%s project P, U canwrite P' % role_to_container)),
-            'delete': ('managers', RRQLExpression('%s project P, U canwrite P' % role_to_container)),
-        }
-    def near_container_rtype_perms(role_to_container):
-        # role_to_container is either 'S' or 'O'
-        return {
-            'read':   ('managers', 'users', 'guests'),
-            'add':    ('managers', RRQLExpression('U canwrite %s' % role_to_container)),
-            'delete': ('managers', RRQLExpression('U canwrite %s' % role_to_container)),
-        }
-
-    # from cubes.tracker.entities import Project
-    # We need to cheat a bit here because this does not really exist as such
-    from cubes.container.entities import Container
-    class Project(Container):
-        __regid__ = 'Project'
-        container_rtype = 'project'
-
-    setup_container_rtypes_security(schema,
-                                    Project,
-                                    near_container_rtype_perms,
-                                    inner_rtypes_perms=container_rtypes_perms,
-                                    border_rtypes_perms=container_rtypes_perms)
-
 
 # let's leave security there and complete the setup with an embedded container
 
@@ -147,4 +126,13 @@ def post_build_callback(schema):
     project.define_container(schema)
     folder = config.Container('Folder', 'folder_root')
     folder.define_container(schema)
-    setup_security(schema)
+
+    def inner_rdefs_perms(role_to_container):
+        # role_to_container is either 'S' or 'O'
+        return {
+            'read':   ('managers', 'users', 'guests'),
+            'add':    ('managers', RRQLExpression('%s project P, U canwrite P' % role_to_container)),
+            'delete': ('managers', RRQLExpression('%s project P, U canwrite P' % role_to_container)),
+        }
+
+    project.setup_rdefs_security(inner_rdefs_perms, inner_rdefs_perms)

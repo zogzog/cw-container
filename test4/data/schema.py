@@ -1,8 +1,8 @@
-from yams.buildobjs import EntityType, RelationDefinition, String, SubjectRelation, Bytes
-from cubicweb.schema import RRQLExpression, ERQLExpression
+from yams.buildobjs import EntityType, String, SubjectRelation, Bytes
+from cubicweb.schema import RRQLExpression
 
 from cubes.container import utils, config
-from cubes.container.secutils import PERM, PERMS, setup_container_rtypes_security
+from cubes.container.secutils import PERM, PERMS
 from cubicweb.schema import PUB_SYSTEM_REL_PERMS
 
 # custom ad-hoc rules
@@ -29,6 +29,7 @@ class Project(EntityType):
     documented_by = SubjectRelation('File', cardinality='*?',
                                     __permissions__=PERM('project-documentation'),
                                     composite='subject')
+    can_write = SubjectRelation('CWUser')
 
 
 class Version(EntityType):
@@ -56,54 +57,25 @@ class File(EntityType):
     data = Bytes()
 
 
-def setup_security(schema):
-    # Project container security setup
-    def project_rtypes_perms(role_to_container):
-        # role_to_container is either 'S' or 'O'
-        return PUB_SYSTEM_REL_PERMS
-
-    def near_project_rtype_perms(role_to_container):
-        # role_to_container is either 'S' or 'O'
-        return PUB_SYSTEM_REL_PERMS
-
-
-    from cubes.container.entities import Container
-    class Project(Container):
-        __regid__ = 'Project'
-        container_rtype = 'project'
-        container_subcontainers = ('Version',)
-
-    setup_container_rtypes_security(schema,
-                                    Project,
-                                    near_project_rtype_perms,
-                                    inner_rtypes_perms=project_rtypes_perms,
-                                    border_rtypes_perms=project_rtypes_perms)
-
-    # Version container security setup
-    def version_rtypes_perms(role_to_container):
-        # role_to_container is either 'S' or 'O'
-        return PUB_SYSTEM_REL_PERMS
-
-    def near_version_rtype_perms(role_to_container):
-        # role_to_container is either 'S' or 'O'
-        return PUB_SYSTEM_REL_PERMS
-
-    class Version(Container):
-        __regid__ = 'Version'
-        container_rtype = 'version'
-
-    setup_container_rtypes_security(schema,
-                                    Version,
-                                    near_version_rtype_perms,
-                                    inner_rtypes_perms=version_rtypes_perms,
-                                    border_rtypes_perms=version_rtypes_perms)
-
-# let's leave security there and complete the setup with an embedded container
-
-
 def post_build_callback(schema):
     project = config.Container('Project', 'project', subcontainers=('Version',))
     project.define_container(schema)
+
+    def project_rtypes_perms(role_to_container):
+        # role_to_container is either 'S' or 'O'
+        return {
+            'read': ('managers', 'users'),
+            'add': ('managers',
+                    RRQLExpression('X project %(p)s, U can_write %(p)s' %
+                                   {'p': role_to_container})),
+            'delete': ('managers',
+                       RRQLExpression('X project %(p)s, U can_write %(p)s' %
+                                      {'p': role_to_container}))
+        }
+
+    project.setup_rdefs_security(project_rtypes_perms, project_rtypes_perms)
+
+    # version container & security
     version = config.Container('Version', 'version')
     version.define_container(schema)
-    setup_security(schema)
+    version.setup_rdefs_security(PUB_SYSTEM_REL_PERMS, PUB_SYSTEM_REL_PERMS)
