@@ -174,35 +174,7 @@ class ContainerClone(EntityAdapter):
         self.orig_container_eid = self._origin_eid(original)
         orig_to_clone = {self.orig_container_eid: self.entity.eid}
         relations = defaultdict(list)
-        self._clone(orig_to_clone, relations, 0)
-
-    def _clone(self, orig_to_clone, relations, nesting):
-        self.nesting = nesting
-        toplevel = not nesting
-        self.info('started cloning into %s (toplevel=%s)', self.entity.dc_title(), toplevel)
-        if not toplevel:
-            self.nesting += 1
-        self.info('%s -> %s', self.orig_container_eid, self.entity.eid)
-        cloned_etypes = []
-        subcontainers = self.config.subcontainers
-        clonable_etypes = self.config.etypes
-
-        clonable_etypes = list(self.clonable_etypes())
-        for etype in clonable_etypes:
-            cloned_etypes.append(etype)
-            for rtype, from_to in self._etype_clone(etype, orig_to_clone).iteritems():
-                relations[rtype].extend(from_to)
-
-        uncloned_etypes = set(cloned_etypes) - set(clonable_etypes)
-        if uncloned_etypes:
-            self.info('etypes %s were not cloned', uncloned_etypes)
-
-        for cetype in subcontainers:
-            self._delegate_clone_to_subcontainer(cetype, orig_to_clone, relations)
-
-        if not toplevel:
-            self.info('sub-clone terminated, resuming to parent')
-            return
+        self._inner_clone(orig_to_clone, relations, 0)
 
         # the top container itself is walked: its subject relations have not yet
         # been collected
@@ -231,6 +203,31 @@ class ContainerClone(EntityAdapter):
                 subj_obj.append((subj, obj))
             self._cw.add_relations([(rtype, subj_obj)])
 
+    def _inner_clone(self, orig_to_clone, relations, nesting):
+        self.nesting = nesting
+        toplevel = not nesting
+        self.info('started cloning into %s (toplevel=%s)', self.entity.dc_title(), toplevel)
+        if not toplevel:
+            self.nesting += 1
+        self.info('%s -> %s', self.orig_container_eid, self.entity.eid)
+        cloned_etypes = []
+        subcontainers = self.config.subcontainers
+        clonable_etypes = self.config.etypes
+
+        clonable_etypes = list(self.clonable_etypes())
+        for etype in clonable_etypes:
+            cloned_etypes.append(etype)
+            for rtype, from_to in self._etype_clone(etype, orig_to_clone).iteritems():
+                relations[rtype].extend(from_to)
+
+        uncloned_etypes = set(cloned_etypes) - set(clonable_etypes)
+        if uncloned_etypes:
+            self.info('etypes %s were not cloned', uncloned_etypes)
+
+        for cetype in subcontainers:
+            self._delegate_clone_to_subcontainer(cetype, orig_to_clone, relations)
+
+
     def _delegate_clone_to_subcontainer(self, cetype, orig_to_clone, relations):
         print
         self.info('delegated cloning for %s', cetype)
@@ -249,7 +246,7 @@ class ContainerClone(EntityAdapter):
             cloner.orig_container_eid = cloner._origin_eid(candidate.eid)
             # the orig-clone mapping and relations will be augmented
             # by the delegated clone
-            cloner._clone(orig_to_clone, relations, nesting=self.nesting+1)
+            cloner._inner_clone(orig_to_clone, relations, nesting=self.nesting+1)
             cloner._container_relink(orig_to_clone)
 
     @cachedproperty
