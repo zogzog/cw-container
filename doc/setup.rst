@@ -37,13 +37,8 @@ Let's start with a schema:
      cardinality = '*1'
      composite = 'subject'
 
-complemented by the container configuration (in ``mycube/__init__.py``):
-
-.. code-block:: python
-
-    from cubes.container import ContainerConfiguration
-
-    PROJECT_CONTAINER = ContainerConfiguration('Project', 'project')
+ def post_build_callback(schema):
+    utils.define_container(schema, 'Project', 'project')
 
 
 And now, let's discuss. There are 4 (four) entity types here:
@@ -62,9 +57,7 @@ By telling, in the `post_build_callback` schema function as such:
 
 .. code-block:: python
 
-    def post_build_callback(schema):
-        from cubes.mycube import PROJECT_CONTAINER
-        PROJECT_CONTAINER.define_container(schema)
+  utils.define_container(schema, 'Project', 'project')
 
 one actually defines the following:
 
@@ -83,46 +76,68 @@ the entities.
 
 .. code-block:: python
 
-    from cubicweb.entities import AnyEntity
+ from cubicweb.selectors import is_instance
 
-    from cubes.mycube import PROJECT_CONTAINER
+ from cubes.container import utils
+ from cubes.container.entities import Container, ContainerProtocol
 
-    class Project(AnyEntity):
-        __regid__ = 'Project'
-        container_config = PROJECT_CONTAINER
+ class Project(Container):
+     __regid__ = 'Project'
+     container_rtype = 'project'
 
+ class ProjectContainer(ContainerProtocol):
+     pass
 
  def registration_callback(vreg):
      vreg.register_all(globals().values(), __name__)
-     project_protocol = PROJECT_CONTAINER.build_container_protocol(vreg.schema)
-     vreg.register(project_protocol)
+     _r, etypes = utils.container_static_structure(vreg.schema, 'Project', 'project')
+     ProjectContainer.__select__ = (ProjectContainer.__select__ &
+                                    is_instance('Project', *etypes))
 
 Here we perform two things:
 
-* we attach the container configuration on the entity type (yams cannot
+* we declare the `container_rtype` on the entity type (yams cannot
   currently host that piece of information) for later use,
 
-* we instantiate the ContainerProtocol adapter with a proper selector set,
-  thanks to the ``build_container_protocol`` method in
-  ``registration_callback``. This adapter will help the hooks for the
-  maintenance of the container relations (`<container_rtype>` and
-  `container_parent` if it exists). It may also be used in views (or where it
-  fits) to compute the container parent and the container root entities of any
+* we put the right selector on the ContainerProtocol adapter. This
+  adapter will help the hooks for the maintenance of the container
+  relations (`<container_rtype>` and `container_parent` if it
+  exists). It may also be used in views (or where it fits) to compute
+  the container parent and the container root entities of any
   containerised entity.
 
 
 Hooks
 .....
 
-The hooks will set up the container relations at edition time. The
-``build_container_hooks`` method of the configuration object will instantiate
-hooks responsible of maintaining the `container` relation at edition time.
+The hooks will set up the container relations at edition time. Let's
+have a look at some code.
 
 .. code-block:: python
 
-    def registration_callback(vreg):
-        from cubes.mycube import PROJECT_CONTAINER
-        schema = vreg.schema
-        for hookcls in PROJECT_CONTAINER.build_container_hooks(schema):
-            vreg.register(hookcls)
+ from cubicweb.server.hook import match_rtype
+ from cubes.container import hooks, utils
 
+ class SetContainerParent(hooks.SetContainerParent):
+     __select__ = utils.yet_unset()
+
+ class SetContainerRelation(hooks.SetContainerRelation):
+     __select__ = utils.yet_unset()
+
+
+ def registration_callback(vreg):
+     schema = vreg.schema
+     rtypes = utils.set_container_parent_rtypes_hook(schema, 'Project', 'project')
+     SetContainerParent.__select__ = Hook.__select__ & match_rtype(*rtypes)
+     rtypes_m = utils.set_container_relation_rtypes_hook(schema, 'Project', 'project')
+     SetContainerRelation.__select__ = Hook.__select__ & match_rtype(*rtypes)
+     vreg.register(SetContainerParent)
+     vreg.register(SetContainerRelation)
+
+
+The `SetContainerParent` hook computes and sets the parent when a
+`container_parent` relation is needed.
+
+The `SetContainerRelation` hook computes and sets the
+`<container_rtype>` relation at creation time for any containerised
+entity.

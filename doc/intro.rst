@@ -107,67 +107,64 @@ is out of scope.
 Setting up a container
 ----------------------
 
-A container is defined by the declaration of a singleton configuration object,
-instance of ``ContainerConfiguration``. At least, this configuration object
-needs the name of the container entity type and the name of the
-`<container>` relation. Usually one would put this declaration in the
-``__init__.py`` of the client cube.
-
 This section is illustrated by the container cube's test suite. You
 will find all the relevant examples in `test/data`.
 
 These are the usual steps involved in a container definition:
 
-* schema definition: `test/data/schema.py`
+* schema definition: see test/data/schema.py
 
-  The test schema defines a few entity types, amongst which two will be
-  containers that can share at least one entity type (which does not mean that
-  its instances will be allowed to live in both containers at the same time!).
+  The test schema defines two containers, with at least one shared
+  entity type (which does not mean that its instances will be allowed
+  to live in both containers at the same time!).
 
-* declaration of container configurations: `test/data/config.py`
+  For each container structure, a call to the `define_container`
+  function is made: this will build the `container` relations and the
+  `container_parent` if they are needed.
 
-  Here two containers are defined with the container
-  entity type name and container relation type name along with entity types
-  and/or relation types to exclude from their respective container structure
-  (``skipetypes``, ``skiprtypes`` keyword arguments).
+* schema tests: having tests suchs as the ones in unittest_schema in
+  your container-using cubes is a very important non-regression asset
+  (esp. against unvoluntary container definition, and to help diagnose
+  container behaviour problems).
 
-* container definitions at the schema level: `test/data/schema.py`
+  Having at least test_static_structure and test_etypes_rtypes is
+  extremely useful, even very early in the development of a container,
+  as it helps spot mistakes in the structure definition.
 
-  For each container configuration, a call to the ``define_container`` method is
-  made in ``post_build_callback``: this will build the `container` relations
-  and the `container_parent` if they are needed.
+* hooks: see test/data/hooks.py
 
-* container definitions at the entity level: `test/data/entities.py`
+  The SetContainerParent and SetContainerRelation hooks must be setup
+  along with your container definitions.
 
-  Each entity class defining a container has a ``container_config`` attribute
-  pointing to the configuration object already mentioned.
+  This is almost automatic as the set_container_parent_rtypes_hook and
+  set_container_parent_rtypes_hook functions compute the exact rtypes
+  set needed for the selectors.
 
-  For each container configuration, a call to the ``build_container_protocol``
-  method is made that will instantiate a so-called *container protocol*
-  responsible to traverse the container structure; this app-object has to be
-  manually registered.
+* entities and adapters: see test/data/entities.py
 
-  Optionally, the `MultiParentProtocol` can be set up for entities that may
-  have many parents at the same time. The container cube makes no special
-  assumption about what to do and gives its users this specific entry point to
-  implement custom behaviour.
+  As of today, entity classes of the CubicWeb `orm` are used to
+  customize a container definition.
+
+  The `container_rtype` attribute gives a name to the concrete
+  `<container_rtype>` relation.
+
+  The `container_skiprtypes` attribute is a tuple containing rtypes
+  not to follow when defining a container or operating on it. Security
+  or workflow information (as examplified by `local_group` and
+  `wf_info_for`) may indeed be excluded from most operations and be
+  kept under the control of specific hooks.
+
+  The `ContainerProtocol` must be set up an all container etypes. This
+  is the main API to get to a container or a parent entity within a
+  container.
+
+  The `MultiParentProtocol` can be optionally set up for these
+  entities that may have many parents at the same time. The container
+  cube makes no special assumption about what to do and gives its
+  users this specific entry point to implement custom behaviour.
 
   Indeed the `MultiParentProtocol` will be called from the
   `SetContainerRelation` hook when such an entity already has one parent
   set.
 
-* container configuration in hooks: `test/data/hooks.py`
 
-  For each container configuration, a call to the ``build_container_hooks``
-  method is made that will instantiate container specific hooks responsible
-  for maintaining the `container` relation upon data events; these app-objects
-  have to be manually registered.
-
-* schema tests: having tests such as the ones in ``unittest_schema`` in
-  your container-using cubes is a very important non-regression asset
-  (esp. against involuntary container definition, and to help diagnose
-  container behaviour problems).
-
-  Having at least `test_static_structure` and `test_etypes_rtypes` is
-  extremely useful, even very early in the development of a container,
-  as it helps spot mistakes in the structure definition.
