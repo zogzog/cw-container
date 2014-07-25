@@ -18,7 +18,7 @@ class ContainerEntitiesTC(ContainerTC):
 
     def setup_database(self):
         session = self.session
-        self.d = session.create_entity('Diamond')
+        self.d = session.create_entity('Diamond', name=u'Top')
         self.l = session.create_entity('Left', top_from_left=self.d)
         self.assertEqual(self.d.eid, self.l.cw_adapt_to('Container').related_container.eid)
         self.r = session.create_entity('Right', top_from_right=self.d, to_inner_left=self.l)
@@ -38,12 +38,21 @@ class ContainerEntitiesTC(ContainerTC):
         self.commit()
 
     def test_is_clone_of_relation(self):
-        d = self.session.create_entity('Diamond')
-        d.cw_set(is_clone_of=self.d)
+        """This triggers a clone through setting the cloning relation"""
+        newd = self.session.create_entity('Diamond', name=u'TopClone')
+        newd.cw_set(is_clone_of=self.d)
         self.commit()
-        d = self.session.entity_from_eid(d.eid)
-        self.assertEqual(len(d.reverse_diamond),
-                         len(self.d.reverse_diamond))
+        newd = self.session.entity_from_eid(newd.eid)
+        self.assertEqual([u'Bottom -> Left -> Diamond (Top)',
+                          u'Bottom -> Right -> Diamond (Top)',
+                          u'Left -> Diamond (Top)',
+                          u'Right -> Diamond (Top)'],
+                         sorted([x.dc_title() for x in self.d.reverse_diamond]))
+        self.assertEqual([u'Bottom -> Left -> Diamond (TopClone)',
+                          u'Bottom -> Right -> Diamond (TopClone)',
+                          u'Left -> Diamond (TopClone)',
+                          u'Right -> Diamond (TopClone)'],
+                         sorted([x.dc_title() for x in newd.reverse_diamond]))
 
     def test_container_relation_hook(self):
         session = self.session
