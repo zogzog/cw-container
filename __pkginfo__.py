@@ -14,6 +14,7 @@ description = 'provides "generic container" services'
 web = 'http://www.cubicweb.org/project/%s' % distname
 
 __depends__ =  {'cubicweb': '>= 3.17.17',
+                'cubicweb-fastimport': '>= 0.2.0',
                 'yams': '>= 0.38.1'}
 __recommends__ = {}
 

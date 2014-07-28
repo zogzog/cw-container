@@ -34,12 +34,13 @@ from cubicweb.schema import VIRTUAL_RTYPES
 from cubicweb.entities import AnyEntity
 from cubicweb.view import EntityAdapter
 
+from cubes.fastimport.entities import _insertmany, reserve_eids
+
 from cubes.container import config
 
-from cubes.container.utils import (parent_rschemas,
-                                   parent_rdefs,
+from cubes.container.utils import (parent_rdefs,
+                                   parent_rschemas,
                                    needs_container_parent,
-                                   _insertmany,
                                    _add_rqlst_restriction,
                                    _iter_mainvar_relations)
 
@@ -81,6 +82,8 @@ def first_parent_rtype_role(eschema):
     warn('[container 2.4] first_parent_rtype_role is replaced '
          'by first_parent_rdef')
     return list(parent_rschemas(eschema))[0]
+
+notcw319 = numversion[:2] < (3, 19)
 
 @cached
 def first_parent_rdef(eschema):
@@ -133,6 +136,7 @@ class ContainerProtocol(EntityAdapter):
         parent = self.entity.related(rtype=rtype, role=role, entities=True)
         if parent:
             return parent[0]
+
 
 
 class ContainerClone(EntityAdapter):
@@ -229,7 +233,6 @@ class ContainerClone(EntityAdapter):
 
 
     def _delegate_clone_to_subcontainer(self, cetype, orig_to_clone, relations):
-        print
         self.info('delegated cloning for %s', cetype)
         # get entities of type cetype except the original
         query = self._complete_rql(cetype) + ', NOT X eid %s' % self.orig_container_eid
@@ -240,7 +243,6 @@ class ContainerClone(EntityAdapter):
             #       but this subcontainer has been cloned and its relations
             #       prepared
             cclone = self._cw.entity_from_eid(orig_to_clone[candidate.eid])
-            # we must compare eids until at least cubicweb 3.18
             assert getattr(cclone, self.config.crtype)[0].eid == self.entity.eid
             cloner = cclone.cw_adapt_to('Container.clone')
             cloner.orig_container_eid = cloner._origin_eid(candidate.eid)
@@ -396,23 +398,6 @@ class ContainerClone(EntityAdapter):
             self.handle_special_relations((rtype, orig_to_clone[orig], linked)
                                           for rtype, orig, linked in deferred_relations)
 
-    if numversion[:2] < (3, 19):
-        def _fast_reserve_eids(self, qty):
-            """ not fast enough (yet) """
-            source = self._cw.repo.sources_by_uri['system']
-            if qty == 1:
-                return (source.create_eid(self._cw),)
-            return source.create_eid(self._cw, count=qty)
-    else:
-        def _fast_reserve_eids(self, qty):
-            source = self._cw.repo.system_source
-            if qty == 1:
-                yield source.create_eid(self._cw)
-            lasteid = source.create_eid(self._cw, count=qty)
-            start = lasteid - qty + 1
-            for eid in xrange(start, lasteid + 1):
-                yield eid
-
     def preprocess_attributes(self, etype, oldeid, attributes):
         pass
 
@@ -426,7 +411,6 @@ class ContainerClone(EntityAdapter):
         isinstanceof = []
         now = datetime.utcnow()
         # bw compat
-        notcw319 = numversion[:2] < (3, 19)
         for attributes in entities:
             neweid = attributes['eid']
             meta = {'type': etype, 'eid': neweid, 'asource': 'system'}
@@ -518,7 +502,7 @@ class ContainerClone(EntityAdapter):
                                                inlined_rtypes_crossing_border)))
 
         for row, neweid in izip(chain([firstrow], iterrows),
-                                self._fast_reserve_eids(len(candidates_rset))):
+                                reserve_eids(self._cw, len(candidates_rset))):
             oldeid = row[0]
             attributes = {'eid': neweid, 'cwuri': u''}
             for rtype, val in zip(fetched_rtypes, row[1:]):
