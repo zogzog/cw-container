@@ -225,6 +225,8 @@ class CloneTC(ContainerTC):
         babar_eids = set(x.eid for x in babar.reverse_project)
         celeste_eids = set(x.eid for x in celeste.reverse_project)
 
+        self.assertEqual(1, session.execute('Any X WHERE X has_text "Celeste"').rowcount)
+
         clone = session.create_entity('Project', name=u'Babar clone')
         self.commit()
         cloner = clone.cw_adapt_to('Container.clone')
@@ -234,6 +236,9 @@ class CloneTC(ContainerTC):
         with self.session.deny_all_hooks_but(*cloner.config.compulsory_hooks_categories):
             cloner.clone(original=babar.eid)
             self.commit()
+
+        session = self.session
+        self.assertEqual(1, session.execute('Any X WHERE X has_text "Celeste"').rowcount)
 
         clone.cw_clear_all_caches()
         babar_clone_contents = [('Card', u"Let's start a spec ..."),

@@ -5,7 +5,7 @@ from cubes.container import utils, config
 from cubes.container.secutils import PERM, PERMS
 
 class Project(EntityType):
-    name = String(required=True)
+    name = String(required=True, fulltextindexed=True)
     __permissions__ = {
         'read':   ('managers', ERQLExpression('X owned_by U'),
                    ERQLExpression('U canread X')),
