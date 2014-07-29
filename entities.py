@@ -137,6 +137,10 @@ class ContainerProtocol(EntityAdapter):
             return parent[0]
 
 
+class ErrorHandler(object):
+    def append(self, exception):
+        raise exception
+
 
 class ContainerClone(EntityAdapter):
     """ allows to clone big sized containers while being relatively fast
@@ -209,6 +213,9 @@ class ContainerClone(EntityAdapter):
                     obj = orig_to_clone[obj]
                 subj_obj.append((subj, obj))
             self._cw.add_relations([(rtype, subj_obj)])
+
+        errors = ErrorHandler()
+        self.controller.run_deferred_hooks(errors)
 
     def _inner_clone(self, orig_to_clone, relations, nesting):
         self.nesting = nesting

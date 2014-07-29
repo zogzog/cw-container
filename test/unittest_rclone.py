@@ -237,8 +237,15 @@ class CloneTC(ContainerTC):
             cloner.clone(original=babar.eid)
             self.commit()
 
+        # run the task for deferred hooks
         session = self.session
-        self.assertEqual(1, session.execute('Any X WHERE X has_text "Celeste"').rowcount)
+        task = session.execute('CWWorkerTask T WHERE T operation "run-deferred-hooks"').get_entity(0,0)
+        hooksrunner = self.vreg['worker.performer'].select('run-deferred-hooks', session)
+        hooksrunner.perform_task(session, task)
+        session.commit()
+
+        session = self.session
+        self.assertEqual(2, session.execute('Any X WHERE X has_text "Celeste"').rowcount)
 
         clone.cw_clear_all_caches()
         babar_clone_contents = [('Card', u"Let's start a spec ..."),

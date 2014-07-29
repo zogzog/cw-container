@@ -123,7 +123,8 @@ class requirement(RelationDefinition):
 
 
 def post_build_callback(schema):
-    project = config.Container('Project', 'project', subcontainers=('Folder', 'Project'))
+    project = config.Container('Project', 'project',
+                               subcontainers=('Folder', 'Project'))
     project.define_container(schema)
     folder = config.Container('Folder', 'folder_root')
     folder.define_container(schema)
