@@ -310,5 +310,5 @@ class CloneTC(ContainerTC):
                 '               P name "Babar clone"').get_entity(0,0)
             user = req.entity_from_eid(user_eid)
             self.assertEqual([user], project.owned_by)
-            # *THIS* is the bug
-            self.assertEqual((), folder.owned_by)
+            self.assertEqual([user], folder.owned_by)
+            self.assertEqual([user], folder.created_by)

@@ -15,9 +15,8 @@
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """cubicweb-container entity's classes"""
-from datetime import datetime
 from collections import defaultdict
-from itertools import izip, chain
+from itertools import chain
 from warnings import warn
 
 from logilab.common.decorators import cached, cachedproperty
@@ -25,16 +24,15 @@ from logilab.common.deprecation import class_deprecated
 
 from rql import parse
 
-from cubicweb import Binary, neg_role, onevent
+from cubicweb import neg_role, onevent
 from cubicweb.__pkginfo__ import numversion
 from cubicweb.server.ssplanner import READ_ONLY_RTYPES
-from cubicweb.server.utils import eschema_eid
 
 from cubicweb.schema import VIRTUAL_RTYPES
 from cubicweb.entities import AnyEntity
 from cubicweb.view import EntityAdapter
 
-from cubes.fastimport.entities import _insertmany, reserve_eids
+from cubes.fastimport.entities import FlushController
 
 from cubes.container import config
 
@@ -43,6 +41,7 @@ from cubes.container.utils import (parent_rdefs,
                                    needs_container_parent,
                                    _add_rqlst_restriction,
                                    _iter_mainvar_relations)
+
 
 class Container(AnyEntity):
     __abstract__ = True
@@ -149,6 +148,10 @@ class ContainerClone(EntityAdapter):
     rtypes_to_skip = set()
     etypes_to_skip = set()
     nesting = 0
+
+    def __init__(self, *args, **kwargs):
+        super(ContainerClone, self).__init__(*args, **kwargs)
+        self.controller = FlushController(self._cw)
 
     @cachedproperty
     def config(self):
@@ -293,7 +296,10 @@ class ContainerClone(EntityAdapter):
     def _no_copy_meta(self):
         # include cwuri, which is mandatory in cw but maybe should not
         # (see cw#3267139)
-        return set(('cwuri',)) | READ_ONLY_RTYPES | VIRTUAL_RTYPES
+        return (READ_ONLY_RTYPES |
+                VIRTUAL_RTYPES |
+                # handled by insert_entities
+                set(('cwuri', 'created_by', 'owned_by')))
 
     def _etype_fetch_rqlst(self, etype, completefragment=''):
         """ returns an rqlst ready to be executed, plus a sequence of
@@ -401,33 +407,6 @@ class ContainerClone(EntityAdapter):
     def preprocess_attributes(self, etype, oldeid, attributes):
         pass
 
-    def _fast_create_entities(self, etype, entities, orig_to_clone):
-        eschema = self._cw.vreg.schema[etype]
-        etypeid = eschema_eid(self._cw, eschema)
-        ancestorseid = [etypeid] + [eschema_eid(self._cw, aschema)
-                                    for aschema in eschema.ancestors()]
-        metadata = []
-        isrelation = []
-        isinstanceof = []
-        now = datetime.utcnow()
-        # bw compat
-        for attributes in entities:
-            neweid = attributes['eid']
-            meta = {'type': etype, 'eid': neweid, 'asource': 'system'}
-            if notcw319:
-                meta.update({'mtime': now, 'source': 'system'})
-            metadata.append(meta)
-            isrelation.append({'eid_from': neweid, 'eid_to': etypeid})
-            for ancestor in ancestorseid:
-                isinstanceof.append({'eid_from': neweid, 'eid_to': ancestor})
-
-        # insert entities
-        _insertmany(self._cw, etype, entities, prefix='cw_')
-        # insert metadata
-        _insertmany(self._cw, 'entities', metadata)
-        _insertmany(self._cw, 'is_relation', isrelation)
-        _insertmany(self._cw, 'is_instance_of_relation', isinstanceof)
-
     def _crosses_border(self, etype, rtype):
         """ Tells whether the (etype, rtype, *) relation
         has ALL its targets outside of the container """
@@ -501,10 +480,9 @@ class ContainerClone(EntityAdapter):
                                               (inlined_rtypes_already_cloned |
                                                inlined_rtypes_crossing_border)))
 
-        for row, neweid in izip(chain([firstrow], iterrows),
-                                reserve_eids(self._cw, len(candidates_rset))):
+        for row in chain([firstrow], iterrows):
             oldeid = row[0]
-            attributes = {'eid': neweid, 'cwuri': u''}
+            attributes = {}
             for rtype, val in zip(fetched_rtypes, row[1:]):
 
                 if rtype in inlined_rtypes:
@@ -535,14 +513,15 @@ class ContainerClone(EntityAdapter):
                     continue
 
                 # standard attribute
-                if isinstance(val, Binary):
-                    val = buffer(val.getvalue())
                 attributes[rtype] = val
 
             self.preprocess_attributes(etype, oldeid, attributes)
-            orig_to_clone[oldeid] = neweid
-            entities.append(attributes)
-        self._fast_create_entities(etype, entities, orig_to_clone)
+            entities.append((attributes, oldeid))
+
+        def complete_orig_to_clone(entity, _attrs, oldeid):
+            """ callback when a new eid has been produced """
+            orig_to_clone[oldeid] = entity.eid
+        self.controller.insert_entities(etype, entities, complete_orig_to_clone)
 
     def _etype_relink_clones(self, etype, queryargs, relations, deferred_relations):
         etype_rql = self._complete_rql(etype)
