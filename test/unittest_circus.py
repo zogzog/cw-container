@@ -29,7 +29,8 @@ class CircusTC(CubicWebTC):
 
     def test_composite_subjrel_from_subcontainer_is_cloned(self):
         s = self.session
-        c = s.create_entity('Circus')
+        u = s.create_entity('Umbrella')
+        c = s.create_entity('Circus', reverse_has_circus=u)
         m = s.create_entity('Menagerie', in_circus=c)
         a = s.create_entity('Animal', reverse_animals=m, name=u'Babar')
         self.commit()

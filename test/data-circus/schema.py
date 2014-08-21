@@ -31,6 +31,10 @@ class Animal(EntityType):
     name = String()
 
 
+class Umbrella(EntityType):
+    """ An etype defining Circus as a component """
+    has_circus = SubjectRelation('Circus', composite='subject')
+
 
 def post_build_callback(schema):
     circus = config.Container('Circus', 'circus', subcontainers=('Menagerie',))
