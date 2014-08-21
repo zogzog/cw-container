@@ -129,6 +129,20 @@ def parent_rdefs(eschema):
                     continue
             yield rdef
 
+def children_rdefs(eschema):
+    """Yield all the rdefs leading to a component (or `child`)
+    eschema. We must take care of etypes that are composed of
+    themselves.
+    """
+    for rdef in iterrdefs(eschema, meta=False, final=False):
+        if rdef.composite:
+            component_eschema = component(rdef)
+            if component_eschema == eschema:
+                composite_eschema = composite(rdef)
+                if composite_eschema != eschema:
+                    continue
+            yield rdef
+
 # still used, but should die
 def children_rschemas(eschema):
     for rschema, role, crole in _composite_rschemas(eschema):

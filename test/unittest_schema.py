@@ -12,6 +12,25 @@ class SchemaContainerTC(CubicWebTC):
             self.assertFalse(utils.needs_container_parent(schema[etype]))
         self.assertTrue(utils.needs_container_parent(schema['Bottom']))
 
+    def test_utils(self):
+        schema = self.vreg.schema
+        for etype, expected in (('Diamond',
+                                 [('has_near_top', 'Diamond', 'NearTop'),
+                                  ('top_from_left', 'Left', 'Diamond'),
+                                  ('top_from_right', 'Right', 'Diamond')]),
+                                ('NearTop', []),
+                                ('IAmAnAttributeCarryingRelation', []),
+                                ('Left',
+                                 [('to_left', 'IAmAnAttributeCarryingRelation', 'Left'),
+                                  ('top_by_left', 'Bottom', 'Left'),
+                                  ('composite_but_not_in_diamond', 'EtypeNotInContainers', 'Left')]),
+                                ('Right',
+                                 [('to_right', 'IAmAnAttributeCarryingRelation', 'Right'),
+                                  ('top_by_right', 'Bottom', 'Right')]),
+                                ('Bottom', [])):
+            self.assertEqual(expected,
+                             [rdefrepr(rdef) for rdef in utils.children_rdefs(schema[etype])])
+
     def test_static_structure(self):
         schema = self.vreg.schema
         diamond = config.Container.by_etype('Diamond')
