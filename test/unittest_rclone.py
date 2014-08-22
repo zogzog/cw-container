@@ -186,6 +186,11 @@ class CloneTC(ContainerTC):
         patch = session.execute('Patch P WHERE P project X, X name "Celeste"').get_entity(0,0)
         self.assertEqual(['write bio', 'Celeste', 'Babar'], parent_titles(patch))
 
+        foldr = session.execute('Folder F WHERE F name "Babar documentation"').get_entity(0,0)
+
+        self.assertEqual([babar], foldr.project)
+        self.assertEqual([foldr], foldr.folder_root)
+
     def test_clone(self):
         session = self.session
         babar = session.execute('Project P WHERE P name "Babar"').get_entity(0,0)

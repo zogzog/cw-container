@@ -149,6 +149,11 @@ class NewContainerOp(DataOperationMixIn, Operation):
                 target = container
             else:
                 target = parent.cw_adapt_to('Container').related_container
+                if container.cw_etype != target.cw_etype:
+                    # let's not forget to close the loop upon the
+                    # current container
+                    cconf = Container.by_etype(container.cw_etype)
+                    container.cw_set(**{cconf.crtype:container})
             cconf = Container.by_etype(target.cw_etype)
             container.cw_set(**{cconf.crtype:target})
 
