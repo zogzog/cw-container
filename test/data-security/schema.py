@@ -6,6 +6,13 @@ from cubes.container.secutils import PERM, PERMS
 from cubicweb.schema import PUB_SYSTEM_REL_PERMS
 
 # custom ad-hoc rules
+PERMS['project'] = {
+    'read':   ('managers', ERQLExpression('(X owned_by U) OR (U canread X)')),
+    'add':    ('managers', 'users'),
+    'delete': ('managers', 'owners'),
+    'update': ('managers', 'owners', ERQLExpression('U canwrite X')),
+}
+
 PERMS['project-documentation'] = {
     'read':   ('managers', 'users'),
     'add':    ('managers', 'project_managers'),
@@ -25,11 +32,13 @@ PERMS['ticket-documentation'] = {
 }
 
 class Project(EntityType):
+    __permissions__ = PERM('project')
     name = String(required=True)
     documented_by = SubjectRelation('File', cardinality='*?',
                                     __permissions__=PERM('project-documentation'),
                                     composite='subject')
-    can_write = SubjectRelation('CWUser')
+    canread = SubjectRelation('CWUser')
+    canwrite = SubjectRelation('CWUser')
 
 
 class Version(EntityType):
@@ -40,6 +49,8 @@ class Version(EntityType):
     documented_by = SubjectRelation('File', cardinality='*?',
                                     composite='subject',
                                     __permissions__=PERM('version-documentation'))
+    canread = SubjectRelation('CWUser')
+    canwrite = SubjectRelation('CWUser')
 
 
 class Ticket(EntityType):
@@ -66,10 +77,10 @@ def post_build_callback(schema):
         return {
             'read': ('managers', 'users'),
             'add': ('managers',
-                    RRQLExpression('X project %(p)s, U can_write %(p)s' %
+                    RRQLExpression('X project %(p)s, U canwrite %(p)s' %
                                    {'p': role_to_container})),
             'delete': ('managers',
-                       RRQLExpression('X project %(p)s, U can_write %(p)s' %
+                       RRQLExpression('X project %(p)s, U canwrite %(p)s' %
                                       {'p': role_to_container}))
         }
 
@@ -79,3 +90,13 @@ def post_build_callback(schema):
     version = config.Container('Version', 'version')
     version.define_container(schema)
     version.setup_rdefs_security(PUB_SYSTEM_REL_PERMS, PUB_SYSTEM_REL_PERMS)
+
+    for conf in (version, project):
+        conf.setup_etypes_security({
+            'read':   ('managers',
+                       ERQLExpression('(X owned_by U) OR (X %s C, U canread C)' % conf.crtype)),
+            'add':    ('managers', ERQLExpression('X %s C, U canwrite C' % conf.crtype)),
+            'delete': ('managers', 'owners'),
+            'update': ('managers', 'owners',
+                       ERQLExpression('X %s C, U canwrite C' % conf.crtype)),
+        })

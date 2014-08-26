@@ -51,6 +51,19 @@ class BasicSecurityTC(CubicWebTC):
             self.assertEqual(0, req.execute('Any P,E WHERE E project P').rowcount)
 
 
+def rulerepr(rule):
+    if isinstance(rule, basestring):
+        return rule
+    rql = rule.rqlst.as_string().split('WHERE ')[1] # cut the WHERE
+    rql = ','.join(rql.split(',')[:-2]) # cut the trailing X eid, U eid ...
+    return 'EXPR(%s)' % rql
+
+def permsrepr(perms):
+    out = {}
+    for action in ('read', 'add', 'update', 'delete'):
+        out[action] = tuple(rulerepr(rule) for rule in perms[action])
+    return out
+
 class SecurityTC(CubicWebTC):
     appid = 'data-security'
 
@@ -65,6 +78,33 @@ class SecurityTC(CubicWebTC):
                                ('documented_by', 'Version', 'File'),
                                ('documented_by', 'Ticket', 'File')]),
                            set(rdefrepr(rdef) for rdef in version.rdefs))
+
+    def test_etypes_permissions(self):
+        schema = self.schema
+        self.assertEqual({'read': ('managers', 'EXPR((X owned_by U) OR (U canread X))'),
+                          'add': ('managers', 'users'),
+                          'update': ('managers', 'owners', 'EXPR(U canwrite X)'),
+                          'delete': ('managers', 'owners')},
+                         permsrepr(schema['Project'].permissions))
+        self.assertEqual({'read': ('managers', 'EXPR((X owned_by U) OR (X project C, U canread C))'),
+                          'add': ('managers', 'EXPR(X project C, U canwrite C)'),
+                          'update': ('managers', 'owners', 'EXPR(X project C, U canwrite C)'),
+                          'delete': ('managers', 'owners')},
+                         permsrepr(schema['Version'].permissions))
+        self.assertEqual({'read': ('managers', 'EXPR((X owned_by U) OR (X version C, U canread C))'),
+                          'add': ('managers', 'EXPR(X version C, U canwrite C)'),
+                          'update': ('managers', 'owners', 'EXPR(X version C, U canwrite C)'),
+                          'delete': ('managers', 'owners')},
+                         permsrepr(schema['Ticket'].permissions))
+        # NOTE: here, the File etype security is clearly wrong for a real world usage
+        # we probably would like to combine security rules from all its containers
+        # The "collaboration" cube would probably love to have some machinery
+        # to automate this.
+        self.assertEqual({'read': ('managers', 'EXPR((X owned_by U) OR (X project C, U canread C))'),
+                          'add': ('managers', 'EXPR(X project C, U canwrite C)'),
+                          'update': ('managers', 'owners', 'EXPR(X project C, U canwrite C)'),
+                          'delete': ('managers', 'owners')},
+                         permsrepr(schema['File'].permissions))
 
     def test_shared_rtypes_permissions(self):
         ticket_documented_by_rdef = self.schema['documented_by'].rdef('Ticket', 'File')

@@ -166,6 +166,19 @@ class Container(object):
                                  '__registry__': 'after_add_entity_hooks'})
         return (setrelationhook, newcontainerhook)
 
+    def setup_etypes_security(self, etype_perms):
+        """Automatically decorate the etypes with the given permission rules,
+        which must be a normal permissions dictionary.
+
+        """
+        assert isinstance(etype_perms, dict)
+        for etype in self.etypes:
+            eschema = self._schema[etype]
+            if isinstance(eschema.permissions, PERM):
+                eschema.permissions = PERMS[eschema.permissions]
+            else:
+                eschema.permissions = etype_perms
+
     def setup_rdefs_security(self, inner_rdefs_perms, border_rdefs_perms=None):
         """Automatically decorate the inner rdefs and border rdefs with the
         given permission rules.
