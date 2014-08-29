@@ -248,7 +248,7 @@ class Container(object):
             * using the perms('S' or 'O') callable
             * using a plain normal permission dict
             """
-            assert callable(perms) or isinstance(perms, dict)
+            assert callable(perms) or isinstance(perms, dict) or perms is None
             for rdef, role in rdefs_roles.iteritems():
                 if rdef in processed:
                     continue
@@ -256,7 +256,7 @@ class Container(object):
                     rdef.permissions = PERMS[rdef.permissions]
                 elif isinstance(perms, dict):
                     rdef.permissions = perms
-                else:
+                elif callable(perms):
                     rdef.permissions = perms(role)
                 assert not callable(rdef.permissions), rdef.permissions
                 processed.add(rdef)
@@ -269,9 +269,6 @@ class Container(object):
         set_rdefs_perms(rdef_role, inner_rdefs_perms, processed_permission_rdefs)
 
         # 2. border crossing rtypes
-        if border_rdefs_perms is None:
-            # maybe this cannot be automated this way
-            return
         rdef_role = {}
         for rdef in sorted(self.border_rdefs):
             ON_COMMIT_ADD_RELATIONS.add(rdef.rtype.type)
@@ -340,14 +337,24 @@ class Container(object):
     def border_rdefs(self):
         """ compute the set of rtypes that go from/to an etype in a container
         to/from an etype outside """
-        inner_rdefs = self.inner_rdefs
+        excluderdefs = self.inner_rdefs
+        for cetype in self.subcontainers:
+            # we exclude the border_rdefs from the subcontainers
+            if cetype == self.cetype:
+                # self-recursive container, only the top-level is a security scope
+                continue
+            subconf = self.by_etype(cetype)
+            assert subconf is not None, ('You must register the %s subcontainer before '
+                                         'calling .border_rdefs' % cetype)
+            excluderdefs |= subconf.border_rdefs
+            excluderdefs |= subconf.inner_rdefs
         border_crossing = set()
         for etype in self.etypes:
             eschema = self._schema[etype]
             for rdef in utils.iterrdefs(eschema, meta=False, final=False,
                                         skiprtypes=self.skiprtypes,
                                         skipetypes=self.skipetypes):
-                if rdef in inner_rdefs:
+                if rdef in excluderdefs:
                     continue
                 border_crossing.add(rdef)
         return border_crossing

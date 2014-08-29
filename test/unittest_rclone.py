@@ -21,7 +21,7 @@ class TwoContainersTC(ContainerTC):
                          sorted(needs_cp))
 
     # Project
-    def test_project_static_structure(self):
+    def test_project_rdefs(self):
         schema = self.vreg.schema
         project = Container.by_etype('Project')
 
@@ -32,6 +32,18 @@ class TwoContainersTC(ContainerTC):
                               ('implements', 'Patch', 'Ticket'),
                               ('subproject_of', 'Project', 'Project')]),
                          set([rdefrepr(rdef) for rdef in project.rdefs]))
+
+        self.assertEqual(set([('implements', 'Patch', 'Ticket'),
+                              ('done_in_version', 'Ticket', 'Version'),
+                              ('concerns', 'Ticket', 'Project'),
+                              ('version_of', 'Version', 'Project'),
+                              ('subproject_of', 'Project', 'Project'),
+                              ('documents', 'Folder', 'Project'),
+                              ('requirement', 'Ticket', 'Card')]),
+                         set([rdefrepr(rdef) for rdef in project.inner_rdefs]))
+        self.assertEqual(set([('canread', 'CWUser', 'Project'),
+                              ('canwrite', 'CWUser', 'Project')]),
+                         set([rdefrepr(rdef) for rdef in project.border_rdefs]))
 
         self.assertEqual(frozenset(['Card', 'Patch', 'Ticket', 'Version', 'Folder','Project']),
                          project.etypes)
@@ -54,15 +66,22 @@ class TwoContainersTC(ContainerTC):
                          project._container_parent_rdefs)
 
     # Folder
-    def test_folder_static_structure(self):
+    def test_folder_rdefs(self):
         schema = self.vreg.schema
         folder = Container.by_etype('Folder')
-
 
         self.assertEqual(set([('element', 'Folder', 'File'),
                               ('parent', 'Folder', 'Folder'),
                               ('element', 'Folder', 'Card')]),
                          set([rdefrepr(rdef) for rdef in folder.rdefs]))
+        self.assertEqual(set([('element', 'Folder', 'File'),
+                              ('parent', 'Folder', 'Folder'),
+                              ('element', 'Folder', 'Card')]),
+                         set([rdefrepr(rdef) for rdef in folder.inner_rdefs]))
+        self.assertEqual(set([('documents', 'Folder', 'Project'),
+                              ('content', 'Patch', 'File'),
+                              ('requirement', 'Ticket', 'Card')]),
+                         set([rdefrepr(rdef) for rdef in folder.border_rdefs]))
 
         self.assertEqual((frozenset(['parent', 'element']),
                           frozenset(['Card', 'Folder', 'File'])),

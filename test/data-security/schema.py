@@ -71,6 +71,8 @@ class File(EntityType):
 def post_build_callback(schema):
     project = config.Container('Project', 'project', subcontainers=('Version',))
     project.define_container(schema)
+    version = config.Container('Version', 'version')
+    version.define_container(schema)
 
     def project_rtypes_perms(role_to_container):
         # role_to_container is either 'S' or 'O'
@@ -87,8 +89,6 @@ def post_build_callback(schema):
     project.setup_rdefs_security(project_rtypes_perms, project_rtypes_perms)
 
     # version container & security
-    version = config.Container('Version', 'version')
-    version.define_container(schema)
     version.setup_rdefs_security(PUB_SYSTEM_REL_PERMS, PUB_SYSTEM_REL_PERMS)
 
     for conf in (version, project):

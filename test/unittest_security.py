@@ -61,7 +61,8 @@ def rulerepr(rule):
 def permsrepr(perms):
     out = {}
     for action in ('read', 'add', 'update', 'delete'):
-        out[action] = tuple(rulerepr(rule) for rule in perms[action])
+        out[action] = tuple(rulerepr(rule)
+                            for rule in perms.get(action, ()))
     return out
 
 class SecurityTC(CubicWebTC):
@@ -78,6 +79,63 @@ class SecurityTC(CubicWebTC):
                                ('documented_by', 'Version', 'File'),
                                ('documented_by', 'Ticket', 'File')]),
                            set(rdefrepr(rdef) for rdef in version.rdefs))
+
+    def test_border_rdefs_and_permissions(self):
+        project = Container.by_etype('Project')
+        self.assertEqual(set([('canwrite', 'Project', 'CWUser'),
+                              ('canread', 'Project', 'CWUser')]),
+                         set(rdefrepr(rdef) for rdef in project.border_rdefs))
+
+        expected = {('canwrite', 'Project', 'CWUser'):
+                    {'add': ('managers', 'EXPR(X project S, U canwrite S)'),
+                     'delete': ('managers', 'EXPR(X project S, U canwrite S)'),
+                     'read': ('managers', 'users'),
+                     'update': ()},
+                    ('canread', 'Project', 'CWUser'):
+                    {'add': ('managers', 'EXPR(X project S, U canwrite S)'),
+                     'delete': ('managers', 'EXPR(X project S, U canwrite S)'),
+                     'read': ('managers', 'users'),
+                     'update': ()}}
+
+        self.assertEqual(expected,
+                         {rdefrepr(rdef): permsrepr(rdef.permissions)
+                          for rdef in project.border_rdefs})
+
+        version = Container.by_etype('Version')
+        self.assertEqual(set([('version_of', 'Version', 'Project'),
+                              ('canread', 'Version', 'CWUser'),
+                              # NOTE: since File is an etype of the Version container
+                              # this rdef appears as a border.
+                              # It may cause problems when weaving permissions rules
+                              # if not properly considered.
+                              ('documented_by', 'Project', 'File'),
+                              ('canwrite', 'Version', 'CWUser')]),
+                         set(rdefrepr(rdef) for rdef in version.border_rdefs))
+
+        expected = {('canread', 'Version', 'CWUser'):
+                    {'add': ('managers',),
+                     'delete': ('managers',),
+                     'read': ('managers', 'users', 'guests'),
+                     'update': ()},
+                    ('canwrite', 'Version', 'CWUser'):
+                    {'add': ('managers',),
+                     'delete': ('managers',),
+                     'read': ('managers', 'users', 'guests'),
+                     'update': ()},
+                    ('documented_by', 'Project', 'File'):
+                    {'add': ('managers', 'project_managers'),
+                     'delete': ('managers', 'project_managers'),
+                     'read': ('managers', 'users'),
+                     'update': ()},
+                    ('version_of', 'Version', 'Project'):
+                    {'add': ('managers', 'EXPR(X project O, U canwrite O)'),
+                     'delete': ('managers', 'EXPR(X project O, U canwrite O)'),
+                     'read': ('managers', 'users'),
+                     'update': ()}}
+
+        self.assertEqual(expected,
+                         {rdefrepr(rdef): permsrepr(rdef.permissions)
+                          for rdef in version.border_rdefs})
 
     def test_etypes_permissions(self):
         schema = self.schema

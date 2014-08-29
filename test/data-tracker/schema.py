@@ -1,5 +1,5 @@
 from yams.buildobjs import EntityType, RelationDefinition, String, SubjectRelation, Bytes
-from cubicweb.schema import RRQLExpression, ERQLExpression
+from cubicweb.schema import RRQLExpression, ERQLExpression, PUB_SYSTEM_REL_PERMS
 
 from cubes.container import utils, config
 from cubes.container.secutils import PERM, PERMS
@@ -126,6 +126,7 @@ def post_build_callback(schema):
     project = config.Container('Project', 'project',
                                subcontainers=('Folder', 'Project'))
     project.define_container(schema)
+
     folder = config.Container('Folder', 'folder_root')
     folder.define_container(schema)
 
@@ -137,4 +138,6 @@ def post_build_callback(schema):
             'delete': ('managers', RRQLExpression('%s project P, U canwrite P' % role_to_container)),
         }
 
+
     project.setup_rdefs_security(inner_rdefs_perms, inner_rdefs_perms)
+    folder.setup_rdefs_security(PUB_SYSTEM_REL_PERMS)
