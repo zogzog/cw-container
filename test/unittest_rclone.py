@@ -1,3 +1,4 @@
+import time
 from logilab.common.testlib import unittest_main
 
 from cubicweb import Binary, ValidationError
@@ -334,7 +335,7 @@ class CloneTC(ContainerTC):
                             frozenset(doc.eid for doc in cloned_folder.element))
 
     def test_clone_other_user(self):
-        """ Demonstrate improper handling of metadata by the cloning process """
+        """ Demonstrate proper handling of metadata by the cloning process """
         user_eid = self.create_user(self.request(), u'bob').eid
         self.request().execute('SET U canread P '
                                'WHERE P is Project, P name "Babar",'
@@ -343,20 +344,22 @@ class CloneTC(ContainerTC):
         with self.login('bob'):
             req = self.session
             babar = req.execute('Project P WHERE P name "Babar"').get_entity(0,0)
+            babar.creation_date # set in entity cache
+            babar.modification_date # idem
             clone = req.create_entity('Project', name=u'Babar clone')
             clone_eid = clone.eid
             cloner = clone.cw_adapt_to('Container.clone')
             with self.session.deny_all_hooks_but(*cloner.config.compulsory_hooks_categories):
                 cloner.clone(original=babar.eid)
                 self.commit()
+        time.sleep(.1)
         with self.login('bob'):
             req = self.request()
-            project = req.execute(
-                'Project P WHERE P name "Babar clone"').get_entity(0,0)
-            folder = req.execute(
-                'Folder F WHERE F project P,'
-                '               P name "Babar clone"').get_entity(0,0)
+            project = req.execute('Project P WHERE P name "Babar clone"').get_entity(0,0)
+            folder = req.execute('Folder F WHERE F project P, P name "Babar clone"').get_entity(0,0)
             user = req.entity_from_eid(user_eid)
             self.assertEqual([user], project.owned_by)
             self.assertEqual([user], folder.owned_by)
             self.assertEqual([user], folder.created_by)
+            self.assertTrue(project.creation_date > babar.creation_date)
+            self.assertTrue(project.modification_date > babar.modification_date)
