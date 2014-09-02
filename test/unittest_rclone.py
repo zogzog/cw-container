@@ -213,6 +213,8 @@ class CloneTC(ContainerTC):
 
     def test_clone(self):
         session = self.session
+        self.assertEqual(6, session.execute('Any COUNT(X) WHERE X container_parent Y').rows[0][0])
+        self.assertEqual(0, session.execute('Any COUNT(X) WHERE NOT X container_parent Y').rows[0][0])
         babar = session.execute('Project P WHERE P name "Babar"').get_entity(0,0)
         celeste = session.execute('Project P WHERE P name "Celeste"').get_entity(0,0)
         babar_contents = [('Card', u"Let's start a spec ..."),
@@ -333,6 +335,9 @@ class CloneTC(ContainerTC):
         # are actually copied as well:
         self.assertNotEqual(frozenset(doc.eid for doc in folder.element),
                             frozenset(doc.eid for doc in cloned_folder.element))
+        # container_parent must be correctly handled, let's watch potential regressions
+        self.assertEqual(12, session.execute('Any COUNT(X) WHERE X container_parent Y').rows[0][0])
+        self.assertEqual(0, session.execute('Any COUNT(X) WHERE NOT X container_parent Y').rows[0][0])
 
     def test_clone_other_user(self):
         """ Demonstrate proper handling of metadata by the cloning process """
