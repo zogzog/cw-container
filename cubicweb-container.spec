@@ -9,7 +9,7 @@
 %{!?_python_sitelib: %define _python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 
 Name:           cubicweb-container
-Version:        2.3.0
+Version:        2.7.0
 Release:        logilab.1%{?dist}
 Summary:        provides "generic container" services
 Group:          Applications/Internet

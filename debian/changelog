@@ -1,3 +1,9 @@
+cubicweb-container (2.7.0-1) unstable; urgency=low
+
+  * new upstream release
+
+ -- Aurelien Campeas <aurelien.campeas@logilab.fr>  Wed, 17 Sep 2014 14:38:47 +0200
+
 cubicweb-container (2.3.0-1) unstable; urgency=low
 
   * new upstream release
