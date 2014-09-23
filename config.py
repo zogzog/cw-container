@@ -74,6 +74,9 @@ class Container(object):
         * an optional (if needed) (container_parent, etype, parent etype)
         """
         self._schema = schema
+        if not utils.fsschema(schema):
+            logger.info('define_container: this is a repo schema, nothing to do')
+            return
 
         if not self.crtype in schema:
             # ease pluggability of container in existing applications

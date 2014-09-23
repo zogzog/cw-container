@@ -46,6 +46,12 @@ class yet_unset(Predicate):
         warn('%s has no selector set' % cls)
         return 0
 
+def fsschema(schema):
+    """predicate telling whether the schema comes from the filesystem of
+    the repository
+
+    """
+    return getattr(schema, 'fs', False)
 
 def composite(rdef):
     """ Return the `composite` eschema of a relation definition """
