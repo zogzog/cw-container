@@ -174,6 +174,9 @@ class Container(object):
         which must be a normal permissions dictionary.
 
         """
+        if (not utils.fsschema(self._schema) or
+            getattr(self._schema, '_etypes_%s_security' % self.cetype, False)):
+            return
         assert isinstance(etype_perms, dict)
         for etype in self.etypes:
             eschema = self._schema[etype]
@@ -181,6 +184,7 @@ class Container(object):
                 eschema.permissions = PERMS[eschema.permissions]
             else:
                 eschema.permissions = etype_perms
+        setattr(self._schema, '_etypes_%s_security' % self.cetype, True)
 
     def setup_rdefs_security(self, inner_rdefs_perms, border_rdefs_perms=None):
         """Automatically decorate the inner rdefs and border rdefs with the
@@ -208,6 +212,10 @@ class Container(object):
               __permissions__ = PERM('allowed-if-open-state')
 
         """
+        if (not utils.fsschema(self._schema) or
+            getattr(self._schema, '_rdefs_%s_security' % self.cetype, False)):
+            return
+
         processed_permission_rdefs = set()
 
         def role_to_container(rdef, rdef_role):
@@ -277,6 +285,8 @@ class Container(object):
             ON_COMMIT_ADD_RELATIONS.add(rdef.rtype.type)
             role_to_container(rdef, rdef_role)
         set_rdefs_perms(rdef_role, border_rdefs_perms, processed_permission_rdefs)
+
+        setattr(self._schema, '_rdefs_%s_security' % self.cetype, True)
 
     # /setup
     # container accessors
