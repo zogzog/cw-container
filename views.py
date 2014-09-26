@@ -21,8 +21,6 @@ from cubicweb import onevent
 from cubicweb.predicates import EClassPredicate
 from cubicweb.web.views import uicfg
 
-from cubes.container import config
-
 for rtype in ('container_etype', 'container_parent'):
     uicfg.primaryview_section.tag_subject_of(('*', rtype, '*'), 'hidden')
     uicfg.primaryview_section.tag_object_of(('*', rtype, '*'), 'hidden')
@@ -46,12 +44,18 @@ def registration_callback(vreg):
     @onevent('after-registry-reload')
     def setup_ui():
         # we reimport here to be robust against module reference mess after a reload
+        from cubes.container import config
         from cubicweb.web.views import uicfg
         afs = uicfg.autoform_section
         pvs = uicfg.primaryview_section
 
         for cetype in config.Container.all_etypes():
-            is_container.etypes.add(cetype)
+            try:
+                is_container.etypes.add(cetype)
+            except:
+                # we are in the middle of a reload for e.g. "i18ncube" ... :-/
+                return
+
             conf = config.Container.by_etype(cetype)
 
             # NOTE NOTE NOTE

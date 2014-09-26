@@ -636,6 +636,7 @@ def registration_callback(vreg):
 
     @onevent('after-registry-reload')
     def register_adapter():
+        from cubes.container import config
         for adapter in config.Container.container_adapters():
             if adapter.__regid__ not in vreg[adapter.__registry__]:
                 vreg.register(adapter)

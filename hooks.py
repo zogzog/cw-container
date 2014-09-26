@@ -271,6 +271,7 @@ def registration_callback(vreg):
 
     @onevent('after-registry-reload')
     def register_hooks():
-        for hook in Container.container_hooks():
+        from cubes.container import config
+        for hook in config.Container.container_hooks():
             if hook.__regid__ not in vreg[hook.__registry__]:
                 vreg.register(hook)
