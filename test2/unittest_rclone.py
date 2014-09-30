@@ -122,73 +122,73 @@ class CloneTC(CubicWebTC):
     userlogin = userlogin
 
     def setup_database(self):
-        req = self.request()
-        proj = req.create_entity('Project', name=u'Babar')
-        projeid = req.execute('Project P').get_entity(0, 0)
-        ver = new_version(req, projeid)
+        session = self.session
+        proj = session.create_entity('Project', name=u'Babar')
+        projeid = session.execute('Project P').get_entity(0, 0)
+        ver = new_version(session, projeid)
 
-        tick = new_ticket(req, projeid, ver)
-        card = new_card(req)
+        tick = new_ticket(session, projeid, ver)
+        card = new_card(session)
         tick.cw_set(requirement=card)
 
-        afile = req.create_entity('File', data=Binary('foo'))
-        patch = new_patch(req, tick, afile)
+        afile = session.create_entity('File', data=Binary('foo'))
+        patch = new_patch(session, tick, afile)
 
-        doc1 = req.create_entity('File', data=Binary('How I became King'))
-        fold1 = req.create_entity('Folder', name=u'Babar documentation',
-                                  element=doc1, documents=projeid)
-        card = new_card(req, u'Some doc bit')
+        doc1 = session.create_entity('File', data=Binary('How I became King'))
+        fold1 = session.create_entity('Folder', name=u'Babar documentation',
+                                      element=doc1, documents=projeid)
+        card = new_card(session, u'Some doc bit')
         fold1.cw_set(element=card)
 
         # a subproject
-        proj = req.create_entity('Project', name=u'Celeste',
-                                 subproject_of=proj)
+        proj = session.create_entity('Project', name=u'Celeste',
+                                     subproject_of=proj)
         projeid = proj.eid
-        ver = new_version(req, projeid)
-        tick = new_ticket(req, projeid, ver, name=u'write bio', descr=u'do it')
-        card = new_card(req, u'Write me')
+        ver = new_version(session, projeid)
+        tick = new_ticket(session, projeid, ver, name=u'write bio', descr=u'do it')
+        card = new_card(session, u'Write me')
         tick.cw_set(requirement=card)
 
-        afile = req.create_entity('File', data=Binary('foo'))
-        patch = new_patch(req, tick, afile, name=u'bio part one')
+        afile = session.create_entity('File', data=Binary('foo'))
+        patch = new_patch(session, tick, afile, name=u'bio part one')
 
-        doc2 = req.create_entity('File', data=Binary('How I met Babar'))
-        fold2 = req.create_entity('Folder', name=u'Celeste bio',
+        doc2 = session.create_entity('File', data=Binary('How I met Babar'))
+        fold2 = session.create_entity('Folder', name=u'Celeste bio',
                                   element=doc2, documents=projeid)
-        card = new_card(req, u'A general doc item')
+        card = new_card(session, u'A general doc item')
         fold2.cw_set(element=card)
 
     def test_project_and_folder(self):
-        req = self.session
-        babar = req.execute('Project P WHERE P name "Babar"').get_entity(0,0)
+        session = self.session
+        babar = session.execute('Project P WHERE P name "Babar"').get_entity(0,0)
 
         # start from File (in the Folder sub-container)
-        thefile = req.execute('File F WHERE FO element F, FO name like "Babar%"').get_entity(0,0)
+        thefile = session.execute('File F WHERE FO element F, FO name like "Babar%"').get_entity(0,0)
         self.assertEqual(['Babar documentation', 'Babar'], parent_titles(thefile))
-        thefile = req.execute('File F WHERE FO element F, FO name like "Celeste%"').get_entity(0,0)
+        thefile = session.execute('File F WHERE FO element F, FO name like "Celeste%"').get_entity(0,0)
         self.assertEqual(['Celeste bio', 'Celeste', 'Babar'], parent_titles(thefile))
 
         # start from Card (in Folder)
-        card1, card2 = list(req.execute('Card C ORDERBY C WHERE C folder_root F').entities())
+        card1, card2 = list(session.execute('Card C ORDERBY C WHERE C folder_root F').entities())
         self.assertEqual([u'Babar documentation', u'Babar'], parent_titles(card1))
         self.assertEqual([u'Celeste bio', u'Celeste', u'Babar'], parent_titles(card2))
 
         # start from Card (in Folder)
-        card1, card2 = list(req.execute('Card C ORDERBY C WHERE C project P').entities())
+        card1, card2 = list(session.execute('Card C ORDERBY C WHERE C project P').entities())
         self.assertEqual([u'think about it', u'Babar'], parent_titles(card1))
         self.assertEqual([u'write bio', u'Celeste', u'Babar'], parent_titles(card2))
 
         # start from Patch (in Project)
-        patch = req.execute('Patch P WHERE P project X, X name "Babar"').get_entity(0,0)
+        patch = session.execute('Patch P WHERE P project X, X name "Babar"').get_entity(0,0)
         self.assertEqual(['think about it', 'Babar'], parent_titles(patch))
 
-        patch = req.execute('Patch P WHERE P project X, X name "Celeste"').get_entity(0,0)
+        patch = session.execute('Patch P WHERE P project X, X name "Celeste"').get_entity(0,0)
         self.assertEqual(['write bio', 'Celeste', 'Babar'], parent_titles(patch))
 
     def test_clone(self):
-        req = self.session
-        babar = req.execute('Project P WHERE P name "Babar"').get_entity(0,0)
-        celeste = req.execute('Project P WHERE P name "Celeste"').get_entity(0,0)
+        session = self.session
+        babar = session.execute('Project P WHERE P name "Babar"').get_entity(0,0)
+        celeste = session.execute('Project P WHERE P name "Celeste"').get_entity(0,0)
         babar_contents = [('Card', u"Let's start a spec ..."),
                           ('Folder', u'Babar documentation'),
                           ('Patch', u'some code'),
@@ -207,8 +207,8 @@ class CloneTC(CubicWebTC):
                          sorted([(e.__regid__, e.dc_title())
                                  for e in celeste.reverse_project]))
         # The folder containers contain what they are supposed to:
-        babar_doc = req.execute('Folder F WHERE F name "Babar documentation"').get_entity(0, 0)
-        celeste_doc = req.execute('Folder F WHERE F name "Celeste bio"').get_entity(0, 0)
+        babar_doc = session.execute('Folder F WHERE F name "Babar documentation"').get_entity(0, 0)
+        celeste_doc = session.execute('Folder F WHERE F name "Celeste bio"').get_entity(0, 0)
         babar_doc_contents = [('File', 'How I became King'),
                               ('Card', u'Some doc bit')]
         celeste_doc_contents = [('File', 'How I met Babar'),
@@ -223,7 +223,7 @@ class CloneTC(CubicWebTC):
         babar_eids = set(x.eid for x in babar.reverse_project)
         celeste_eids = set(x.eid for x in celeste.reverse_project)
 
-        clone = req.create_entity('Project', name=u'Babar clone')
+        clone = session.create_entity('Project', name=u'Babar clone')
         cloner = clone.cw_adapt_to('Container.clone')
         self.assertEqual(['Card', 'Folder', 'Patch', 'Project', 'Ticket', 'Version'],
                          sorted(cloner.clonable_etypes()))
@@ -245,16 +245,16 @@ class CloneTC(CubicWebTC):
         self.assertNotEqual(celeste_eids, set(x.eid for x in cloned_celeste.reverse_project))
 
         # check container_parent, container_etype, created_by, owned_by, is_instance_of
-        req = self.request()
+        session = self.session
 
-        patch = req.execute('Patch P WHERE P project X, X name "Babar"').get_entity(0,0)
+        patch = session.execute('Patch P WHERE P project X, X name "Babar"').get_entity(0,0)
         self.assertEqual('File', patch.content[0].__regid__)
-        cloned_patch = req.execute('Patch P WHERE P project X, X name "Babar clone"').get_entity(0,0)
+        cloned_patch = session.execute('Patch P WHERE P project X, X name "Babar clone"').get_entity(0,0)
         self.assertEqual('File', cloned_patch.content[0].__regid__)
 
 
-        folder = req.execute('Folder F WHERE F project P, P name "Babar"').get_entity(0,0)
-        cloned_folder = req.execute('Folder F WHERE F project P, P name "Babar clone"').get_entity(0,0)
+        folder = session.execute('Folder F WHERE F project P, P name "Babar"').get_entity(0,0)
+        cloned_folder = session.execute('Folder F WHERE F project P, P name "Babar clone"').get_entity(0,0)
         self.assertEqual(folder.cw_adapt_to('Container').parent.__regid__,
                          cloned_folder.cw_adapt_to('Container').parent.__regid__)
         self.assertEqual(folder.container_etype, cloned_folder.container_etype)
