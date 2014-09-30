@@ -149,6 +149,7 @@ class Container(object):
         prefix = ''.join(cetypes)
         hook = type(prefix + 'ContainerHook', (SetContainerRelation,), {})
         hook.__select__ = match_rdefs(*rdefs)
+        hook.__registry__ = 'after_add_relation_hooks'
         hook._container_parent_rdefs = parentrdefs
         return hook
 

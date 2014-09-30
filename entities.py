@@ -25,7 +25,7 @@ from logilab.common.deprecation import class_deprecated
 
 from rql import parse
 
-from cubicweb import Binary, neg_role
+from cubicweb import Binary, neg_role, onevent
 from cubicweb.server.ssplanner import READ_ONLY_RTYPES
 from cubicweb.server.utils import eschema_eid
 
@@ -599,3 +599,12 @@ class MultiParentProtocol(EntityAdapter):
     def possible_parent(self, rtype, eid):
         pass
 
+
+def registration_callback(vreg):
+    vreg.register_all(globals().values(), __name__)
+
+    @onevent('after-registry-reload')
+    def register_adapter():
+        adapter = config.Container.container_adapter()
+        if adapter.__regid__ not in vreg[adapter.__registry__]:
+            vreg.register(adapter)

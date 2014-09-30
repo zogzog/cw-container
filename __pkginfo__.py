@@ -13,7 +13,7 @@ author_email = 'contact@logilab.fr'
 description = 'provides "generic container" services'
 web = 'http://www.cubicweb.org/project/%s' % distname
 
-__depends__ =  {'cubicweb': '>= 3.15.10',
+__depends__ =  {'cubicweb': '>= 3.17.17',
                 'yams': '>= 0.38.1'}
 __recommends__ = {}
 

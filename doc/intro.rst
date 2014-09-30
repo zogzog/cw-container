@@ -142,11 +142,6 @@ These are the usual steps involved in a container definition:
   extremely useful, even very early in the development of a container,
   as it helps spot mistakes in the structure definition.
 
-* hooks: see test/data/hooks.py
-
-  The SetContainerRelation hooks must be setup along with your
-  container definitions.
-
 * entities and adapters: see test/data/entities.py
 
   The `ContainerProtocol` must be set up an all container etypes. This
@@ -159,7 +154,7 @@ These are the usual steps involved in a container definition:
   users this specific entry point to implement custom behaviour.
 
   Indeed the `MultiParentProtocol` will be called from the
-  `SetContainerRelation` hook when such an entity already has one parent
-  set.
+  `SetContainerRelation` hook when such an entity already has one
+  parent set.
 
 

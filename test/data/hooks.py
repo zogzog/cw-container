@@ -1,5 +1,5 @@
 from cubicweb.server.hook import match_rtype
-from cubes.container import config, hooks
+from cubes.container import hooks
 
 
 class CloneDiamond(hooks.CloneContainer):
@@ -8,5 +8,3 @@ class CloneDiamond(hooks.CloneContainer):
 
 def registration_callback(vreg):
     vreg.register(CloneDiamond)
-
-    vreg.register(config.Container.container_hook())

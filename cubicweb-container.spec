@@ -20,7 +20,7 @@ BuildArch:      noarch
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 BuildRequires:  %{python} %{python}-setuptools
-Requires:       cubicweb >= 3.15.10
+Requires:       cubicweb >= 3.17.17
 
 %description
 provides "generic container" services

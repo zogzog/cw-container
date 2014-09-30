@@ -19,7 +19,7 @@ from collections import defaultdict
 from logilab.common.deprecation import class_deprecated
 from logilab.common.registry import Predicate
 
-from cubicweb import ValidationError
+from cubicweb import ValidationError, onevent
 from cubicweb.server.hook import Hook, DataOperationMixIn, Operation
 
 from cubes.container.utils import parent_rschemas
@@ -215,3 +215,13 @@ class CloneContainerOp(DataOperationMixIn, Operation):
         (can be useful for various hooks)
         """
         pass
+
+
+def registration_callback(vreg):
+    vreg.register_all(globals().values(), __name__)
+
+    @onevent('after-registry-reload')
+    def register_hooks():
+        hook = Container.container_hook()
+        if hook.__regid__ not in vreg[hook.__registry__]:
+            vreg.register(hook)
