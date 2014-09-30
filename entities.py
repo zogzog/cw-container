@@ -194,13 +194,17 @@ class ContainerClone(EntityAdapter):
 
         # let's flush all collected relations
         self.info('linking (%d relations)', len(relations))
+        session = self._cw
+        ecache = self._cw.transaction_data.get('ecache', {})
         internal_rtypes = set(rdef.rtype.type
                               for rdef in self.config.inner_rdefs)
         for rtype, eids in relations.iteritems():
             self.info('%s linking %s (%s elements)' %
                       ('internal' if rtype in internal_rtypes else 'external',
                        rtype, len(eids)))
+            rschema = session.vreg.schema[rtype]
             subj_obj = []
+            inlined_subj_obj = []
             for subj, obj in eids:
                 subj = orig_to_clone[subj]
                 if subj == self.entity.eid:
@@ -211,8 +215,25 @@ class ContainerClone(EntityAdapter):
                     # internal relinking, else it is a link
                     # between internal and external nodes
                     obj = orig_to_clone[obj]
-                subj_obj.append((subj, obj))
-            self._cw.add_relations([(rtype, subj_obj)])
+
+                # eids -> entities, for .insert_relations (real relations)
+                if not rschema.inlined:
+                    subjentity = ecache.get(subj)
+                    if subjentity is None:
+                        subjentity = session.entity_from_eid(subj)
+                    objentity = ecache.get(obj)
+                    if objentity is None:
+                        objentity  = session.entity_from_eid(obj)
+                    subj_obj.append((subjentity, objentity))
+                else:
+                    inlined_subj_obj.append((subj, obj))
+
+            if rschema.inlined:
+                # inlined_subj_obj is a list of eid tuples
+                self._cw.add_relations([(rtype, inlined_subj_obj)])
+            else:
+                # subj_obj is a list of entity tuples
+                self.controller.insert_relations(rtype, subj_obj)
 
         errors = ErrorHandler()
         self.controller.run_deferred_hooks(errors)

@@ -279,9 +279,21 @@ class CloneTC(ContainerTC):
         cloned_patch = session.execute('Patch P WHERE P project X, X name "Babar clone"').get_entity(0,0)
         self.assertEqual('File', cloned_patch.content[0].__regid__)
 
+        self.assertTrue(cloned_patch.cw_source) # this was properly relinked (external relation)
+        cloned_version = session.execute('Version V WHERE V version_of P, '
+                                         'P name "Babar clone"').get_entity(0,0)
+        cloned_ticket = session.execute('Ticket T WHERE T concerns P, '
+                                        'P name "Babar clone"').get_entity(0,0)
+        self.assertEqual([cloned_version], cloned_ticket.done_in_version)
 
         folder = session.execute('Folder F WHERE F project P, P name "Babar"').get_entity(0,0)
         cloned_folder = session.execute('Folder F WHERE F project P, P name "Babar clone"').get_entity(0,0)
+
+        # check internal relinking wrt crtype
+        self.assertEqual([folder], folder.folder_root)
+        self.assertEqual([cloned_folder], cloned_folder.folder_root)
+
+        # parent and various metadata
         self.assertEqual(folder.cw_adapt_to('Container').parent.__regid__,
                          cloned_folder.cw_adapt_to('Container').parent.__regid__)
         self.assertEqual(folder.container_etype, cloned_folder.container_etype)
