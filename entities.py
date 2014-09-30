@@ -202,6 +202,7 @@ class ContainerClone(EntityAdapter):
         ecache = self._cw.transaction_data.get('ecache', {})
         internal_rtypes = set(rdef.rtype.type
                               for rdef in self.config.inner_rdefs)
+        internal_rtypes.add('container_parent')
         for rtype, eids in relations.iteritems():
             self.info('%s linking %s (%s elements)' %
                       ('internal' if rtype in internal_rtypes else 'external',
