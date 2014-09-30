@@ -122,20 +122,22 @@ class Container(object):
 
 
     @classmethod
-    def container_adapter(cls):
+    def container_adapters(cls):
         """Return a concrete subclass of the ContainerProtocol adapter with
         selector set for *all* the containers
         """
-        from cubes.container.entities import ContainerProtocol
+        from cubes.container.entities import ContainerProtocol, ContainerClone
         cetypes = []
         etypes = set()
         for container in _CONTAINER_ETYPE_MAP.itervalues():
             cetypes.append(container.cetype)
             etypes |=  container.etypes
         prefix = ''.join(cetypes)
-        adapter = type(prefix + 'ContainerProtocol', (ContainerProtocol,), {})
-        adapter.__select__ = is_instance(*etypes)
-        return adapter
+        cpadapter = type(prefix + 'ContainerProtocol', (ContainerProtocol,), {})
+        cpadapter.__select__ = is_instance(*etypes)
+        ccadapter = type(prefix + 'ContainerClone', (ContainerClone,), {})
+        ccadapter.__select__ = is_instance(*etypes)
+        return (cpadapter, ccadapter)
 
     @classmethod
     def container_hooks(cls):
