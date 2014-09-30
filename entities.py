@@ -60,6 +60,10 @@ class Container(AnyEntity):
     @classmethod
     def __initialize__(cls, schema):
         super(Container, cls).__initialize__(schema)
+        if cls.cw_etype in config.Container.all_etypes():
+            warn('%r container etype is already defined, skipping bw compat handler'
+                 % cls.cw_etype)
+            return
         cls.container_config = config.Container(
             cls.cw_etype,
             cls.container_rtype,
