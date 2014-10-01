@@ -165,6 +165,10 @@ class ContainerClone(EntityAdapter):
     def config(self):
         return config.Container.by_etype(self.entity.cw_etype)
 
+    @property
+    def compulsory_hooks_categories(self):
+        return self.config.compulsory_hooks_categories
+
     # These two unimplemented properties are bw compat
     # to drive users from entity.clone_(e/r)types_to_skip
     # to adapter.(e/r)types_to_skip
