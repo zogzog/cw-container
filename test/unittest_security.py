@@ -6,6 +6,7 @@ from cubicweb.devtools.testlib import CubicWebTC
 from cubes.container.testutils import userlogin, new_version, new_ticket, new_patch
 
 class SecurityTC(CubicWebTC):
+    appid = 'data-tracker'
     userlogin = userlogin
 
     def setup_database(self):

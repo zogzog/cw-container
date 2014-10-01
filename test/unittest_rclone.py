@@ -11,6 +11,7 @@ from cubes.container.testutils import rdefrepr
 
 
 class TwoContainersTC(CubicWebTC):
+    appid = 'data-tracker'
 
     def test_needs_container_parent(self):
         needs_cp = set(eschema.type
@@ -119,6 +120,7 @@ def parent_titles(parent):
     return parents
 
 class CloneTC(CubicWebTC):
+    appid = 'data-tracker'
     userlogin = userlogin
 
     def setup_database(self):
