@@ -26,6 +26,7 @@ from logilab.common.deprecation import class_deprecated, deprecated
 from rql import parse
 
 from cubicweb import Binary, neg_role
+from cubicweb.__pkginfo__ import numversion
 from cubicweb.server.ssplanner import READ_ONLY_RTYPES
 from cubicweb.server.utils import eschema_eid
 
@@ -42,6 +43,7 @@ from cubes.container.utils import (_insertmany,
                                    _iter_mainvar_relations,
                                    )
 
+notcw319 = numversion[:2] < (3, 19)
 
 class Container(AnyEntity):
     __metaclass__ = class_deprecated
@@ -403,9 +405,10 @@ class ContainerClone(EntityAdapter):
         now = datetime.utcnow()
         for attributes in entities:
             neweid = attributes['eid']
-            metadata.append({'type': etype, 'eid': neweid,
-                             'source': 'system', 'asource': 'system',
-                             'mtime': now})
+            meta = {'type': etype, 'eid': neweid, 'asource': 'system'}
+            if notcw319:
+                meta.update({'mtime': now, 'source': 'system'})
+            metadata.append(meta)
             isrelation.append({'eid_from': neweid, 'eid_to': etypeid})
             for ancestor in ancestorseid:
                 isinstanceof.append({'eid_from': neweid, 'eid_to': ancestor})
