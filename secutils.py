@@ -1,4 +1,4 @@
-# copyright 2013 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
+# copyright 2013-2014 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
 # contact http://www.logilab.fr -- mailto:contact@logilab.fr
 #
 # This program is free software: you can redistribute it and/or modify it under
@@ -44,9 +44,10 @@ class PERM(str):
                                  __permissions__=PERM('BABAR_RULE'))
     """
 
-    def __init__(self, *args, **kwargs):
-        super(PERM, self).__init__(*args, **kwargs)
+    def __new__(cls, string):
+        self = str.__new__(cls, string)
         assert self in PERMS, '%s does not appear in %s' % (self, PERMS.keys())
+        return self
 
     def copy(self):
         return self
