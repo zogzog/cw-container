@@ -131,10 +131,7 @@ class ContainerProtocol(EntityAdapter):
             rdef = first_parent_rdef(self.entity.e_schema)
             rtype, role = rdef.rtype.type, neg_role(rdef.composite)
         except StopIteration:
-            # that was likely a non-container entity
-            # this is unlikely to happen but we don't want to crash
-            # because of this
-            self.warning('ContainerProtocol.parent crashed on %s', self.entity)
+            self.debug('ContainerProtocol.parent stopped on %s', self.entity)
             return None
         parent = self.entity.related(rtype=rtype, role=role, entities=True)
         if parent:
