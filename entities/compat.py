@@ -386,10 +386,14 @@ class ContainerClone(EntityAdapter):
 
     def _fast_reserve_eids(self, qty):
         """ not fast enough (yet) """
-        source = self._cw.repo.sources_by_uri['system']
-        if qty == 1:
-            return (source.create_eid(self._cw),)
-        return source.create_eid(self._cw, count=qty)
+        if notcw319:
+            source = self._cw.repo.sources_by_uri['system']
+            if qty == 1:
+                return (source.create_eid(self._cw),)
+            return source.create_eid(self._cw, count=qty)
+        else:
+            from cubes.fastimport.entities import reserve_eids
+            return reserve_eids(self._cw, qty)
 
     def preprocess_attributes(self, etype, oldeid, attributes):
         pass
