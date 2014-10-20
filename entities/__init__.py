@@ -231,7 +231,7 @@ class ContainerClone(EntityAdapter):
                         subjentity = session.entity_from_eid(newsubj)
                     objentity = ecache.get(obj)
                     if objentity is None:
-                        objentity  = session.entity_from_eid(obj)
+                        objentity = session.entity_from_eid(obj)
                     subj_obj.append((subjentity, objentity))
                 else:
                     inlined_subj_obj.append((newsubj, obj))
