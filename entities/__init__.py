@@ -157,6 +157,8 @@ class ContainerClone(EntityAdapter):
     def __init__(self, *args, **kwargs):
         super(ContainerClone, self).__init__(*args, **kwargs)
         self.controller = FlushController(self._cw)
+        # since we're doing a clone, we will have the cw_source_relation
+        self.controller.handle_cw_source_relation = False
 
     @cachedproperty
     def config(self):
