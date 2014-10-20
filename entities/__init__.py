@@ -212,8 +212,8 @@ class ContainerClone(EntityAdapter):
             subj_obj = []
             inlined_subj_obj = []
             for subj, obj in eids:
-                subj = orig_to_clone[subj]
-                if subj == self.entity.eid:
+                newsubj = orig_to_clone[subj]
+                if newsubj == self.entity.eid:
                     # we didn't filter this properly before getting there, because
                     # right now it's a bit tricky ...
                     continue
@@ -224,15 +224,15 @@ class ContainerClone(EntityAdapter):
 
                 # eids -> entities, for .insert_relations (real relations)
                 if not rschema.inlined:
-                    subjentity = ecache.get(subj)
+                    subjentity = ecache.get(newsubj)
                     if subjentity is None:
-                        subjentity = session.entity_from_eid(subj)
+                        subjentity = session.entity_from_eid(newsubj)
                     objentity = ecache.get(obj)
                     if objentity is None:
                         objentity  = session.entity_from_eid(obj)
                     subj_obj.append((subjentity, objentity))
                 else:
-                    inlined_subj_obj.append((subj, obj))
+                    inlined_subj_obj.append((newsubj, obj))
 
             if rschema.inlined:
                 # inlined_subj_obj is a list of eid tuples
