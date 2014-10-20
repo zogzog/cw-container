@@ -216,9 +216,8 @@ class ContainerClone(EntityAdapter):
             for subj, obj in eids:
                 newsubj = orig_to_clone[subj]
                 if newsubj == self.entity.eid:
-                    # we didn't filter this properly before getting there, because
-                    # right now it's a bit tricky ...
-                    continue
+                    if rtype == 'cw_source':
+                        continue
                 if obj in orig_to_clone:
                     # internal relinking, else it is a link
                     # between internal and external nodes
@@ -238,10 +237,12 @@ class ContainerClone(EntityAdapter):
 
             if rschema.inlined:
                 # inlined_subj_obj is a list of eid tuples
-                self._cw.add_relations([(rtype, inlined_subj_obj)])
+                if inlined_subj_obj:
+                    self._cw.add_relations([(rtype, inlined_subj_obj)])
             else:
                 # subj_obj is a list of entity tuples
-                self.controller.insert_relations(rtype, subj_obj)
+                if subj_obj:
+                    self.controller.insert_relations(rtype, subj_obj)
 
         errors = ErrorHandler()
         self.controller.run_deferred_hooks(errors)
