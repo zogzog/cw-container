@@ -34,7 +34,7 @@ PERMS['ticket-documentation'] = {
 class Project(EntityType):
     __permissions__ = PERM('project')
     name = String(required=True)
-    documented_by = SubjectRelation('File', cardinality='*?',
+    documented_by = SubjectRelation('XFile', cardinality='*?',
                                     __permissions__=PERM('project-documentation'),
                                     composite='subject')
     canread = SubjectRelation('CWUser')
@@ -46,7 +46,7 @@ class Version(EntityType):
     name = String(required=True, maxsize=16)
     version_of = SubjectRelation('Project', cardinality='1*',
                                   composite='object', inlined=True)
-    documented_by = SubjectRelation('File', cardinality='*?',
+    documented_by = SubjectRelation('XFile', cardinality='*?',
                                     composite='subject',
                                     __permissions__=PERM('version-documentation'))
     canread = SubjectRelation('CWUser')
@@ -58,12 +58,12 @@ class Ticket(EntityType):
     description = String(required=True)
     done_in_version = SubjectRelation('Version', cardinality='?*',
                                       composite='object', inlined=True)
-    documented_by = SubjectRelation('File', cardinality='*?',
+    documented_by = SubjectRelation('XFile', cardinality='*?',
                                     composite='subject',
                                     __permissions__=PERM('ticket-documentation'))
 
 
-class File(EntityType):
+class XFile(EntityType):
     """ Belongs to Project, Version and Ticket """
     data = Bytes()
 

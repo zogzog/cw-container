@@ -23,7 +23,7 @@ class ContainerWalkTC(ContainerMixinTC, CubicWebTC):
         with self.login('writer'):
             req = self.request()
             projeid = req.execute('Project P').get_entity(0, 0)
-            afile = req.create_entity('File', data=Binary('foo'))
+            afile = req.create_entity('XFile', data=Binary('foo'))
             ver = new_version(req, projeid)
             tick = new_ticket(req, projeid, ver)
             patch = new_patch(req, tick, afile)
@@ -32,7 +32,7 @@ class ContainerWalkTC(ContainerMixinTC, CubicWebTC):
         with self.login('reader'):
             req = self.request()
             projeid = req.execute('Project P').get_entity(0, 0)
-            afile = req.create_entity('File', data=Binary('foo'))
+            afile = req.create_entity('XFile', data=Binary('foo'))
             ver = new_version(req, projeid, u'0.2.0')
             tick = new_ticket(req, projeid, ver)
             patch = new_patch(req, tick, afile)

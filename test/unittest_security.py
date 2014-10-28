@@ -24,7 +24,7 @@ class BasicSecurityTC(CubicWebTC):
         with self.userlogin('writer') as cnx:
             req = cnx.request()
             projeid = req.execute('Project P').get_entity(0, 0)
-            afile = req.create_entity('File', data=Binary('foo'))
+            afile = req.create_entity('XFile', data=Binary('foo'))
             ver = new_version(req, projeid)
             tick = new_ticket(req, projeid, ver)
             patch = new_patch(req, tick, afile)
@@ -33,7 +33,7 @@ class BasicSecurityTC(CubicWebTC):
         with self.userlogin('reader') as cnx:
             req = cnx.request()
             projeid = req.execute('Project P').get_entity(0, 0)
-            afile = req.create_entity('File', data=Binary('foo'))
+            afile = req.create_entity('XFile', data=Binary('foo'))
             ver = new_version(req, projeid, u'0.2.0')
             tick = new_ticket(req, projeid, ver)
             patch = new_patch(req, tick, afile)
@@ -71,13 +71,13 @@ class SecurityTC(CubicWebTC):
     def test_rdefs(self):
         project = Container.by_etype('Project')
         self.assertEquals(set([('version_of', 'Version', 'Project'),
-                               ('documented_by', 'Project', 'File')]),
+                               ('documented_by', 'Project', 'XFile')]),
                            set(rdefrepr(rdef) for rdef in project.rdefs))
 
         version = Container.by_etype('Version')
         self.assertEquals(set([('done_in_version', 'Ticket', 'Version'),
-                               ('documented_by', 'Version', 'File'),
-                               ('documented_by', 'Ticket', 'File')]),
+                               ('documented_by', 'Version', 'XFile'),
+                               ('documented_by', 'Ticket', 'XFile')]),
                            set(rdefrepr(rdef) for rdef in version.rdefs))
 
     def test_border_rdefs_and_permissions(self):
@@ -104,11 +104,11 @@ class SecurityTC(CubicWebTC):
         version = Container.by_etype('Version')
         self.assertEqual(set([('version_of', 'Version', 'Project'),
                               ('canread', 'Version', 'CWUser'),
-                              # NOTE: since File is an etype of the Version container
+                              # NOTE: since XFile is an etype of the Version container
                               # this rdef appears as a border.
                               # It may cause problems when weaving permissions rules
                               # if not properly considered.
-                              ('documented_by', 'Project', 'File'),
+                              ('documented_by', 'Project', 'XFile'),
                               ('canwrite', 'Version', 'CWUser')]),
                          set(rdefrepr(rdef) for rdef in version.border_rdefs))
 
@@ -122,7 +122,7 @@ class SecurityTC(CubicWebTC):
                      'delete': ('managers',),
                      'read': ('managers', 'users', 'guests'),
                      'update': ()},
-                    ('documented_by', 'Project', 'File'):
+                    ('documented_by', 'Project', 'XFile'):
                     {'add': ('managers', 'project_managers'),
                      'delete': ('managers', 'project_managers'),
                      'read': ('managers', 'users'),
@@ -154,7 +154,7 @@ class SecurityTC(CubicWebTC):
                           'update': ('managers', 'owners', 'EXPR(X version C, U canwrite C)'),
                           'delete': ('managers', 'owners')},
                          permsrepr(schema['Ticket'].permissions))
-        # NOTE: here, the File etype security is clearly wrong for a real world usage
+        # NOTE: here, the XFile etype security is clearly wrong for a real world usage
         # we probably would like to combine security rules from all its containers
         # The "collaboration" cube would probably love to have some machinery
         # to automate this.
@@ -162,12 +162,12 @@ class SecurityTC(CubicWebTC):
                           'add': ('managers', 'EXPR(X project C, U canwrite C)'),
                           'update': ('managers', 'owners', 'EXPR(X project C, U canwrite C)'),
                           'delete': ('managers', 'owners')},
-                         permsrepr(schema['File'].permissions))
+                         permsrepr(schema['XFile'].permissions))
 
     def test_shared_rtypes_permissions(self):
-        ticket_documented_by_rdef = self.schema['documented_by'].rdef('Ticket', 'File')
-        version_documented_by_rdef = self.schema['documented_by'].rdef('Version', 'File')
-        project_documented_by_rdef = self.schema['documented_by'].rdef('Project', 'File')
+        ticket_documented_by_rdef = self.schema['documented_by'].rdef('Ticket', 'XFile')
+        version_documented_by_rdef = self.schema['documented_by'].rdef('Version', 'XFile')
+        project_documented_by_rdef = self.schema['documented_by'].rdef('Project', 'XFile')
 
         self.assertEqual(ticket_documented_by_rdef.permissions['add'][1],
                          'ticket_managers')

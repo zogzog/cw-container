@@ -75,13 +75,13 @@ PERMS['patch-content'] = {
 @project
 class Patch(EntityType):
     name = String(required=True, maxsize=64)
-    content = SubjectRelation('File', cardinality='1*', inlined=True,
+    content = SubjectRelation('XFile', cardinality='1*', inlined=True,
                               __permissions__=PERM('patch-content'))
     implements = SubjectRelation('Ticket', cardinality='1*',
                                  composite='object', inlined=True)
 
 
-class File(EntityType):
+class XFile(EntityType):
     """ does NOT belong to Project """
     data = Bytes()
 
@@ -93,7 +93,7 @@ class Folder(EntityType):
     name = String(required=True)
     parent = SubjectRelation('Folder', inlined=True,
                              cardinality='?*', composite='object')
-    element = SubjectRelation('File', composite='subject')
+    element = SubjectRelation('XFile', composite='subject')
 
 
 class documents(RelationDefinition):
@@ -104,7 +104,7 @@ class documents(RelationDefinition):
 
 # let's have something to test properly match_rdefs
 # i.e. Card has two upward paths and uses 'element'
-# and also File is a Folder 'element'
+# and also XFile is a Folder 'element'
 
 class Card(EntityType):
     contents = String()

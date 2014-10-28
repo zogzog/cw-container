@@ -52,11 +52,11 @@ class TwoContainersTC(ContainerTC):
 
     def test_order(self):
         project = Container.by_etype('Project')
-        self.assertEqual(['Project', 'Folder', 'Ticket', 'Card', 'Patch', 'Version'],
+        self.assertEqual(['Project', 'Folder', 'Ticket', 'Card', 'Version', 'Patch'],
                          project.ordered_etypes)
 
         folder = Container.by_etype('Folder')
-        self.assertEqual(['Folder', 'File', 'Card'],
+        self.assertEqual(['Folder', 'Card', 'XFile'],
                          folder.ordered_etypes)
 
     def test_project_hooks(self):
@@ -71,21 +71,21 @@ class TwoContainersTC(ContainerTC):
         schema = self.vreg.schema
         folder = Container.by_etype('Folder')
 
-        self.assertEqual(set([('element', 'Folder', 'File'),
+        self.assertEqual(set([('element', 'Folder', 'XFile'),
                               ('parent', 'Folder', 'Folder'),
                               ('element', 'Folder', 'Card')]),
                          set([rdefrepr(rdef) for rdef in folder.rdefs]))
-        self.assertEqual(set([('element', 'Folder', 'File'),
+        self.assertEqual(set([('element', 'Folder', 'XFile'),
                               ('parent', 'Folder', 'Folder'),
                               ('element', 'Folder', 'Card')]),
                          set([rdefrepr(rdef) for rdef in folder.inner_rdefs]))
         self.assertEqual(set([('documents', 'Folder', 'Project'),
-                              ('content', 'Patch', 'File'),
+                              ('content', 'Patch', 'XFile'),
                               ('requirement', 'Ticket', 'Card')]),
                          set([rdefrepr(rdef) for rdef in folder.border_rdefs]))
 
         self.assertEqual((frozenset(['parent', 'element']),
-                          frozenset(['Card', 'Folder', 'File'])),
+                          frozenset(['Card', 'Folder', 'XFile'])),
                          utils.container_static_structure(schema,
                                                           folder.cetype,
                                                           folder.crtype,
@@ -96,7 +96,7 @@ class TwoContainersTC(ContainerTC):
         schema = self.vreg.schema
         folder = Container.by_etype('Folder')
         self.assertEqual((frozenset(['parent', 'element']),
-                          frozenset(['Card', 'Folder', 'File'])),
+                          frozenset(['Card', 'Folder', 'XFile'])),
                          utils.container_rtypes_etypes(schema,
                                                        folder.cetype,
                                                        folder.crtype,
@@ -152,10 +152,10 @@ class CloneTC(ContainerTC):
         card = new_card(session)
         tick.cw_set(requirement=card)
 
-        afile = session.create_entity('File', data=Binary('foo'))
+        afile = session.create_entity('XFile', data=Binary('foo'))
         patch = new_patch(session, tick, afile)
 
-        doc1 = session.create_entity('File', data=Binary('How I became King'))
+        doc1 = session.create_entity('XFile', data=Binary('How I became King'))
         fold1 = session.create_entity('Folder', name=u'Babar documentation',
                                       element=doc1, documents=projeid)
         card = new_card(session, u'Some doc bit')
@@ -170,10 +170,10 @@ class CloneTC(ContainerTC):
         card = new_card(session, u'Write me')
         tick.cw_set(requirement=card)
 
-        afile = session.create_entity('File', data=Binary('foo'))
+        afile = session.create_entity('XFile', data=Binary('foo'))
         patch = new_patch(session, tick, afile, name=u'bio part one')
 
-        doc2 = session.create_entity('File', data=Binary('How I met Babar'))
+        doc2 = session.create_entity('XFile', data=Binary('How I met Babar'))
         fold2 = session.create_entity('Folder', name=u'Celeste bio',
                                   element=doc2, documents=projeid)
         card = new_card(session, u'A general doc item')
@@ -183,10 +183,10 @@ class CloneTC(ContainerTC):
         session = self.session
         babar = session.execute('Project P WHERE P name "Babar"').get_entity(0,0)
 
-        # start from File (in the Folder sub-container)
-        thefile = session.execute('File F WHERE FO element F, FO name like "Babar%"').get_entity(0,0)
+        # start from XFile (in the Folder sub-container)
+        thefile = session.execute('XFile F WHERE FO element F, FO name like "Babar%"').get_entity(0,0)
         self.assertEqual(['Babar documentation', 'Babar'], parent_titles(thefile))
-        thefile = session.execute('File F WHERE FO element F, FO name like "Celeste%"').get_entity(0,0)
+        thefile = session.execute('XFile F WHERE FO element F, FO name like "Celeste%"').get_entity(0,0)
         self.assertEqual(['Celeste bio', 'Celeste', 'Babar'], parent_titles(thefile))
 
         # start from Card (in Folder)
@@ -238,9 +238,9 @@ class CloneTC(ContainerTC):
         # The folder containers contain what they are supposed to:
         babar_doc = session.execute('Folder F WHERE F name "Babar documentation"').get_entity(0, 0)
         celeste_doc = session.execute('Folder F WHERE F name "Celeste bio"').get_entity(0, 0)
-        babar_doc_contents = [('File', 'How I became King'),
+        babar_doc_contents = [('XFile', 'How I became King'),
                               ('Card', u'Some doc bit')]
-        celeste_doc_contents = [('File', 'How I met Babar'),
+        celeste_doc_contents = [('XFile', 'How I met Babar'),
                                 ('Card', u'A general doc item')]
         self.assertEqual(frozenset(babar_doc_contents),
                          frozenset((e.cw_etype, e.dc_title() or e.data.getvalue())
@@ -297,9 +297,9 @@ class CloneTC(ContainerTC):
         session = self.session
 
         patch = session.execute('Patch P WHERE P project X, X name "Babar"').get_entity(0,0)
-        self.assertEqual('File', patch.content[0].__regid__)
+        self.assertEqual('XFile', patch.content[0].__regid__)
         cloned_patch = session.execute('Patch P WHERE P project X, X name "Babar clone"').get_entity(0,0)
-        self.assertEqual('File', cloned_patch.content[0].__regid__)
+        self.assertEqual('XFile', cloned_patch.content[0].__regid__)
 
         self.assertTrue(cloned_patch.cw_source) # this was properly relinked (external relation)
         cloned_version = session.execute('Version V WHERE V version_of P, '

@@ -8,9 +8,9 @@ class SecurityTC(CubicWebTC):
     appid = 'data-forge3'
 
     def test_shared_rtypes_permissions(self):
-        ticket_documented_by_rdef = self.schema['documented_by'].rdef('Ticket', 'File')
-        version_documented_by_rdef = self.schema['documented_by'].rdef('Version', 'File')
-        project_documented_by_rdef = self.schema['documented_by'].rdef('Project', 'File')
+        ticket_documented_by_rdef = self.schema['documented_by'].rdef('Ticket', 'XFile')
+        version_documented_by_rdef = self.schema['documented_by'].rdef('Version', 'XFile')
+        project_documented_by_rdef = self.schema['documented_by'].rdef('Project', 'XFile')
 
         self.assertEqual(ticket_documented_by_rdef.permissions['add'][1],
                          'ticket_managers')
@@ -27,7 +27,7 @@ class SecurityTC(CubicWebTC):
                          'project_managers')
 
     def test_selection_ambiguity(self):
-        """Show that a selection ambiguity is raised when attaching File
+        """Show that a selection ambiguity is raised when attaching XFile
         objects via the documented_by relation to both Project and Version
         containers.
         """
@@ -48,8 +48,8 @@ class SecurityTC(CubicWebTC):
                                    description=u'Ticket de Céleste',
                                    done_in_version=version)
         with self.assertRaises(Exception) as ex:
-            proj_file= req.create_entity('File', reverse_documented_by=project)
-            version_file = req.create_entity('File', reverse_documented_by=version)
+            proj_file= req.create_entity('XFile', reverse_documented_by=project)
+            version_file = req.create_entity('XFile', reverse_documented_by=version)
 
         # Check that the exception raised is indeed a selection ambiguity
         ex_kind_and_args = process_exception_message(ex)

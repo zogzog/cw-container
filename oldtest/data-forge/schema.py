@@ -46,7 +46,7 @@ class Ticket(EntityType):
 
 class Patch(EntityType):
     name = String(required=True, maxsize=64)
-    content = SubjectRelation('File', cardinality='1*', inlined=True,
+    content = SubjectRelation('XFile', cardinality='1*', inlined=True,
                               __permissions__={
             'read':   ('managers', 'users'),
             'add':    ('managers', RRQLExpression('S project P, U canwrite P')),
@@ -56,7 +56,7 @@ class Patch(EntityType):
                                  composite='object', inlined=True)
 
 
-class File(EntityType):
+class XFile(EntityType):
     """ does NOT belong to Project """
     data = Bytes()
 
