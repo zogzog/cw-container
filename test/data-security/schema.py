@@ -79,11 +79,9 @@ def post_build_callback(schema):
         return {
             'read': ('managers', 'users'),
             'add': ('managers',
-                    RRQLExpression('X project %(p)s, U canwrite %(p)s' %
-                                   {'p': role_to_container})),
+                    RRQLExpression('%s project P, U canwrite P' % role_to_container)),
             'delete': ('managers',
-                       RRQLExpression('X project %(p)s, U canwrite %(p)s' %
-                                      {'p': role_to_container}))
+                       RRQLExpression('%s project P, U canwrite P' % role_to_container))
         }
 
     project.setup_rdefs_security(project_rtypes_perms, project_rtypes_perms)
@@ -95,7 +93,7 @@ def post_build_callback(schema):
         conf.setup_etypes_security({
             'read':   ('managers',
                        ERQLExpression('(X owned_by U) OR (X %s C, U canread C)' % conf.crtype)),
-            'add':    ('managers', ERQLExpression('X %s C, U canwrite C' % conf.crtype)),
+            'add':    ('managers', 'users'),
             'delete': ('managers', 'owners'),
             'update': ('managers', 'owners',
                        ERQLExpression('X %s C, U canwrite C' % conf.crtype)),

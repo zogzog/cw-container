@@ -87,13 +87,13 @@ class SecurityTC(CubicWebTC):
                          set(rdefrepr(rdef) for rdef in project.border_rdefs))
 
         expected = {('canwrite', 'Project', 'CWUser'):
-                    {'add': ('managers', 'EXPR(X project S, U canwrite S)'),
-                     'delete': ('managers', 'EXPR(X project S, U canwrite S)'),
+                    {'add': ('managers', 'EXPR(S project P, U canwrite P)'),
+                     'delete': ('managers', 'EXPR(S project P, U canwrite P)'),
                      'read': ('managers', 'users'),
                      'update': ()},
                     ('canread', 'Project', 'CWUser'):
-                    {'add': ('managers', 'EXPR(X project S, U canwrite S)'),
-                     'delete': ('managers', 'EXPR(X project S, U canwrite S)'),
+                    {'add': ('managers', 'EXPR(S project P, U canwrite P)'),
+                     'delete': ('managers', 'EXPR(S project P, U canwrite P)'),
                      'read': ('managers', 'users'),
                      'update': ()}}
 
@@ -128,8 +128,8 @@ class SecurityTC(CubicWebTC):
                      'read': ('managers', 'users'),
                      'update': ()},
                     ('version_of', 'Version', 'Project'):
-                    {'add': ('managers', 'EXPR(X project O, U canwrite O)'),
-                     'delete': ('managers', 'EXPR(X project O, U canwrite O)'),
+                    {'add': ('managers', 'EXPR(O project P, U canwrite P)'),
+                     'delete': ('managers', 'EXPR(O project P, U canwrite P)'),
                      'read': ('managers', 'users'),
                      'update': ()}}
 
@@ -145,12 +145,12 @@ class SecurityTC(CubicWebTC):
                           'delete': ('managers', 'owners')},
                          permsrepr(schema['Project'].permissions))
         self.assertEqual({'read': ('managers', 'EXPR((X owned_by U) OR (X project C, U canread C))'),
-                          'add': ('managers', 'EXPR(X project C, U canwrite C)'),
+                          'add': ('managers', 'users'),
                           'update': ('managers', 'owners', 'EXPR(X project C, U canwrite C)'),
                           'delete': ('managers', 'owners')},
                          permsrepr(schema['Version'].permissions))
         self.assertEqual({'read': ('managers', 'EXPR((X owned_by U) OR (X version C, U canread C))'),
-                          'add': ('managers', 'EXPR(X version C, U canwrite C)'),
+                          'add': ('managers', 'users'),
                           'update': ('managers', 'owners', 'EXPR(X version C, U canwrite C)'),
                           'delete': ('managers', 'owners')},
                          permsrepr(schema['Ticket'].permissions))
@@ -159,7 +159,7 @@ class SecurityTC(CubicWebTC):
         # The "collaboration" cube would probably love to have some machinery
         # to automate this.
         self.assertEqual({'read': ('managers', 'EXPR((X owned_by U) OR (X project C, U canread C))'),
-                          'add': ('managers', 'EXPR(X project C, U canwrite C)'),
+                          'add': ('managers', 'users'),
                           'update': ('managers', 'owners', 'EXPR(X project C, U canwrite C)'),
                           'delete': ('managers', 'owners')},
                          permsrepr(schema['XFile'].permissions))
