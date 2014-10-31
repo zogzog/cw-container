@@ -35,6 +35,10 @@ class CircusTC(CubicWebTC):
         a = s.create_entity('Animal', reverse_animals=m, name=u'Babar')
         self.commit()
 
+        s = self.session
+        c = s.entity_from_eid(c.eid)
+        self.assertEqual(c, c.circus[0])
+
         clone = s.create_entity('Circus')
         cloner = clone.cw_adapt_to('Container.clone')
 

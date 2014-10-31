@@ -153,13 +153,14 @@ class NewContainerOp(DataOperationMixIn, Operation):
                     # ok, we got a parent, but that was through "some
                     # random" upward composite rdef, not a
                     # containerish one
-                    continue
-                target = parentadapter.related_container
-                if container.cw_etype != target.cw_etype:
-                    # let's not forget to close the loop upon the
-                    # current container
-                    cconf = Container.by_etype(container.cw_etype)
-                    container.cw_set(**{cconf.crtype:container})
+                    target = container
+                else:
+                    target = parentadapter.related_container
+                    if container.cw_etype != target.cw_etype:
+                        # let's not forget to close the loop upon the
+                        # current container
+                        cconf = Container.by_etype(container.cw_etype)
+                        container.cw_set(**{cconf.crtype:container})
             cconf = Container.by_etype(target.cw_etype)
             container.cw_set(**{cconf.crtype:target})
 
