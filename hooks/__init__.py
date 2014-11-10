@@ -194,7 +194,7 @@ class AddContainerRelationOp(DataOperationMixIn, Operation):
         if etype in cwetype_eid_map:
             return cwetype_eid_map[etype]
         eid = self.session.execute('CWEType T WHERE T name %(name)s',
-                                   {'name': etype}).rows[0][0]
+                                   {'name': unicode(etype)}).rows[0][0]
         cwetype_eid_map[etype] = eid
         return eid
 
