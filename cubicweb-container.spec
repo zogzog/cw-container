@@ -21,7 +21,7 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 BuildRequires:  %{python} %{python}-setuptools
 Requires:       cubicweb >= 3.17.17
-Requires:       cubicweb-fastimport >= 0.3.0
+Requires:       cubicweb-fastimport >= 0.2.1
 
 %description
 provides "generic container" services

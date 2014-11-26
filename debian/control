@@ -10,7 +10,7 @@ Package: cubicweb-container
 Architecture: all
 Depends:
  cubicweb-common (>= 3.17.17),
- cubicweb-fastimport (>= 0.3.0),
+ cubicweb-fastimport (>= 0.2.1),
  ${python:Depends}
 Description: provides "generic container" services
  CubicWeb is a semantic web application framework.
