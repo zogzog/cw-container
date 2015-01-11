@@ -2,23 +2,18 @@ from logilab.common.testlib import unittest_main
 
 from cubicweb.devtools.testlib import CubicWebTC
 
-from cubes.container import utils
+from cubes.container import config
 
 
 class CircusTC(CubicWebTC):
     appid = 'data-circus'
 
     def test_static_structure(self):
-        schema = self.vreg.schema
-        diamond = self.vreg['etypes'].etype_class('Circus')
-        rtypes, etypes = utils.container_static_structure(
-            schema, 'Circus', 'circus', subcontainers=('Menagerie',))
-        self.assertSetEqual(set(('Clown', 'ClownCabal', 'Joke', 'Menagerie')), etypes)
-        self.assertSetEqual(set(('clowns', 'cabals', 'jokes', 'members', 'in_circus')), rtypes)
-        rtypes, etypes = utils.container_static_structure(
-            schema, 'Menagerie', 'zoo')
-        self.assertEqual(set(['animals']), rtypes)
-        self.assertEqual(set(['Animal']), etypes)
+        conf = config.Container.by_etype('Circus')
+        self.assertSetEqual(set(('Circus', 'Clown', 'ClownCabal', 'Joke', 'Menagerie')),
+                            conf.etypes)
+        self.assertSetEqual(set(('clowns', 'cabals', 'jokes', 'members', 'in_circus')),
+                            set(rdef.rtype.type for rdef in conf.inner_rdefs))
 
     def test_clown_in_cabal_not_in_circus(self):
         req = self.request()

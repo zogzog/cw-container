@@ -1,4 +1,4 @@
-# copyright 2011-2014 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
+# copyright 2011-2015 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
 # contact http://www.logilab.fr -- mailto:contact@logilab.fr
 #
 # This program is free software: you can redistribute it and/or modify it under
@@ -20,16 +20,13 @@ from itertools import chain
 from warnings import warn
 
 from logilab.common.decorators import cached, cachedproperty
-from logilab.common.deprecation import class_deprecated
 
 from rql import parse
 
 from cubicweb import neg_role, onevent
-from cubicweb.__pkginfo__ import numversion
 from cubicweb.server.ssplanner import READ_ONLY_RTYPES
 
 from cubicweb.schema import VIRTUAL_RTYPES
-from cubicweb.entities import AnyEntity
 from cubicweb.view import EntityAdapter
 
 from cubes.fastimport.entities import FlushController
@@ -37,60 +34,16 @@ from cubes.fastimport.entities import FlushController
 from cubes.container import config
 
 from cubes.container.utils import (parent_rdefs,
-                                   parent_rschemas,
                                    needs_container_parent,
                                    _add_rqlst_restriction,
                                    _iter_mainvar_relations)
 
 
-class Container(AnyEntity):
-    __abstract__ = True
-    __metaclass__ = class_deprecated
-    __deprecation_warning__ = ('[container 2.4] '
-                               'use cubes.container.config.Container instead')
-
-    # container API
-    container_rtype = None
-    container_skiprtypes = ()
-    container_skipetypes = ()
-    container_subcontainers = ()
-    clone_rtype_role = None
-    compulsory_hooks_categories = ()
-
-    @classmethod
-    def __initialize__(cls, schema):
-        super(Container, cls).__initialize__(schema)
-        if cls.cw_etype in config.Container.all_etypes():
-            warn('%r container etype is already defined, skipping bw compat handler'
-                 % cls.cw_etype)
-            return
-        cls.container_config = config.Container(
-            cls.cw_etype,
-            cls.container_rtype,
-            skiprtypes=cls.container_skiprtypes,
-            skipetypes=cls.container_skipetypes,
-            subcontainers=cls.container_subcontainers,
-            clone_rtype_role=cls.clone_rtype_role,
-            compulsory_hooks_categories=cls.compulsory_hooks_categories)
-
-
-@cached
-def container_etypes(vreg):
-    warn('[container 2.4] container_etype is replaced '
-         'by config.Container.all()')
-    return config.Container.all_etypes()
-
-@cached
-def first_parent_rtype_role(eschema):
-    warn('[container 2.4] first_parent_rtype_role is replaced '
-         'by first_parent_rdef')
-    return list(parent_rschemas(eschema))[0]
-
-notcw319 = numversion[:2] < (3, 19)
 
 @cached
 def first_parent_rdef(eschema):
     return parent_rdefs(eschema).next()
+
 
 class ContainerProtocol(EntityAdapter):
     __regid__ = 'Container'

@@ -1,7 +1,5 @@
 import time
-from logilab.common.testlib import unittest_main
-
-from cubicweb import Binary, ValidationError
+from cubicweb import Binary
 
 from cubes.container import utils
 from cubes.container.config import Container
@@ -60,7 +58,6 @@ class TwoContainersTC(ContainerTC):
                          folder.ordered_etypes)
 
     def test_project_hooks(self):
-        schema = self.vreg.schema
         project = Container.by_etype('Project')
         self.assertEqual({'documents': set([('Folder', 'Project')]),
                           'requirement': set([('Ticket', 'Card')])},
@@ -68,7 +65,6 @@ class TwoContainersTC(ContainerTC):
 
     # Folder
     def test_folder_rdefs(self):
-        schema = self.vreg.schema
         folder = Container.by_etype('Folder')
 
         self.assertEqual(set([('element', 'Folder', 'XFile'),
@@ -84,50 +80,6 @@ class TwoContainersTC(ContainerTC):
                               ('requirement', 'Ticket', 'Card')]),
                          set([rdefrepr(rdef) for rdef in folder.border_rdefs]))
 
-        self.assertEqual((frozenset(['parent', 'element']),
-                          frozenset(['Card', 'Folder', 'XFile'])),
-                         utils.container_static_structure(schema,
-                                                          folder.cetype,
-                                                          folder.crtype,
-                                                          skiprtypes=folder.skiprtypes,
-                                                          skipetypes=folder.skipetypes))
-
-    def test_folder_etypes_rtypes(self):
-        schema = self.vreg.schema
-        folder = Container.by_etype('Folder')
-        self.assertEqual((frozenset(['parent', 'element']),
-                          frozenset(['Card', 'Folder', 'XFile'])),
-                         utils.container_rtypes_etypes(schema,
-                                                       folder.cetype,
-                                                       folder.crtype,
-                                                       skiprtypes=folder.skiprtypes,
-                                                       skipetypes=folder.skipetypes))
-
-    def test_folder_hooks(self):
-        schema = self.vreg.schema
-        folder = Container.by_etype('Folder')
-        self.assertEqual(set(['parent', 'element']),
-                         utils.set_container_parent_rtypes_hook(schema,
-                                                                folder.cetype,
-                                                                folder.crtype,
-                                                                skiprtypes=folder.skiprtypes,
-                                                                skipetypes=folder.skipetypes,
-                                                                subcontainers=folder.subcontainers))
-        self.assertEqual({'parent': set([('Folder', 'Folder')]),
-                          'element': set([('Folder', 'Card')])},
-                         utils.container_parent_rdefs(schema,
-                                                      folder.cetype,
-                                                      folder.crtype,
-                                                      skiprtypes=folder.skiprtypes,
-                                                      skipetypes=folder.skipetypes,
-                                                      subcontainers=folder.subcontainers))
-        self.assertEqual(set(('parent', 'element')),
-                         utils.set_container_relation_rtypes_hook(schema,
-                                                                  folder.cetype,
-                                                                  folder.crtype,
-                                                                  skiprtypes=folder.skiprtypes,
-                                                                  skipetypes=folder.skipetypes,
-                                                                  subcontainers=folder.subcontainers))
 
 def parent_titles(parent):
     parents = []
