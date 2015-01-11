@@ -14,6 +14,7 @@ def tree():
 
 notcw319 = numversion[:2] < (3, 19)
 
+
 class UITC(ContainerTC):
     appid = 'data-tracker'
 
@@ -32,7 +33,9 @@ class UITC(ContainerTC):
                 self.assertEqual(pvexpected,
                                  pvs.get('*', conf.crtype, etype, 'object'))
 
-        p = self.session.create_entity('Project', name=u'Babar')
+        with self.admin_access.repo_cnx() as cnx:
+            p = cnx.create_entity('Project', name=u'Babar')
+            cnx.commit()
         d = tree()
         d['main']['attributes']['add'] = [('name', ['String'], 'subject')]
         d['main']['attributes']['update'] = [('name', ['String'], 'subject')]
