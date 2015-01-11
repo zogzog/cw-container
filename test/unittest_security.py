@@ -3,52 +3,49 @@ from logilab.common.testlib import unittest_main
 from cubicweb import Binary, Unauthorized
 from cubicweb.devtools.testlib import CubicWebTC
 
-from cubes.container.testutils import (userlogin, new_version, new_ticket,
+from cubes.container.testutils import (new_version, new_ticket,
                                        new_patch, rdefrepr)
 from cubes.container.config import Container
 
+
 class BasicSecurityTC(CubicWebTC):
     appid = 'data-tracker'
-    userlogin = userlogin
 
     def setup_database(self):
-        req = self.request()
-        proj = req.create_entity('Project', name=u'Babar')
-        user = self.create_user(req, login=u'user', groups=('users',))
-        reader = self.create_user(req, login=u'reader', groups=('users',))
-        writer = self.create_user(req, login=u'writer', groups=('users',))
-        reader.cw_set(canread=proj)
-        writer.cw_set(canread=proj, canwrite=proj)
-
-    def test_base(self):
-        with self.userlogin('writer') as cnx:
-            req = cnx.request()
-            projeid = req.execute('Project P').get_entity(0, 0)
-            afile = req.create_entity('XFile', data=Binary('foo'))
-            ver = new_version(req, projeid)
-            tick = new_ticket(req, projeid, ver)
-            patch = new_patch(req, tick, afile)
+        with self.admin_access.repo_cnx() as cnx:
+            proj = cnx.create_entity('Project', name=u'Babar')
+            user = self.create_user(cnx, login=u'user', groups=('users',))
+            reader = self.create_user(cnx, login=u'reader', groups=('users',))
+            writer = self.create_user(cnx, login=u'writer', groups=('users',))
+            reader.cw_set(canread=proj)
+            writer.cw_set(canread=proj, canwrite=proj)
             cnx.commit()
 
-        with self.userlogin('reader') as cnx:
-            req = cnx.request()
-            projeid = req.execute('Project P').get_entity(0, 0)
-            afile = req.create_entity('XFile', data=Binary('foo'))
-            ver = new_version(req, projeid, u'0.2.0')
-            tick = new_ticket(req, projeid, ver)
-            patch = new_patch(req, tick, afile)
+    def test_base(self):
+        with self.new_access('writer').repo_cnx() as cnx:
+            projeid = cnx.execute('Project P').one()
+            afile = cnx.create_entity('XFile', data=Binary('foo'))
+            ver = new_version(cnx, projeid)
+            tick = new_ticket(cnx, projeid, ver)
+            patch = new_patch(cnx, tick, afile)
+            cnx.commit()
+
+        with self.new_access('reader').repo_cnx() as cnx:
+            projeid = cnx.execute('Project P').get_entity(0, 0)
+            afile = cnx.create_entity('XFile', data=Binary('foo'))
+            ver = new_version(cnx, projeid, u'0.2.0')
+            tick = new_ticket(cnx, projeid, ver)
+            patch = new_patch(cnx, tick, afile)
             with self.assertRaises(Unauthorized):
                 cnx.commit()
             cnx.rollback()
-            req = cnx.request()
-            ver = new_version(req, projeid, u'0.3.0')
+            ver = new_version(cnx, projeid, u'0.3.0')
             with self.assertRaises(Unauthorized):
                 cnx.commit()
 
-        with self.userlogin('user') as cnx:
-            req = cnx.request()
-            self.assertEqual(0, req.execute('Project P').rowcount)
-            self.assertEqual(0, req.execute('Any P,E WHERE E project P').rowcount)
+        with self.new_access('user').repo_cnx() as cnx:
+            self.assertEqual(0, cnx.execute('Project P').rowcount)
+            self.assertEqual(0, cnx.execute('Any P,E WHERE E project P').rowcount)
 
 
 def rulerepr(rule):
