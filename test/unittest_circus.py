@@ -16,33 +16,32 @@ class CircusTC(CubicWebTC):
                             set(rdef.rtype.type for rdef in conf.inner_rdefs))
 
     def test_clown_in_cabal_not_in_circus(self):
-        req = self.request()
-        bozo = req.create_entity('Clown', name=u'Bozo')
-        req.create_entity('Joke', content=u'funny', reverse_jokes=bozo)
-        req.create_entity('ClownCabal', members=bozo)
-        self.commit()
+        with self.admin_access.repo_cnx() as cnx:
+            bozo = cnx.create_entity('Clown', name=u'Bozo')
+            cnx.create_entity('Joke', content=u'funny', reverse_jokes=bozo)
+            cnx.create_entity('ClownCabal', members=bozo)
+            cnx.commit()
 
     def test_composite_subjrel_from_subcontainer_is_cloned(self):
-        s = self.session
-        u = s.create_entity('Umbrella')
-        c = s.create_entity('Circus', reverse_has_circus=u)
-        m = s.create_entity('Menagerie', in_circus=c)
-        a = s.create_entity('Animal', reverse_animals=m, name=u'Babar')
-        self.commit()
+        with self.admin_access.repo_cnx() as cnx:
+            u = cnx.create_entity('Umbrella')
+            c = cnx.create_entity('Circus', reverse_has_circus=u)
+            m = cnx.create_entity('Menagerie', in_circus=c)
+            a = cnx.create_entity('Animal', reverse_animals=m, name=u'Babar')
+            cnx.commit()
 
-        s = self.session
-        c = s.entity_from_eid(c.eid)
-        self.assertEqual(c, c.circus[0])
+            c = cnx.entity_from_eid(c.eid)
+            self.assertEqual(c, c.circus[0])
 
-        clone = s.create_entity('Circus')
-        cloner = clone.cw_adapt_to('Container.clone')
+            clone = cnx.create_entity('Circus')
+            cloner = clone.cw_adapt_to('Container.clone')
 
-        with s.deny_all_hooks_but(*cloner.config.compulsory_hooks_categories):
-            cloner.clone(original=c.eid)
-            self.commit()
+            with cnx.deny_all_hooks_but(*cloner.config.compulsory_hooks_categories):
+                cloner.clone(original=c.eid)
+                cnx.commit()
 
-        c2 = s.entity_from_eid(clone.eid)
-        self.assertEqual(u'Babar', c2.reverse_in_circus[0].animals[0].name)
+            c2 = cnx.entity_from_eid(clone.eid)
+            self.assertEqual(u'Babar', c2.reverse_in_circus[0].animals[0].name)
 
 
 if __name__ == '__main__':
