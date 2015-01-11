@@ -154,8 +154,8 @@ class ContainerClone(EntityAdapter):
 
         # let's flush all collected relations
         self.info('linking (%d relations)', len(relations))
-        session = self._cw
-        ecache = self._cw.transaction_data.get('ecache', {})
+        cnx = self._cw
+        ecache = cnx.transaction_data.get('ecache', {})
         internal_rtypes = set(rdef.rtype.type
                               for rdef in self.config.inner_rdefs)
         internal_rtypes.add('container_parent')
@@ -163,7 +163,7 @@ class ContainerClone(EntityAdapter):
             self.info('%s linking %s (%s elements)' %
                       ('internal' if rtype in internal_rtypes else 'external',
                        rtype, len(eids)))
-            rschema = session.vreg.schema[rtype]
+            rschema = cnx.vreg.schema[rtype]
             subj_obj = []
             inlined_subj_obj = []
             for subj, obj in eids:
@@ -180,10 +180,10 @@ class ContainerClone(EntityAdapter):
                 if not rschema.inlined:
                     subjentity = ecache.get(newsubj)
                     if subjentity is None:
-                        subjentity = session.entity_from_eid(newsubj)
+                        subjentity = cnx.entity_from_eid(newsubj)
                     objentity = ecache.get(obj)
                     if objentity is None:
-                        objentity = session.entity_from_eid(obj)
+                        objentity = cnx.entity_from_eid(obj)
                     subj_obj.append((subjentity, objentity))
                 else:
                     inlined_subj_obj.append((newsubj, obj))
