@@ -67,15 +67,15 @@ class SecurityTC(CubicWebTC):
 
     def test_rdefs(self):
         project = Container.by_etype('Project')
-        self.assertEquals(set([('version_of', 'Version', 'Project'),
-                               ('documented_by', 'Project', 'XFile')]),
-                           set(rdefrepr(rdef) for rdef in project.rdefs))
+        self.assertEqual(set([('version_of', 'Version', 'Project'),
+                              ('documented_by', 'Project', 'XFile')]),
+                         set(rdefrepr(rdef) for rdef in project.rdefs))
 
         version = Container.by_etype('Version')
-        self.assertEquals(set([('done_in_version', 'Ticket', 'Version'),
-                               ('documented_by', 'Version', 'XFile'),
-                               ('documented_by', 'Ticket', 'XFile')]),
-                           set(rdefrepr(rdef) for rdef in version.rdefs))
+        self.assertEqual(set([('done_in_version', 'Ticket', 'Version'),
+                              ('documented_by', 'Version', 'XFile'),
+                              ('documented_by', 'Ticket', 'XFile')]),
+                         set(rdefrepr(rdef) for rdef in version.rdefs))
 
     def test_border_rdefs_and_permissions(self):
         project = Container.by_etype('Project')
