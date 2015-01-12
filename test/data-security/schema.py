@@ -1,9 +1,8 @@
 from yams.buildobjs import EntityType, String, SubjectRelation, Bytes
-from cubicweb.schema import RRQLExpression
+from cubicweb.schema import RRQLExpression, ERQLExpression, PUB_SYSTEM_REL_PERMS
 
-from cubes.container import utils, config
+from cubes.container import config
 from cubes.container.secutils import PERM, PERMS
-from cubicweb.schema import PUB_SYSTEM_REL_PERMS
 
 # custom ad-hoc rules
 PERMS['project'] = {
