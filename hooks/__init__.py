@@ -16,14 +16,14 @@
 
 """cubicweb-container specific hooks and operations"""
 from collections import defaultdict
-from contextlib import contextmanager
 
 from logilab.common.deprecation import class_deprecated
 from logilab.common.registry import Predicate
 
 from cubicweb import ValidationError, onevent
 from cubicweb.server.hook import Hook, DataOperationMixIn, Operation
-from cubicweb.server.session import Session
+
+from cubes.fastimport.hooks import newsession
 
 from cubes.container.utils import parent_rschemas
 from cubes.container.config import Container
@@ -231,13 +231,6 @@ class CloneContainer(Hook):
     def __call__(self):
         CloneContainerOp.get_instance(self._cw).add_data(self.eidfrom)
 
-@contextmanager
-def new_session(user):
-    session = Session(user, user._cw.repo)
-    user = session.entity_from_eid(user.eid)
-    yield session
-    session.close()
-
 
 class CloneContainerOp(DataOperationMixIn, Operation):
 
@@ -250,7 +243,7 @@ class CloneContainerOp(DataOperationMixIn, Operation):
 
     def postcommit_event(self):
         for cloneid in self.get_data():
-            with new_session(self.cnx.user) as session:
+            with newsession(self.cnx, self.cnx.user) as session:
                 with session.new_cnx() as cnx:
                     cloned = cnx.entity_from_eid(cloneid)
                     config = Container.by_etype(cloned.cw_etype)
