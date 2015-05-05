@@ -79,10 +79,17 @@ def parent_eschemas(eschema):
             for eschema in rschema.targets(role=role):
                 yield eschema
 
+def dual(role):
+    return 'subject' if role == 'object' else 'object'
+
 def parent_rschemas(eschema):
-    for rschema, role, crole in _composite_rschemas(eschema):
-        if role != crole:
-            yield rschema, role
+    seen = set()
+    for rdef in parent_rdefs(eschema):
+        rschema = rdef.rtype
+        if (rschema, rdef.composite) in seen:
+            continue
+        seen.add((rschema, rdef.composite))
+        yield rschema, dual(rdef.composite)
 
 def parent_rdefs(eschema):
     """Yield all the rdefs leading to a composite (or `parent`)

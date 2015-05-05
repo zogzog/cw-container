@@ -73,8 +73,10 @@ def entity_and_parent(cnx, eidfrom, rtype, eidto, etypefrom, etypeto):
     else:
         return eidto, eidfrom
 
-def find_valued_parent_rtype(entity):
+def find_valued_parent_rtype(entity, but):
     for rschema, role in parent_rschemas(entity.e_schema):
+        if rschema.type == but:
+            continue
         if entity.related(rschema.type, role=role):
             return rschema.type
 
@@ -91,18 +93,18 @@ def _set_container_parent(cnx, rtype, eid, peid):
             return
         # this is a replacement: we allow replacing within the same container
         #                        for the same rtype
-        old_rtype = find_valued_parent_rtype(target)
-        assert old_rtype
-        container = target.cw_adapt_to('Container').related_container
-        parent = cnx.entity_from_eid(peid)
-        parent_container = parent.cw_adapt_to('Container').related_container
-        if container.eid != parent_container.eid or old_rtype != rtype:
-            cnx.warning('%s is already in container %s, cannot go into %s '
-                        ' (rtype from: %s, rtype to: %s)',
-                        target, parent_container, container, old_rtype, rtype)
-            msg = (cnx._('%s is already in a container through %s') %
-                   (target.e_schema, rtype))
-            raise ValidationError(target.eid, {rtype: msg})
+        other_rtype = find_valued_parent_rtype(target, but=rtype)
+        if other_rtype:
+            container = target.cw_adapt_to('Container').related_container
+            parent = cnx.entity_from_eid(peid)
+            parent_container = parent.cw_adapt_to('Container').related_container
+            if container.eid != parent_container.eid or rtype != other_rtype:
+                cnx.warning('%s is already in container %s, cannot go into %s '
+                            ' (rtype from: %s, rtype to: %s)',
+                            target, parent_container, container, other_rtype, rtype)
+                msg = (cnx._('%s is already in a container through %s') %
+                       (target.e_schema, rtype))
+                raise ValidationError(target.eid, {rtype: msg})
     target.cw_set(container_parent=peid)
 
 
