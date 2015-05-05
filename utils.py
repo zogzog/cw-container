@@ -74,10 +74,13 @@ def _composite_rschemas(eschema):
     return output
 
 def parent_eschemas(eschema):
-    for rschema, role, crole in _composite_rschemas(eschema):
-        if role != crole:
-            for eschema in rschema.targets(role=role):
-                yield eschema
+    seen = set()
+    for rdef in parent_rdefs(eschema):
+        eschema = composite(rdef)
+        if eschema.type in seen:
+            continue
+        seen.add(eschema.type)
+        yield eschema
 
 def dual(role):
     return 'subject' if role == 'object' else 'object'

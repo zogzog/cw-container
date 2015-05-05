@@ -114,7 +114,10 @@ class Container(object):
             eschema = schema[etype]
             if utils.needs_container_parent(eschema):
                 cparent_rschema = schema['container_parent']
-                for peschema in utils.parent_eschemas(eschema):
+                # we take a list because iterating over the schema while
+                # we're mutating parts of it won't work
+                peschemas = list(utils.parent_eschemas(eschema))
+                for peschema in peschemas:
                     petype = peschema.type
                     if (etype, petype) in cparent_rschema.rdefs:
                         continue
