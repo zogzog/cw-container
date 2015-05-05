@@ -31,6 +31,18 @@ class SchemaContainerTC(CubicWebTC):
             self.assertEqual(expected,
                              [rdefrepr(rdef) for rdef in utils.children_rdefs(schema[etype])])
 
+    def test_parent_rschemas(self):
+        schema = self.schema
+        for etype, expected in (('Diamond', []),
+                                ('Left', [('top_from_left', 'subject')]),
+                                ('Bottom', [('to_mess', 'subject'),
+                                            ('top_by_left', 'subject'),
+                                            ('top_by_right', 'subject')]),
+                                ('Mess', [])):
+            self.assertEqual(expected,
+                             sorted([(e.type, role)
+                                     for e, role in utils.parent_rschemas(schema[etype])]))
+
     def test_static_structure(self):
         diamond = config.Container.by_etype('Diamond')
         mess = config.Container.by_etype('Mess')
