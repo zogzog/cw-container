@@ -36,7 +36,7 @@ class Container(object):
                  skipetypes=(),
                  subcontainers=(),
                  clone_rtype_role=None,
-                 compulsory_hooks_categories=()):
+                 compulsory_hooks_categories=('metadata',)):
 
         self.cetype = cetype
         self.crtype = crtype
