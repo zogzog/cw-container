@@ -16,8 +16,6 @@
 
 import logging
 
-from logilab.common.deprecation import deprecated
-
 from rql.nodes import Comparison, VariableRef, make_relation
 
 from cubicweb import neg_role
@@ -61,17 +59,6 @@ def iterrdefs(eschema, meta=True, final=True, skiprtypes=(), skipetypes=()):
                     continue
                 if getattr(rdef, role) == eschema:
                     yield rdef
-
-@deprecated('[container 2.4] there are better ways')
-def _composite_rschemas(eschema):
-    output = []
-    for rschema, _types, role in eschema.relation_definitions():
-        if rschema.meta or rschema.final:
-            continue
-        crole = eschema.rdef(rschema, role, takefirst=True).composite
-        if crole:
-            output.append( (rschema, role, crole) )
-    return output
 
 def parent_eschemas(eschema):
     seen = set()
@@ -121,12 +108,6 @@ def children_rdefs(eschema):
                 if composite_eschema != eschema:
                     continue
             yield rdef
-
-# still used, but should die
-def children_rschemas(eschema):
-    for rschema, role, crole in _composite_rschemas(eschema):
-        if role == crole:
-            yield rschema
 
 def needs_container_parent(eschema):
     # NOTE: this must be fixed using rdefs

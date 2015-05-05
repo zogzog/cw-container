@@ -440,7 +440,8 @@ class Container(object):
                              for role in ('subject', 'object')
                              for rschema in getattr(eschema, '%s_relations' % role)()
                              if not (rschema.meta or rschema.final or rschema.type in skiprtypes)]
-        children_rtypes = [r.type for r in utils.children_rschemas(eschema)]
+        children_rtypes = set([r.rtype.type
+                               for r in utils.children_rdefs(eschema)])
         parent_etypes = set(utils.parent_eschemas(eschema))
         for rschema, role in adjacent_rschemas:
             if rschema in children_rtypes:
