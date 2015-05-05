@@ -1,7 +1,7 @@
 Source: cubicweb-container
 Section: web
 Priority: optional
-Maintainer: Aurélien Campéas <aurelien.campeas@logilab.fr>
+Maintainer: Aurélien Campéas <aurelien.campeas@pythonian.fr>
 Build-Depends: debhelper (>= 5.0.37.1), python (>=2.6), python-support
 Standards-Version: 3.8.0
 XS-Python-Version: >= 2.6
@@ -9,8 +9,8 @@ XS-Python-Version: >= 2.6
 Package: cubicweb-container
 Architecture: all
 Depends:
- cubicweb-common (>= 3.17.17),
- cubicweb-fastimport (>= 0.2.1),
+ cubicweb-common (>= 3.19.0),
+ cubicweb-fastimport (>= 0.3.0),
  ${python:Depends}
 Description: provides "generic container" services
  CubicWeb is a semantic web application framework.
