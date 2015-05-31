@@ -221,17 +221,17 @@ class Container(object):
 
         processed_permission_rdefs = set()
 
-        def role_to_container(rdef, rdef_role):
-            """ computes a mapping of (subjet, object) to 'S' or 'O' role name
-            giving the direction of the container root
+        def role_to_container(rdef):
+            """ rdef -> 'S' or 'O' role name
+            giving the path to the container root
             """
             if rdef.composite is None:
                 # if both the subj/obj are in the container, we
                 # default to the subject (it does not really matter)
                 if rdef.subject.type in self.etypes:
-                    rdef_role[rdef] = 'S'
+                    return {rdef : 'S'}
                 elif rdef.object.type in self.etypes:
-                    rdef_role[rdef] = 'O'
+                    return {rdef : 'O'}
 
                 return
             # structural relations:
@@ -254,7 +254,7 @@ class Container(object):
             if composite not in self.etypes:
                 return
 
-            rdef_role[rdef] = rdef.composite[:1].upper()
+            return {rdef : rdef.composite[:1].upper()}
 
         def set_rdefs_perms(rdefs_roles, perms, processed):
             """ for all collected rdefs, set the permissions
@@ -279,14 +279,14 @@ class Container(object):
         rdef_role = {}
         for rdef in self.rdefs:
             ON_COMMIT_ADD_RELATIONS.add(rdef.rtype.type)
-            role_to_container(rdef, rdef_role)
+            rdef_role.update(role_to_container(rdef) or {})
         set_rdefs_perms(rdef_role, inner_rdefs_perms, processed_permission_rdefs)
 
         # 2. border crossing rtypes
         rdef_role = {}
         for rdef in sorted(self.border_rdefs):
             ON_COMMIT_ADD_RELATIONS.add(rdef.rtype.type)
-            role_to_container(rdef, rdef_role)
+            rdef_role.update(role_to_container(rdef) or {})
         set_rdefs_perms(rdef_role, border_rdefs_perms, processed_permission_rdefs)
 
         setattr(self._schema, '_rdefs_%s_security' % self.cetype, True)
