@@ -1,4 +1,3 @@
-from warnings import warn
 import logging
 from collections import defaultdict, deque
 
@@ -48,8 +47,6 @@ class Container(object):
 
         self._schema = None
 
-        if cetype in _CONTAINER_ETYPE_MAP:
-            warn('Replacing existing container definition for %s' % cetype)
         _CONTAINER_ETYPE_MAP[cetype] = self
 
     def __str__(self):
