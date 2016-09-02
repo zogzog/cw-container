@@ -217,7 +217,7 @@ class CloneTC(ContainerTC):
 
             # run the task for deferred hooks
             task = cnx.find('CWWorkerTask', operation=u'run-deferred-hooks').one()
-            hooksrunner = self.vreg['worker.performer'].select('run-deferred-hooks', cnx)
+            hooksrunner = self.vreg['worker.performer'].select('run-deferred-hooks')
             hooksrunner.perform_task(cnx, task)
             cnx.commit()
 
@@ -271,7 +271,7 @@ class CloneTC(ContainerTC):
             self.assertEqual(folder.is_instance_of, cloned_folder.is_instance_of)
 
             self.assertIn(str(folder.eid), folder.cwuri)
-            self.assertEqual('', cloned_folder.cwuri)
+            self.assertEqual(str(cloned_folder.eid), cloned_folder.cwuri)
             # The entities linked via subject composite relations to the container
             # are linked to the cloned container as well:
             self.assertEqual(frozenset(doc.dc_title() or doc.data.getvalue()
