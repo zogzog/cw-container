@@ -21,7 +21,6 @@ class TwoContainersTC(ContainerTC):
 
     # Project
     def test_project_rdefs(self):
-        schema = self.vreg.schema
         project = Container.by_etype('Project')
 
         self.assertEqual(set([('requirement', 'Ticket', 'Card'),
