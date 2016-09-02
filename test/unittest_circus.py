@@ -1,11 +1,11 @@
 from logilab.common.testlib import unittest_main
 
-from cubicweb.devtools.testlib import CubicWebTC
+from cubicweb.devtools import testlib
 
 from cubes.container import config
 
 
-class CircusTC(CubicWebTC):
+class CircusTC(testlib.CubicWebTC):
     appid = 'data-circus'
 
     def test_static_structure(self):

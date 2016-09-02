@@ -1,10 +1,10 @@
 from logilab.common.testlib import unittest_main
-from cubicweb.devtools.testlib import CubicWebTC
+from cubicweb.devtools import testlib
 
 from cubes.container import utils, config
 from cubes.container.testutils import rdefrepr
 
-class SchemaContainerTC(CubicWebTC):
+class SchemaContainerTC(testlib.CubicWebTC):
 
     def test_needs_container_parent(self):
         schema = self.vreg.schema

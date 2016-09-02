@@ -1,14 +1,14 @@
 from logilab.common.testlib import unittest_main
 
 from cubicweb import Binary, Unauthorized
-from cubicweb.devtools.testlib import CubicWebTC
+from cubicweb.devtools import testlib
 
 from cubes.container.testutils import (new_version, new_ticket,
                                        new_patch, rdefrepr)
 from cubes.container.config import Container
 
 
-class BasicSecurityTC(CubicWebTC):
+class BasicSecurityTC(testlib.CubicWebTC):
     appid = 'data-tracker'
 
     def setup_database(self):
@@ -62,7 +62,7 @@ def permsrepr(perms):
                             for rule in perms.get(action, ()))
     return out
 
-class SecurityTC(CubicWebTC):
+class SecurityTC(testlib.CubicWebTC):
     appid = 'data-security'
 
     def test_rdefs(self):

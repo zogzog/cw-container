@@ -1,11 +1,11 @@
 from logilab.common.testlib import unittest_main
 from cubicweb import ValidationError
-from cubicweb.devtools.testlib import CubicWebTC
+from cubicweb.devtools import testlib
 
 from cubes.container.testutils import ContainerTC
 
 
-class ContainerLessTC(CubicWebTC):
+class ContainerLessTC(testlib.CubicWebTC):
 
     def test_free_from_container(self):
         with self.admin_access.repo_cnx() as cnx:
