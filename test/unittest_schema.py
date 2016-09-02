@@ -28,8 +28,8 @@ class SchemaContainerTC(testlib.CubicWebTC):
                                  [('to_right', 'IAmAnAttributeCarryingRelation', 'Right'),
                                   ('top_by_right', 'Bottom', 'Right')]),
                                 ('Bottom', [])):
-            self.assertEqual(expected,
-                             [rdefrepr(rdef) for rdef in utils.children_rdefs(schema[etype])])
+            self.assertCountEqual(expected,
+                                  [rdefrepr(rdef) for rdef in utils.children_rdefs(schema[etype])])
 
     def test_parent_rschemas(self):
         schema = self.schema
