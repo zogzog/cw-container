@@ -69,7 +69,7 @@ class ContainerEntitiesTC(ContainerTC):
             cnx.commit()
             notinside = cnx.entity_from_eid(notinside.eid)
             # notinside has a computable parent but no related container
-            self.assertNone(notinside.cw_adapt_to('Container'))
+            self.assertIsNone(notinside.cw_adapt_to('Container'))
             u = cnx.entity_from_eid(u.eid)
             self.assertEqual(self.d.eid, u.cw_adapt_to('Container').parent.eid)
             self.assertEqual(self.d.eid, u.cw_adapt_to('Container').related_container.eid)
