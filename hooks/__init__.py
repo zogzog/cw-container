@@ -22,8 +22,7 @@ from logilab.common.registry import Predicate
 
 from cubicweb import ValidationError, onevent
 from cubicweb.server.hook import Hook, DataOperationMixIn, Operation
-
-from cubes.fastimport.hooks import newsession
+from cubicweb.server.session import Session
 
 from cubes.container.utils import parent_rschemas
 from cubes.container.config import Container
@@ -245,15 +244,15 @@ class CloneContainerOp(DataOperationMixIn, Operation):
 
     def postcommit_event(self):
         for cloneid in self.get_data():
-            with newsession(self.cnx, self.cnx.user) as session:
-                with session.new_cnx() as cnx:
-                    cloned = cnx.entity_from_eid(cloneid)
-                    config = Container.by_etype(cloned.cw_etype)
-                    with cnx.deny_all_hooks_but(*config.compulsory_hooks_categories):
-                        self.prepare_cloned_container(session, cloned)
-                        cloned.cw_adapt_to('Container.clone').clone()
-                        self.finalize_cloned_container(cnx, cloned)
-                        cnx.commit()
+            session = Session(self.cnx.user, self.cnx.repo)
+            with session.new_cnx() as cnx:
+                cloned = cnx.entity_from_eid(cloneid)
+                config = Container.by_etype(cloned.cw_etype)
+                with cnx.deny_all_hooks_but(*config.compulsory_hooks_categories):
+                    self.prepare_cloned_container(session, cloned)
+                    cloned.cw_adapt_to('Container.clone').clone()
+                    self.finalize_cloned_container(cnx, cloned)
+                    cnx.commit()
 
     def finalize_cloned_container(self, cnx, clone):
         """ give a chance to cleanup cloned container after the cloning
