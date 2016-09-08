@@ -1,13 +1,14 @@
 from collections import defaultdict
 
 from cubicweb.__pkginfo__ import numversion
+from cubicweb.devtools import testlib
 from cubicweb.web.views import uicfg
 
-from cubes.container.testutils import ContainerTC
 from cubes.container import config
 
 afs = uicfg.autoform_section
 pvs = uicfg.primaryview_section
+
 
 def tree():
     return defaultdict(tree)
@@ -15,7 +16,7 @@ def tree():
 notcw319 = numversion[:2] < (3, 19)
 
 
-class UITC(ContainerTC):
+class UITC(testlib.CubicWebTC):
     appid = 'data-tracker'
 
     def test_uicfg(self):

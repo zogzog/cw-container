@@ -1,14 +1,16 @@
 import time
+
 from cubicweb import Binary
+
+from cubicweb.devtools import testlib
 
 from cubes.container import utils
 from cubes.container.config import Container
 from cubes.container.testutils import (new_version, new_ticket,
-                                       new_patch, new_card)
-from cubes.container.testutils import rdefrepr, ContainerTC
+                                       new_patch, new_card, rdefrepr)
 
 
-class TwoContainersTC(ContainerTC):
+class TwoContainersTC(testlib.CubicWebTC):
     appid = 'data-tracker'
 
     def test_needs_container_parent(self):
@@ -89,7 +91,8 @@ def parent_titles(parent):
         parents.append(parent.dc_title())
     return parents
 
-class CloneTC(ContainerTC):
+
+class CloneTC(testlib.CubicWebTC):
     appid = 'data-tracker'
 
     def setup_database(self):

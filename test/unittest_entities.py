@@ -1,8 +1,7 @@
 from logilab.common.testlib import unittest_main
+
 from cubicweb import ValidationError
 from cubicweb.devtools import testlib
-
-from cubes.container.testutils import ContainerTC
 
 
 class ContainerLessTC(testlib.CubicWebTC):
@@ -17,7 +16,7 @@ class ContainerLessTC(testlib.CubicWebTC):
             self.assertIsNone(l.cw_adapt_to('Container').parent)
 
 
-class ContainerEntitiesTC(ContainerTC):
+class ContainerEntitiesTC(testlib.CubicWebTC):
 
     def setup_database(self):
         with self.admin_access.repo_cnx() as cnx:

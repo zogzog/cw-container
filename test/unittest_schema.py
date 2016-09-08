@@ -1,8 +1,10 @@
 from logilab.common.testlib import unittest_main
+
 from cubicweb.devtools import testlib
 
 from cubes.container import utils, config
 from cubes.container.testutils import rdefrepr
+
 
 class SchemaContainerTC(testlib.CubicWebTC):
 

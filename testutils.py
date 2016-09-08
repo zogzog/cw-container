@@ -3,8 +3,6 @@ from contextlib import contextmanager
 from cubicweb.schema import (META_RTYPES, WORKFLOW_DEF_RTYPES, SYSTEM_RTYPES,
                              SCHEMA_TYPES, WORKFLOW_TYPES, INTERNAL_TYPES)
 
-from cubes.fastimport.testutils import FastImportTC
-
 @contextmanager
 def userlogin(self, *args):
     cnx = self.login(*args)
@@ -31,6 +29,3 @@ def new_card(req, contents=u"Let's start a spec ..."):
 def rdefrepr(rdef):
     """ rdef -> (rtype, subject type, object type) """
     return  (rdef.rtype.type, rdef.subject.type, rdef.object.type)
-
-
-ContainerTC = FastImportTC
