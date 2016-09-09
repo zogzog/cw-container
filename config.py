@@ -36,6 +36,54 @@ class Container(object):
     def all_etypes():
         return set(_CONTAINER_ETYPE_MAP.keys())
 
+    @classmethod
+    def container_adapters(cls, schema):
+        """Return a concrete subclass of the ContainerProtocol adapter with
+        selector set for *all* the containers
+        """
+        from cubes.container.entities import ContainerProtocol, ContainerClone
+        cetypes = []
+        etypes = set()
+        for container in _CONTAINER_ETYPE_MAP.itervalues():
+            container.bind(schema)
+            cetypes.append(container.cetype)
+            etypes |= container.etypes
+        prefix = ''.join(cetypes)
+        cpadapter = type(prefix + 'ContainerProtocol', (ContainerProtocol,), {})
+        cpadapter.__select__ = is_instance(*etypes)
+        ccadapter = type(prefix + 'ContainerClone', (ContainerClone,), {})
+        ccadapter.__select__ = is_instance(*etypes)
+        return (cpadapter, ccadapter)
+
+    @classmethod
+    def container_hooks(cls, schema):
+        """Return concrete subclasses of the SetContainerRelation hook with
+        selector set for *all* the containers and the NewContainer
+        hook with selector set for each container type.
+        """
+        from cubes.container.hooks import SetContainerRelation, NewContainer, match_rdefs
+        cetypes = []
+        rdefs = set()
+        parentrdefs = defaultdict(set)
+        for container in _CONTAINER_ETYPE_MAP.itervalues():
+            container.bind(schema)
+            cetypes.append(container.cetype)
+            rdefs |= container.rdefs
+            for rtype, from_to in container._container_parent_rdefs.iteritems():
+                parentrdefs[rtype] |= from_to
+        prefix = ''.join(cetypes)
+        setrelationhook = type(prefix + 'ContainerRelationHook',
+                               (SetContainerRelation,),
+                               {'__select__': match_rdefs(*rdefs),
+                                '__registry__': 'after_add_relation_hooks',
+                                '_container_parent_rdefs': parentrdefs})
+        newcontainerhook = type(prefix + 'NewContainer',
+                                (NewContainer,),
+                                {'__select__': is_instance(*cetypes),
+                                 '__registry__': 'after_add_entity_hooks'})
+        return (setrelationhook, newcontainerhook)
+
+
     # API
     cetype = None
     crtype = None
@@ -152,54 +200,6 @@ class Container(object):
                                                                'container_parent',
                                                                petype,
                                                                cardinality='?*'))
-
-
-    @classmethod
-    def container_adapters(cls, schema):
-        """Return a concrete subclass of the ContainerProtocol adapter with
-        selector set for *all* the containers
-        """
-        from cubes.container.entities import ContainerProtocol, ContainerClone
-        cetypes = []
-        etypes = set()
-        for container in _CONTAINER_ETYPE_MAP.itervalues():
-            container.bind(schema)
-            cetypes.append(container.cetype)
-            etypes |= container.etypes
-        prefix = ''.join(cetypes)
-        cpadapter = type(prefix + 'ContainerProtocol', (ContainerProtocol,), {})
-        cpadapter.__select__ = is_instance(*etypes)
-        ccadapter = type(prefix + 'ContainerClone', (ContainerClone,), {})
-        ccadapter.__select__ = is_instance(*etypes)
-        return (cpadapter, ccadapter)
-
-    @classmethod
-    def container_hooks(cls, schema):
-        """Return concrete subclasses of the SetContainerRelation hook with
-        selector set for *all* the containers and the NewContainer
-        hook with selector set for each container type.
-        """
-        from cubes.container.hooks import SetContainerRelation, NewContainer, match_rdefs
-        cetypes = []
-        rdefs = set()
-        parentrdefs = defaultdict(set)
-        for container in _CONTAINER_ETYPE_MAP.itervalues():
-            container.bind(schema)
-            cetypes.append(container.cetype)
-            rdefs |= container.rdefs
-            for rtype, from_to in container._container_parent_rdefs.iteritems():
-                parentrdefs[rtype] |= from_to
-        prefix = ''.join(cetypes)
-        setrelationhook = type(prefix + 'ContainerRelationHook',
-                               (SetContainerRelation,),
-                               {'__select__': match_rdefs(*rdefs),
-                                '__registry__': 'after_add_relation_hooks',
-                                '_container_parent_rdefs': parentrdefs})
-        newcontainerhook = type(prefix + 'NewContainer',
-                                (NewContainer,),
-                                {'__select__': is_instance(*cetypes),
-                                 '__registry__': 'after_add_entity_hooks'})
-        return (setrelationhook, newcontainerhook)
 
     def setup_etypes_security(self, schema, etype_perms):
         """Automatically decorate the etypes with the given permission rules,
