@@ -31,8 +31,7 @@ from cubicweb.view import EntityAdapter
 
 from cubes.fastimport.entities import FlushController
 
-from cubes.container import config
-
+from cubes.container.config import Container, clear_callback
 from cubes.container.utils import (parent_rdefs,
                                    needs_container_parent,
                                    _add_rqlst_restriction,
@@ -51,7 +50,7 @@ class ContainerProtocol(EntityAdapter):
 
     @property
     def related_container(self):
-        if self.entity.e_schema in config.Container.all_etypes():
+        if self.entity.e_schema in Container.all_etypes():
             # self.entity is the container itself
             return self.entity
         try:
@@ -61,7 +60,7 @@ class ContainerProtocol(EntityAdapter):
             return None
 
         if ccwetype:
-            crtype = config.Container.by_etype(ccwetype[0].name).crtype
+            crtype = Container.by_etype(ccwetype[0].name).crtype
             container = self.entity.related(rtype=crtype, role='subject', entities=True)
             if container:
                 return container[0]
@@ -72,7 +71,7 @@ class ContainerProtocol(EntityAdapter):
             container = parent.cw_adapt_to('Container').related_container
             if container is None:
                 return
-            if self.entity.e_schema not in config.Container.by_etype(container.cw_etype).skipetypes:
+            if self.entity.e_schema not in Container.by_etype(container.cw_etype).skipetypes:
                 return container
 
     @property
@@ -115,7 +114,7 @@ class ContainerClone(EntityAdapter):
 
     @cachedproperty
     def config(self):
-        return config.Container.by_etype(self.entity.cw_etype)
+        return Container.by_etype(self.entity.cw_etype)
 
     @property
     def compulsory_hooks_categories(self):
@@ -591,10 +590,10 @@ class MultiParentProtocol(EntityAdapter):
 def registration_callback(vreg):
     vreg.register_all(globals().values(), __name__)
 
-    config.clear_callback('after-registry-reload', 'register_container_adapters')
+    clear_callback('after-registry-reload', 'register_container_adapters')
 
     @onevent('after-registry-reload')
     def register_container_adapters():
-        for adapter in config.Container.container_adapters(vreg.schema):
+        for adapter in Container.container_adapters(vreg.schema):
             if adapter.__regid__ not in vreg[adapter.__registry__]:
                 vreg.register(adapter)

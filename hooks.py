@@ -268,6 +268,6 @@ def registration_callback(vreg):
 
     @onevent('after-registry-reload')
     def register_container_hooks():
-        for hook in config.Container.container_hooks(vreg.schema):
+        for hook in Container.container_hooks(vreg.schema):
             if hook.__regid__ not in vreg[hook.__registry__]:
                 vreg.register(hook)
