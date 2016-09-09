@@ -25,7 +25,7 @@ from cubicweb.server.hook import Hook, DataOperationMixIn, Operation
 from cubicweb.server.session import Session
 
 from cubes.container.utils import parent_rschemas
-from cubes.container.config import Container
+from cubes.container.config import Container, clear_callback
 
 
 def eid_etype(cnx, eid):
@@ -264,9 +264,11 @@ class CloneContainerOp(DataOperationMixIn, Operation):
 def registration_callback(vreg):
     vreg.register_all(globals().values(), __name__)
 
+    clear_callback('after-registry-reload', 'register_container_hooks')
+
     @onevent('after-registry-reload')
-    def register_hooks():
+    def register_container_hooks():
         from cubes.container import config
-        for hook in config.Container.container_hooks():
+        for hook in config.Container.container_hooks(vreg.schema):
             if hook.__regid__ not in vreg[hook.__registry__]:
                 vreg.register(hook)

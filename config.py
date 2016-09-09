@@ -5,7 +5,7 @@ from logilab.common.decorators import cachedproperty
 
 from yams.buildobjs import RelationType, RelationDefinition
 
-from cubicweb import schema as cw_schema
+from cubicweb import schema as cw_schema, CW_EVENT_MANAGER, onevent
 from cubicweb.predicates import is_instance
 from cubicweb.server import ON_COMMIT_ADD_RELATIONS
 
@@ -16,6 +16,14 @@ from cubes.container.secutils import PERM, PERMS
 logger = logging.getLogger('cubes.container')
 
 _CONTAINER_ETYPE_MAP = {}
+
+
+def clear_callback(event, name):
+    callbacks = []
+    for callback, args, kwargs in CW_EVENT_MANAGER.callbacks.get(event, ()):
+        if callback.__name__ != name:
+            callbacks.append((callback, args, kwargs))
+    CW_EVENT_MANAGER.callbacks[event] = callbacks
 
 
 class Container(object):
@@ -62,7 +70,23 @@ class Container(object):
         return '<Container(%s)>' % self.cetype
     __repr__ = __str__
 
+    def bind(self, schema):
+        if self._schema is not None and self._schema is not schema:
+            # empty schema dependant caches
+            for cached in ('rdefs', 'inner_rdefs', 'border_rdefs',
+                           'etypes', 'ordered_etypes', '_container_parent_rdefs'):
+                try:
+                    delattr(self, cached)
+                except AttributeError:
+                    continue
+            logger.warning('rebind container to another schema')
+        self._schema = schema
 
+    @property
+    def schema(self):
+        if self._schema is None:
+            raise AssertionError('unbound container')
+        return self._schema
 
     # setup methods
 
@@ -73,10 +97,13 @@ class Container(object):
         * (container_etype, etype, 'CWEType') for each container etype
         * an optional (if needed) (container_parent, etype, parent etype)
         """
-        self._schema = schema
-        if not utils.fsschema(schema):
-            logger.info('define_container: this is a repo schema, nothing to do')
-            return
+        assert utils.fsschema(schema), \
+            'this method is expected to be called only on filesystem schema (in schema.py)'
+        assert not getattr(schema, '_%s_define_container' % self.cetype, False), \
+            'this method is expected to be called only once on a schema (in schema.py)'
+        setattr(schema, '_%s_define_container' % self.cetype, True)
+
+        self.bind(schema)
 
         if not self.crtype in schema:
             # ease pluggability of container in existing applications
@@ -128,7 +155,7 @@ class Container(object):
 
 
     @classmethod
-    def container_adapters(cls):
+    def container_adapters(cls, schema):
         """Return a concrete subclass of the ContainerProtocol adapter with
         selector set for *all* the containers
         """
@@ -136,8 +163,9 @@ class Container(object):
         cetypes = []
         etypes = set()
         for container in _CONTAINER_ETYPE_MAP.itervalues():
+            container.bind(schema)
             cetypes.append(container.cetype)
-            etypes |=  container.etypes
+            etypes |= container.etypes
         prefix = ''.join(cetypes)
         cpadapter = type(prefix + 'ContainerProtocol', (ContainerProtocol,), {})
         cpadapter.__select__ = is_instance(*etypes)
@@ -146,7 +174,7 @@ class Container(object):
         return (cpadapter, ccadapter)
 
     @classmethod
-    def container_hooks(cls):
+    def container_hooks(cls, schema):
         """Return concrete subclasses of the SetContainerRelation hook with
         selector set for *all* the containers and the NewContainer
         hook with selector set for each container type.
@@ -156,8 +184,9 @@ class Container(object):
         rdefs = set()
         parentrdefs = defaultdict(set)
         for container in _CONTAINER_ETYPE_MAP.itervalues():
+            container.bind(schema)
             cetypes.append(container.cetype)
-            rdefs |=  container.rdefs
+            rdefs |= container.rdefs
             for rtype, from_to in container._container_parent_rdefs.iteritems():
                 parentrdefs[rtype] |= from_to
         prefix = ''.join(cetypes)
@@ -172,24 +201,28 @@ class Container(object):
                                  '__registry__': 'after_add_entity_hooks'})
         return (setrelationhook, newcontainerhook)
 
-    def setup_etypes_security(self, etype_perms):
+    def setup_etypes_security(self, schema, etype_perms):
         """Automatically decorate the etypes with the given permission rules,
         which must be a normal permissions dictionary.
 
         """
-        if (not utils.fsschema(self._schema) or
-            getattr(self._schema, '_etypes_%s_security' % self.cetype, False)):
-            return
+        assert utils.fsschema(schema), \
+            'this method is expected to be called only on filesystem schema (in schema.py)'
         assert isinstance(etype_perms, dict)
+        assert not getattr(schema, '_etypes_%s_security' % self.cetype, False), \
+            'this method is expected to be called only once on a schema (in schema.py)'
+        setattr(schema, '_etypes_%s_security' % self.cetype, True)
+
+        self.bind(schema)
+
         for etype in self.etypes:
-            eschema = self._schema[etype]
+            eschema = schema[etype]
             if isinstance(eschema.permissions, PERM):
                 eschema.permissions = PERMS[eschema.permissions]
             else:
                 eschema.permissions = etype_perms
-        setattr(self._schema, '_etypes_%s_security' % self.cetype, True)
 
-    def setup_rdefs_security(self, inner_rdefs_perms, border_rdefs_perms=None):
+    def setup_rdefs_security(self, schema, inner_rdefs_perms, border_rdefs_perms=None):
         """Automatically decorate the inner rdefs and border rdefs with the
         given permission rules.
 
@@ -215,9 +248,13 @@ class Container(object):
               __permissions__ = PERM('allowed-if-open-state')
 
         """
-        if (not utils.fsschema(self._schema) or
-            getattr(self._schema, '_rdefs_%s_security' % self.cetype, False)):
-            return
+        assert utils.fsschema(schema), \
+            'this method is expected to be called only on filesystem schema (in schema.py)'
+        assert not getattr(schema, '_rdefs_%s_security' % self.cetype, False), \
+            'this method is expected to be called only once on a schema (in schema.py)'
+        setattr(schema, '_rdefs_%s_security' % self.cetype, True)
+
+        self.bind(schema)
 
         processed_permission_rdefs = set()
 
@@ -289,20 +326,17 @@ class Container(object):
             rdef_role.update(role_to_container(rdef) or {})
         set_rdefs_perms(rdef_role, border_rdefs_perms, processed_permission_rdefs)
 
-        setattr(self._schema, '_rdefs_%s_security' % self.cetype, True)
-
     # /setup
     # container accessors
 
     @cachedproperty
     def rdefs(self):
         """Return the rdefs that define the structure of the container. """
-        assert self._schema, 'did you call .define_container ?'
         skiprtypes = self.skiprtypes | set((self.crtype, 'container_etype', 'container_parent'))
         structuralrdefs = set()
         otherrdefs = set()
         etypes = set()
-        candidates = deque([self._schema[self.cetype]])
+        candidates = deque([self.schema[self.cetype]])
         while candidates:
             eschema = candidates.pop()
             etypes.add(eschema.type)
@@ -336,7 +370,7 @@ class Container(object):
         """Return all the rdefs that belong to the container including
         structural rdefs
         """
-        rdefs = set(self.rdefs) # ensure we have ._pendingrdefs
+        rdefs = set(self.rdefs)  # ensure we have ._pendingrdefs
         etypes = self.etypes
         skiprtypes = set()
         if self.clone_rtype_role:
@@ -366,7 +400,7 @@ class Container(object):
             excluderdefs |= subconf.inner_rdefs
         border_crossing = set()
         for etype in self.etypes:
-            eschema = self._schema[etype]
+            eschema = self.schema[etype]
             for rdef in utils.iterrdefs(eschema, meta=False, final=False,
                                         skiprtypes=self.skiprtypes,
                                         skipetypes=self.skipetypes):
@@ -415,7 +449,7 @@ class Container(object):
         cprdefs = defaultdict(set)
         inner_rdefs = self.inner_rdefs
         for etype in self.etypes:
-            eschema = self._schema[etype]
+            eschema = self.schema[etype]
             if not utils.needs_container_parent(eschema):
                 continue
             # let's compute the parent rdefs of this container
@@ -435,7 +469,7 @@ class Container(object):
         # these should include rtypes
         # that create cycles but actually are false dependencies
         skiprtypes = set((self.crtype, 'container_etype', 'container_parent'))
-        eschema = self._schema[etype]
+        eschema = self.schema[etype]
         adjacent_rschemas = [(rschema, role)
                              for role in ('subject', 'object')
                              for rschema in getattr(eschema, '%s_relations' % role)()

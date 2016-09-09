@@ -68,6 +68,8 @@ class XFile(EntityType):
 
 
 def post_build_callback(schema):
+    config._CONTAINER_ETYPE_MAP.clear()
+
     project = config.Container('Project', 'project', subcontainers=('Version',))
     project.define_container(schema)
     version = config.Container('Version', 'version')
@@ -83,13 +85,13 @@ def post_build_callback(schema):
                        RRQLExpression('%s project P, U canwrite P' % role_to_container))
         }
 
-    project.setup_rdefs_security(project_rtypes_perms, project_rtypes_perms)
+    project.setup_rdefs_security(schema, project_rtypes_perms, project_rtypes_perms)
 
     # version container & security
-    version.setup_rdefs_security(PUB_SYSTEM_REL_PERMS, PUB_SYSTEM_REL_PERMS)
+    version.setup_rdefs_security(schema, PUB_SYSTEM_REL_PERMS, PUB_SYSTEM_REL_PERMS)
 
     for conf in (version, project):
-        conf.setup_etypes_security({
+        conf.setup_etypes_security(schema, {
             'read':   ('managers',
                        ERQLExpression('(X owned_by U) OR (X %s C, U canread C)' % conf.crtype)),
             'add':    ('managers', 'users'),

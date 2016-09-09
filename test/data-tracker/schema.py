@@ -123,6 +123,8 @@ class requirement(RelationDefinition):
 
 
 def post_build_callback(schema):
+    config._CONTAINER_ETYPE_MAP.clear()
+
     project = config.Container('Project', 'project',
                                subcontainers=('Folder', 'Project'))
     project.define_container(schema)
@@ -139,5 +141,5 @@ def post_build_callback(schema):
         }
 
 
-    project.setup_rdefs_security(inner_rdefs_perms, inner_rdefs_perms)
-    folder.setup_rdefs_security(PUB_SYSTEM_REL_PERMS)
+    project.setup_rdefs_security(schema, inner_rdefs_perms, inner_rdefs_perms)
+    folder.setup_rdefs_security(schema, PUB_SYSTEM_REL_PERMS)

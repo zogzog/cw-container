@@ -591,9 +591,10 @@ class MultiParentProtocol(EntityAdapter):
 def registration_callback(vreg):
     vreg.register_all(globals().values(), __name__)
 
+    config.clear_callback('after-registry-reload', 'register_container_adapters')
+
     @onevent('after-registry-reload')
-    def register_adapter():
-        from cubes.container import config
-        for adapter in config.Container.container_adapters():
+    def register_container_adapters():
+        for adapter in config.Container.container_adapters(vreg.schema):
             if adapter.__regid__ not in vreg[adapter.__registry__]:
                 vreg.register(adapter)

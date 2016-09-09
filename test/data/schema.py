@@ -74,6 +74,8 @@ class linked_to_mess(RelationDefinition):
 
 
 def post_build_callback(schema):
+    config._CONTAINER_ETYPE_MAP.clear()
+
     diamond = config.Container('Diamond', 'diamond',
                                skipetypes=('EtypeNotInContainers',),
                                clone_rtype_role=('is_clone_of', 'subject'))

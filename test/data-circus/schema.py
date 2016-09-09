@@ -37,6 +37,8 @@ class Umbrella(EntityType):
 
 
 def post_build_callback(schema):
+    config._CONTAINER_ETYPE_MAP.clear()
+
     circus = config.Container('Circus', 'circus', subcontainers=('Menagerie',))
     menagerie = config.Container('Menagerie', 'zoo')
     circus.define_container(schema)
