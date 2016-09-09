@@ -274,7 +274,7 @@ class Container(object):
 
         # 1. internal rtypes
         rdef_role = {}
-        for rdef in self.rdefs:
+        for rdef in self.inner_rdefs:
             ON_COMMIT_ADD_RELATIONS.add(rdef.rtype.type)
             rdef_role.update(role_to_container(rdef) or {})
         set_rdefs_perms(rdef_role, inner_rdefs_perms, processed_permission_rdefs)
