@@ -19,6 +19,15 @@ _CONTAINER_ETYPE_MAP = {}
 
 
 class Container(object):
+
+    @staticmethod
+    def by_etype(cetype):
+        return _CONTAINER_ETYPE_MAP.get(cetype)
+
+    @staticmethod
+    def all_etypes():
+        return set(_CONTAINER_ETYPE_MAP.keys())
+
     # API
     cetype = None
     crtype = None
@@ -53,13 +62,7 @@ class Container(object):
         return '<Container(%s)>' % self.cetype
     __repr__ = __str__
 
-    @staticmethod
-    def by_etype(cetype):
-        return _CONTAINER_ETYPE_MAP.get(cetype)
 
-    @staticmethod
-    def all_etypes():
-        return set(_CONTAINER_ETYPE_MAP.keys())
 
     # setup methods
 
