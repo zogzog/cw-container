@@ -31,17 +31,20 @@ def fsschema(schema):
     """
     return getattr(schema, 'fs', False)
 
+
 def composite(rdef):
     """ Return the `composite` eschema of a relation definition """
     if rdef.composite is None:
         return None
     return rdef.subject if rdef.composite == 'subject' else rdef.object
 
+
 def component(rdef):
     """ Return the `component` part of a composite relation  """
     if rdef.composite is None:
         return None
     return rdef.object if rdef.composite == 'subject' else rdef.subject
+
 
 def iterrdefs(eschema, meta=True, final=True, skiprtypes=(), skipetypes=()):
     """ yield all the relation definitions of an entity type """
@@ -60,6 +63,7 @@ def iterrdefs(eschema, meta=True, final=True, skiprtypes=(), skipetypes=()):
                 if getattr(rdef, role) == eschema:
                     yield rdef
 
+
 def parent_eschemas(eschema):
     seen = set()
     for rdef in parent_rdefs(eschema):
@@ -69,8 +73,10 @@ def parent_eschemas(eschema):
         seen.add(eschema.type)
         yield eschema
 
+
 def dual(role):
     return 'subject' if role == 'object' else 'object'
+
 
 def parent_rschemas(eschema):
     seen = set()
@@ -80,6 +86,7 @@ def parent_rschemas(eschema):
             continue
         seen.add((rschema, rdef.composite))
         yield rschema, dual(rdef.composite)
+
 
 def parent_rdefs(eschema):
     """Yield all the rdefs leading to a composite (or `parent`)
@@ -95,6 +102,7 @@ def parent_rdefs(eschema):
                     continue
             yield rdef
 
+
 def children_rdefs(eschema):
     """Yield all the rdefs leading to a component (or `child`)
     eschema. We must take care of etypes that are composed of
@@ -108,6 +116,7 @@ def children_rdefs(eschema):
                 if composite_eschema != eschema:
                     continue
             yield rdef
+
 
 def needs_container_parent(eschema):
     # NOTE: this must be fixed using rdefs
@@ -128,7 +137,7 @@ def linearize(etype_map, all_etypes):
                 # to complete the graph
                 etype_map[depetype] = dict()
     while independent:
-        indep_etype = min(independent) # get next in ascii order
+        indep_etype = min(independent)  # get next in ascii order
         independent.remove(indep_etype)
         sorted_etypes.append(indep_etype)
         for etype, incoming in etype_map.items():
@@ -158,6 +167,7 @@ def _add_rqlst_restriction(rqlst, rtype, optional=False):
     if optional:
         rel.change_optional('right')
 
+
 def _iter_mainvar_relations(rqlst):
     """pick up the main (first) selected variable and yield
     tuples (rtype, dest_var) for each restriction found in the ST
@@ -178,9 +188,8 @@ def _iter_mainvar_relations(rqlst):
         # XXX we should ignore relations found in a subquery or EXISTS
         if rel is not None and rel.children[0] == vref:
             if (isinstance(rel.children[1], Comparison)
-                and isinstance(rel.children[1].children[0], VariableRef)):
+                    and isinstance(rel.children[1].children[0], VariableRef)):
                 yield rel.r_type, rel.children[1].children[0]
-
 
 
 # migration

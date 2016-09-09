@@ -153,7 +153,7 @@ class Container(object):
 
         self.bind(schema)
 
-        if not self.crtype in schema:
+        if self.crtype not in schema:
             # ease pluggability of container in existing applications
             schema.add_relation_type(RelationType(self.crtype, inlined=True))
             cw_schema.META_RTYPES.add(self.crtype)
@@ -204,7 +204,6 @@ class Container(object):
     def setup_etypes_security(self, schema, etype_perms):
         """Automatically decorate the etypes with the given permission rules,
         which must be a normal permissions dictionary.
-
         """
         assert utils.fsschema(schema), \
             'this method is expected to be called only on filesystem schema (in schema.py)'
@@ -266,9 +265,9 @@ class Container(object):
                 # if both the subj/obj are in the container, we
                 # default to the subject (it does not really matter)
                 if rdef.subject.type in self.etypes:
-                    return {rdef : 'S'}
+                    return {rdef: 'S'}
                 elif rdef.object.type in self.etypes:
-                    return {rdef : 'O'}
+                    return {rdef: 'O'}
 
                 return
             # structural relations:
@@ -291,7 +290,7 @@ class Container(object):
             if composite not in self.etypes:
                 return
 
-            return {rdef : rdef.composite[:1].upper()}
+            return {rdef: rdef.composite[:1].upper()}
 
         def set_rdefs_perms(rdefs_roles, perms, processed):
             """ for all collected rdefs, set the permissions
@@ -356,7 +355,7 @@ class Container(object):
                 if eschema == composite:
                     structuralrdefs.add(rdef)
                     if (component in etypes or             # already seen
-                        component in self.subcontainers):  # delegated
+                            component in self.subcontainers):  # delegated
                         continue
                     candidates.append(component)
 
@@ -488,7 +487,7 @@ class Container(object):
                 if target.type not in parent_etypes:
                     # an inner not-parent, not-children relation
                     if rdef.cardinality[0 if role == 'subject' else 1] in '?*':
-                        continue # this is a soft dependency
+                        continue  # this is a soft dependency
                 # what shoulld be left is either entities bound by '1+' cardinalities
                 # or parent entities
                 etypes[target.type].append((rdef, role))
