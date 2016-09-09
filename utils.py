@@ -1,4 +1,4 @@
-# copyright 2011-2015 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
+# copyright 2011-2016 LOGILAB S.A. (Paris, FRANCE), all rights reserved.
 # contact http://www.logilab.fr -- mailto:contact@logilab.fr
 #
 # This program is free software: you can redistribute it and/or modify it under
@@ -14,14 +14,9 @@
 # You should have received a copy of the GNU Lesser General Public License along
 # with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import logging
-
 from rql.nodes import Comparison, VariableRef, make_relation
 
 from cubicweb import neg_role
-
-
-logger = logging.getLogger()
 
 
 def fsschema(schema):

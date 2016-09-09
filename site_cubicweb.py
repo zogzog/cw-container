@@ -1,4 +1,3 @@
-import logging
 from logilab.common.decorators import monkeypatch
 
 from yams.reader import SchemaLoader
@@ -20,8 +19,3 @@ def load(*args, **kwargs):
     SchemaLoader.schemacls.fs = False
     schema.fs = True
     return schema
-
-
-
-
-LOGGER = logging.getLogger('cubes.container')
