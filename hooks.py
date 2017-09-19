@@ -24,8 +24,6 @@ from cubicweb.server.hook import Hook, DataOperationMixIn, Operation
 
 from cubes.container.utils import parent_rschemas
 
-def eid_etype(session, eid):
-    return session.describe(eid)[0]
 
 def entity_and_parent(session, eidfrom, rtype, eidto, etypefrom, etypeto):
     """ given a triple (eidfrom, rtype, eidto)
@@ -89,8 +87,8 @@ class SetContainerRelation(Hook):
     _container_parent_rdefs = {}
 
     def __call__(self):
-        etypefrom = eid_etype(self._cw, self.eidfrom)
-        etypeto = eid_etype(self._cw, self.eidto)
+        etypefrom = self._cw.entity_type(self.eidfrom)
+        etypeto = self._cw.entity_type(self.eidto)
         eid, peid = entity_and_parent(self._cw, self.eidfrom, self.rtype, self.eidto,
                                       etypefrom, etypeto)
         AddContainerRelationOp.get_instance(self._cw).add_data((eid, peid))
@@ -113,7 +111,7 @@ class SetChildContainerRelation(Hook):
     def __call__(self):
         container = self._cw.entity_from_eid(self.eidto)
         peid = self.eidfrom
-        etypefrom = eid_etype(self._cw, peid)
+        etypefrom = self._cw.entity_type(peid)
         eschema = self._cw.vreg.schema[etypefrom]
         for rschema, targets, role in eschema.relation_definitions():
             if rschema in container.container_config.skiprtypes:
@@ -139,8 +137,8 @@ class SetContainerParent(Hook):
     category = 'container'
 
     def __call__(self):
-        etypefrom = eid_etype(self._cw, self.eidfrom)
-        etypeto = eid_etype(self._cw, self.eidto)
+        etypefrom = self._cw.entity_type(self.eidfrom)
+        etypeto = self._cw.entity_type(self.eidto)
         eid, peid = entity_and_parent(self._cw, self.eidfrom, self.rtype, self.eidto,
                                       etypefrom, etypeto)
         _set_container_parent(self._cw, self.rtype, eid, peid)
