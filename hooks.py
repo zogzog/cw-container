@@ -207,16 +207,16 @@ class CloneContainerOp(DataOperationMixIn, Operation):
 
     def postcommit_event(self):
         for cloneid in self.get_data():
-            with self.session.repo.internal_session() as session:
-                cloned = session.entity_from_eid(cloneid)
+            with self.session.repo.internal_cnx() as cnx:
+                cloned = cnx.entity_from_eid(cloneid)
                 cloner = cloned.cw_adapt_to('Container.clone')
                 # XXX(syt) why isn't this in the adapter rather than in the
                 # operation?
-                with session.deny_all_hooks_but(*cloner.compulsory_hooks_categories):
-                    self.prepare_cloned_container(session, cloned)
+                with cnx.deny_all_hooks_but(*cloner.compulsory_hooks_categories):
+                    self.prepare_cloned_container(cnx, cloned)
                     cloner.clone()
-                    self.finalize_cloned_container(session, cloned)
-                    session.commit()
+                    self.finalize_cloned_container(cnx, cloned)
+                    cnx.commit()
 
     def finalize_cloned_container(self, session, clone):
         """ give a chance to cleanup cloned container after the cloning
