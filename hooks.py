@@ -25,12 +25,12 @@ from cubicweb.server.hook import Hook, DataOperationMixIn, Operation
 from cubes.container.utils import parent_rschemas
 
 
-def entity_and_parent(session, eidfrom, rtype, eidto, etypefrom, etypeto):
+def entity_and_parent(cnx, eidfrom, rtype, eidto, etypefrom, etypeto):
     """ given a triple (eidfrom, rtype, eidto)
     where one of the two eids is the parent of the other,
     compute a return (eid, eidparent)
     """
-    crole = session.vreg.schema[rtype].rdef(etypefrom, etypeto).composite
+    crole = cnx.vreg.schema[rtype].rdef(etypefrom, etypeto).composite
     if crole == 'object':
         return eidfrom, eidto
     else:
@@ -41,8 +41,8 @@ def find_valued_parent_rtype(entity):
         if entity.related(rschema.type, role=role):
             return rschema.type
 
-def _set_container_parent(session, rtype, eid, peid):
-    target = session.entity_from_eid(eid)
+def _set_container_parent(cnx, rtype, eid, peid):
+    target = cnx.entity_from_eid(eid)
     if target.container_parent:
         mp_protocol = target.cw_adapt_to('container.multiple_parents')
         if mp_protocol:
@@ -50,7 +50,7 @@ def _set_container_parent(session, rtype, eid, peid):
             return
         cparent = target.container_parent[0]
         if cparent.eid == peid:
-            session.warning('relinking %s (eid:%s parent:%s)', rtype, eid, peid)
+            cnx.warning('relinking %s (eid:%s parent:%s)', rtype, eid, peid)
             return
         # this is a replacement: we allow replacing within the same container
         # for the same rtype
@@ -60,18 +60,18 @@ def _set_container_parent(session, rtype, eid, peid):
             icontainer = target.cw_adapt_to('Container')
         except Exception:
             # select ambiguity, only in debug mode
-            msg = (session._('%s is already in a container through %s') %
+            msg = (cnx._('%s is already in a container through %s') %
                    (target.e_schema, rtype))
             raise ValidationError(target.eid, {rtype: msg})
         container = icontainer.related_container
-        parent = session.entity_from_eid(peid)
+        parent = cnx.entity_from_eid(peid)
         parent_container = parent.cw_adapt_to('Container').related_container
         if (container is not None and parent_container is not None and
                 (container.eid != parent_container.eid or old_rtype != rtype)):
-            session.warning('%s is already in container %s, cannot go into %s '
-                         ' (rtype from: %s, rtype to: %s)',
-                         target, parent_container, container, old_rtype, rtype)
-            msg = (session._('%s is already in a container through %s') %
+            cnx.warning('%s is already in container %s, cannot go into %s '
+                        ' (rtype from: %s, rtype to: %s)',
+                        target, parent_container, container, old_rtype, rtype)
+            msg = (cnx._('%s is already in a container through %s') %
                    (target.e_schema, rtype))
             raise ValidationError(target.eid, {rtype: msg})
     target.cw_set(container_parent=peid)
@@ -155,18 +155,18 @@ class AddContainerRelationOp(DataOperationMixIn, Operation):
         etype = container.e_schema.type
         if etype in cwetype_eid_map:
             return cwetype_eid_map[etype]
-        eid = self.session.execute('CWEType T WHERE T name %(name)s',
-                                   {'name': etype}).rows[0][0]
+        eid = self.cnx.execute('CWEType T WHERE T name %(name)s',
+                               {'name': etype}).rows[0][0]
         cwetype_eid_map[etype] = eid
         return eid
 
     def precommit_event(self):
         cwetype_eid_map = {}
-        session = self.session
+        cnx = self.cnx
         container_rtype_rel = defaultdict(list)
         container_etype_rel = []
         for eid, peid in self.get_data():
-            parent = session.entity_from_eid(peid)
+            parent = cnx.entity_from_eid(peid)
             cprotocol = parent.cw_adapt_to('Container')
             container = cprotocol.related_container
             if container is None:
@@ -178,9 +178,9 @@ class AddContainerRelationOp(DataOperationMixIn, Operation):
             container_rtype_rel[container.container_config.rtype].append((eid, container.eid))
             container_etype_rel.append((eid, self._container_cwetype_eid(container, cwetype_eid_map)))
         if container_rtype_rel:
-            session.add_relations(container_rtype_rel.items())
+            cnx.add_relations(container_rtype_rel.items())
         if container_etype_rel:
-            session.add_relations([('container_etype', container_etype_rel)])
+            cnx.add_relations([('container_etype', container_etype_rel)])
 
 
 # clone using <clone_relation> Hook & Operation
@@ -198,7 +198,7 @@ class CloneContainer(Hook):
 
 class CloneContainerOp(DataOperationMixIn, Operation):
 
-    def prepare_cloned_container(self, session, clone):
+    def prepare_cloned_container(self, cnx, clone):
         """ give a chance to cleanup cloned container before the process starts
         e.g.: it may already have a workflow state but we want to ensure it has none
         before it is entirely cloned
@@ -207,7 +207,7 @@ class CloneContainerOp(DataOperationMixIn, Operation):
 
     def postcommit_event(self):
         for cloneid in self.get_data():
-            with self.session.repo.internal_cnx() as cnx:
+            with self.cnx.repo.internal_cnx() as cnx:
                 cloned = cnx.entity_from_eid(cloneid)
                 cloner = cloned.cw_adapt_to('Container.clone')
                 # XXX(syt) why isn't this in the adapter rather than in the
@@ -218,7 +218,7 @@ class CloneContainerOp(DataOperationMixIn, Operation):
                     self.finalize_cloned_container(cnx, cloned)
                     cnx.commit()
 
-    def finalize_cloned_container(self, session, clone):
+    def finalize_cloned_container(self, cnx, clone):
         """ give a chance to cleanup cloned container after the cloning
         (can be useful for various hooks)
         """
