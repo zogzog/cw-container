@@ -9,7 +9,7 @@
 %{!?_python_sitelib: %define _python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 
 Name:           cubicweb-container
-Version:        2.6.0
+Version:        2.6.1
 Release:        logilab.1%{?dist}
 Summary:        provides "generic container" services
 Group:          Applications/Internet
@@ -20,8 +20,7 @@ BuildArch:      noarch
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 BuildRequires:  %{python} %{python}-setuptools
-Requires:       cubicweb >= 3.15.10
-Requires:       %{python}-yams >= 0.38.1
+Requires:       python-cubicweb >= 3.24.0
 
 %description
 provides "generic container" services
@@ -44,4 +43,4 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-, root, root)
-/*
+%{_prefix}/share/cubicweb*
